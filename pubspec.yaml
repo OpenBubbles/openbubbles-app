@@ -23,6 +23,7 @@ dependencies:
     sdk: flutter
   adaptive_theme: ^3.6.0
   animated_size_and_fade: ^4.0.0
+  in_app_update: ^4.2.3
   animations: ^2.0.11
   app_links: ^6.1.1
   async_task: ^1.1.1
