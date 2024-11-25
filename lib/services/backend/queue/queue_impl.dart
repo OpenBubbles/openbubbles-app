@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 abstract class Queue extends GetxService {
   bool isProcessing = false;
   List<QueueItem> items = [];
+  static List<QueueItem> processingMessages = [];
 
   Future<void> queue(QueueItem item) async {
     final returned = await prepItem(item);
@@ -48,6 +49,7 @@ abstract class Queue extends GetxService {
 
     isProcessing = true;
     QueueItem queued = items.removeAt(0);
+    processingMessages.add(queued);
 
     try {
       await handleQueueItem(queued).catchError((err) async {
@@ -69,6 +71,7 @@ abstract class Queue extends GetxService {
       queued.completer?.completeError(ex);
     }
 
+    processingMessages.remove(queued);
     await processNextItem();
   }
 

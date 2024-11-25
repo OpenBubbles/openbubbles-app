@@ -23,6 +23,26 @@ class ActionHandler extends GetxService {
   final List<String> handledNewMessages = [];
   CancelToken? latestCancelToken;
 
+  @override
+  void onInit() {
+    super.onInit();
+    processPendingMessages();
+  }
+
+  Future<void> processPendingMessages() async {
+    for (var item in Queue.processingMessages) {
+      if (item is IncomingItem) {
+        await handleNewMessage(item.chat, item.message, item.tempGuid);
+      } else if (item is OutgoingItem) {
+        if (item.type == QueueType.sendMessage) {
+          await sendMessage(item.chat, item.message, item.selected, item.reaction);
+        } else if (item.type == QueueType.sendAttachment) {
+          await sendAttachment(item.chat, item.message, item.customArgs?['audio'] ?? false);
+        }
+      }
+    }
+  }
+
   /// Checks if a GUID has been handled.
   /// After each check, before returning, trim the list of GUIDs to the last 100.
   bool shouldNotifyForNewMessageGuid(String guid) {

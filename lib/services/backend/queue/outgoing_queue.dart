@@ -57,6 +57,9 @@ class OutgoingQueue extends Queue {
     assert(_ is OutgoingItem);
     final item = _ as OutgoingItem;
 
+    // Add message to the processingMessages list
+    processingMessages.add(item);
+
     switch (item.type) {
       case QueueType.sendMessage:
         await handleSend(() => ah.sendMessage(item.chat, item.message, item.selected, item.reaction), item.chat);
@@ -68,5 +71,8 @@ class OutgoingQueue extends Queue {
         Logger.info("Unhandled queue event: ${item.type.name}");
         break;
     }
+
+    // Remove message from the processingMessages list
+    processingMessages.remove(item);
   }
 }

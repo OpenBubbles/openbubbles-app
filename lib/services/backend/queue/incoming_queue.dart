@@ -16,6 +16,9 @@ class IncomingQueue extends Queue {
     assert(_ is IncomingItem);
     final item = _ as IncomingItem;
 
+    // Add message to the processingMessages list
+    processingMessages.add(item);
+
     switch (item.type) {
       case QueueType.newMessage:
         await ah.handleNewMessage(item.chat, item.message, item.tempGuid);
@@ -27,5 +30,8 @@ class IncomingQueue extends Queue {
         Logger.info("Unhandled queue event: ${item.type.name}");
         break;
     }
+
+    // Remove message from the processingMessages list
+    processingMessages.remove(item);
   }
 }
