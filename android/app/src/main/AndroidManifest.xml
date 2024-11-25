@@ -369,6 +369,7 @@
         <meta-data
             android:name="WindowManagerPreference:FreeformWindowOrientation"
             android:value="landscape" />
+        <meta-data android:name="com.google.android.play.core.updates" android:value="true"/>
     </application>
 
 </manifest>

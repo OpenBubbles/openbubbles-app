@@ -16,6 +16,9 @@ import com.bluebubbles.messaging.services.rustpush.APNService
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 
 class MainActivity : FlutterFragmentActivity(), ComponentCallbacks2 {
     companion object {
@@ -30,6 +33,7 @@ class MainActivity : FlutterFragmentActivity(), ComponentCallbacks2 {
         } else {
             startService(Intent(this, APNService::class.java))
         }
+        checkForUpdate()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -89,6 +93,23 @@ class MainActivity : FlutterFragmentActivity(), ComponentCallbacks2 {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == Constants.notificationListenerRequestCode) {
             MethodCallHandler.getNotificationListenerResult?.success(resultCode == Activity.RESULT_OK)
+        }
+    }
+
+    private fun checkForUpdate() {
+        val appUpdateManager = AppUpdateManagerFactory.create(this)
+        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+
+        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
+                appUpdateManager.startUpdateFlowForResult(
+                    appUpdateInfo,
+                    AppUpdateType.IMMEDIATE,
+                    this,
+                    1001
+                )
+            }
         }
     }
 }
