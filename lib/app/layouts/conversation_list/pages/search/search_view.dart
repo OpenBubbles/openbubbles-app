@@ -25,12 +25,14 @@ class SearchResult {
   final String search;
   final String chatGuidFilter;
   final String method;
-  final List<Tuple2<Chat, Message>> results;
+  final List<Tuple2<Chat, Message>> messageResults;
+  final List<Chat> chatResults;
 
   SearchResult({
     required this.search,
     required this.method,
-    required this.results,
+    required this.messageResults,
+    required this.chatResults,
     this.chatGuidFilter = "",
   });
 }
@@ -87,7 +89,7 @@ class SearchViewState extends OptimizedState<SearchView> {
     // If we've already searched for the results and there are none, set no results and return
     if (pastSearches
             .firstWhereOrNull((e) => e.search == newSearch && e.method == (local ? "local" : "network"))
-            ?.results
+            ?.messageResults
             .isEmpty ??
         false) {
       return setState(() {
@@ -102,53 +104,67 @@ class SearchViewState extends OptimizedState<SearchView> {
     final search = SearchResult(
       search: currentSearchTerm!,
       method: local ? "local" : "network",
-      results: [],
+      messageResults: [],
+      chatResults: [],
     );
 
     if (local) {
-      obx.Condition<Message> condition = Message_.text
+      obx.Condition<Message> messageCondition = Message_.text
           .contains(currentSearchTerm!, caseSensitive: false)
           .and(Message_.associatedMessageGuid.isNull())
           .and(Message_.dateDeleted.isNull())
           .and(Message_.dateCreated.notNull());
 
       if (isFromMe) {
-        condition = condition.and(Message_.isFromMe.equals(true));
+        messageCondition = messageCondition.and(Message_.isFromMe.equals(true));
       } else if (isNotFromMe) {
-        condition = condition.and(Message_.isFromMe.equals(false));
+        messageCondition = messageCondition.and(Message_.isFromMe.equals(false));
       } else if (selectedHandle != null) {
-        condition = condition.and(Message_.handleId.equals(selectedHandle!.originalROWID!));
+        messageCondition = messageCondition.and(Message_.handleId.equals(selectedHandle!.originalROWID!));
       }
 
       if (sinceDate != null) {
-        condition = condition.and(Message_.dateCreated.greaterOrEqual(sinceDate!.millisecondsSinceEpoch));
+        messageCondition = messageCondition.and(Message_.dateCreated.greaterOrEqual(sinceDate!.millisecondsSinceEpoch));
       }
 
-      QueryBuilder<Message> qBuilder = Database.messages.query(condition);
+      QueryBuilder<Message> messageQueryBuilder = Database.messages.query(messageCondition);
 
       if (selectedChat != null) {
-        qBuilder = qBuilder..link(Message_.chat, Chat_.guid.equals(selectedChat!.guid));
+        messageQueryBuilder = messageQueryBuilder..link(Message_.chat, Chat_.guid.equals(selectedChat!.guid));
       }
 
-      final query = qBuilder.order(Message_.dateCreated, flags: Order.descending).build();
-      query.limit = 50;
-      final results = query.find();
-      query.close();
+      final messageQuery = messageQueryBuilder.order(Message_.dateCreated, flags: Order.descending).build();
+      messageQuery.limit = 50;
+      final messageResults = messageQuery.find();
+      messageQuery.close();
 
       List<Chat> chats = [];
       List<Message> messages = [];
-      messages = results.map((e) {
+      messages = messageResults.map((e) {
         // grab attachments, associated messages, and handle
         e.realAttachments;
         e.fetchAssociatedMessages();
         e.handle = e.getHandle();
         return e;
       }).toList();
-      chats = results.map((e) => e.chat.target!).toList();
+      chats = messageResults.map((e) => e.chat.target!).toList();
       chats.forEachIndexed((index, element) {
         element.latestMessage = messages[index];
-        search.results.add(Tuple2(element, messages[index]));
+        search.messageResults.add(Tuple2(element, messages[index]));
       });
+
+      obx.Condition<Chat> chatCondition = Chat_.title
+          .contains(currentSearchTerm!, caseSensitive: false)
+          .and(Chat_.dateDeleted.isNull());
+
+      QueryBuilder<Chat> chatQueryBuilder = Database.chats.query(chatCondition);
+
+      final chatQuery = chatQueryBuilder.order(Chat_.title, flags: Order.ascending).build();
+      chatQuery.limit = 50;
+      final chatResults = chatQuery.find();
+      chatQuery.close();
+
+      search.chatResults.addAll(chatResults);
     } else {
       final whereClause = [
         {
@@ -182,7 +198,7 @@ class SearchViewState extends OptimizedState<SearchView> {
         });
       }
 
-      final results = await MessagesService.getMessages(
+      final messageResults = await MessagesService.getMessages(
         limit: 50,
         after: sinceDate?.millisecondsSinceEpoch,
         withChats: true,
@@ -193,26 +209,40 @@ class SearchViewState extends OptimizedState<SearchView> {
       );
       // we query chats from DB so we can get contact names
       // ignore: prefer_const_constructors
-      final items = Tuple2(<Chat>[], <Message>[]);
-      for (dynamic item in results) {
+      final messageItems = Tuple2(<Chat>[], <Message>[]);
+      for (dynamic item in messageResults) {
         final chat = Chat.fromMap(item['chats'][0]);
         final message = Message.fromMap(item);
-        items.item1.add(chat);
-        items.item2.add(message);
+        messageItems.item1.add(chat);
+        messageItems.item2.add(message);
       }
-      final chatsToGet = items.item1.map((e) => e.guid).toList();
+      final chatsToGet = messageItems.item1.map((e) => e.guid).toList();
       final dbChats = Database.chats.query(Chat_.guid.oneOf(chatsToGet)).build().find();
-      for (int i = 0; i < items.item1.length; i++) {
-        final chat = dbChats.firstWhereOrNull((e) => e.guid == items.item1[i].guid) ?? items.item1[i];
-        chat.latestMessage = items.item2[i];
-        search.results.add(Tuple2(chat, items.item2[i]));
+      for (int i = 0; i < messageItems.item1.length; i++) {
+        final chat = dbChats.firstWhereOrNull((e) => e.guid == messageItems.item1[i].guid) ?? messageItems.item1[i];
+        chat.latestMessage = messageItems.item2[i];
+        search.messageResults.add(Tuple2(chat, messageItems.item2[i]));
       }
+
+      final chatResults = await ChatsService.getChats(
+        limit: 50,
+        withParticipants: true,
+        where: [
+          {
+            'statement': 'chat.title LIKE :term COLLATE NOCASE',
+            'args': {'term': "%$currentSearchTerm%"}
+          },
+          {'statement': 'chat.date_deleted IS NULL', 'args': null}
+        ],
+      );
+      final chatItems = chatResults.map((e) => Chat.fromMap(e)).toList();
+      search.chatResults.addAll(chatItems);
     }
 
     pastSearches.add(search);
     setState(() {
       isSearching = false;
-      noResults = search.results.isEmpty;
+      noResults = search.messageResults.isEmpty && search.chatResults.isEmpty;
       currentSearch = search;
     });
   }
@@ -447,8 +477,8 @@ class SearchViewState extends OptimizedState<SearchView> {
                           .copyWith(color: context.theme.colorScheme.outline, height: 1.5)
                           .apply(fontSizeFactor: ss.settings.skin.value == Skins.Material ? 1.05 : 1.0);
 
-                      final chat = currentSearch!.results[index].item1;
-                      final message = currentSearch!.results[index].item2;
+                      final chat = currentSearch!.messageResults[index].item1;
+                      final message = currentSearch!.messageResults[index].item2;
 
                       // Create the textspans
                       List<InlineSpan> spans = [];
@@ -546,7 +576,55 @@ class SearchViewState extends OptimizedState<SearchView> {
                         ),
                       );
                     },
-                    childCount: currentSearch!.results.length,
+                    childCount: currentSearch!.messageResults.length,
+                  ),
+                ),
+              if (!isSearching && currentSearch != null)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final chat = currentSearch!.chatResults[index];
+
+                      return Container(
+                        decoration: BoxDecoration(
+                          border: !ss.settings.hideDividers.value
+                              ? Border(
+                                  bottom: BorderSide(
+                                    color: context.theme.colorScheme.background.oppositeLightenOrDarken(15),
+                                    width: 0.5,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        child: ListTile(
+                          mouseCursor: SystemMouseCursors.click,
+                          title: RichText(
+                            text: TextSpan(
+                              children: MessageHelper.buildEmojiText(
+                                chat.getTitle(),
+                                context.theme.textTheme.bodyLarge!,
+                              ),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          leading: ContactAvatarGroupWidget(
+                            chat: chat,
+                            size: 40,
+                            editable: false,
+                          ),
+                          onTap: () {
+                            ns.pushAndRemoveUntil(
+                              context,
+                              ConversationView(
+                                chat: chat,
+                              ),
+                              (route) => route.isFirst,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    childCount: currentSearch!.chatResults.length,
                   ),
                 )
             ],
@@ -780,7 +858,6 @@ class SearchViewState extends OptimizedState<SearchView> {
                                   onSelected: (selected) {
                                     setState(() {
                                       isNotFromMe = selected;
-                                      isSearching = false;
                                       noResults = false;
                                       currentSearch = null;
                                     });

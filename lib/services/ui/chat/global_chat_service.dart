@@ -81,4 +81,11 @@ class _GlobalChatService extends GetxService {
       }
     }
   }
+
+  Future<List<Chat>> searchChats(String searchTerm) async {
+    final query = Database.chats.query(Chat_.title.contains(searchTerm, caseSensitive: false)).build();
+    final results = query.find();
+    query.close();
+    return results;
+  }
 }
