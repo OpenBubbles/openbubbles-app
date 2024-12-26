@@ -872,9 +872,8 @@ class Chat {
     });
   }
 
-  static void softDelete(Chat chat) async {
+  static void softDelete(Chat chat, {bool markDeleted = true}) async {
     if (kIsWeb) return;
-    if (backend.canDelete()) return deleteChat(chat);
     // close the convo view page if open and wait for it to be disposed before deleting
     if (cm.activeChat?.chat.guid == chat.guid) {
       ns.closeAllConversationView(Get.context!);
@@ -887,6 +886,9 @@ class Chat {
       chat.save(updateDateDeleted: true, updateHasUnreadMessage: true);
       chat.clearTranscript();
     });
+    if (markDeleted) {
+      await backend.moveToRecycleBin(chat, null);
+    }
   }
 
   static void unDelete(Chat chat) async {
@@ -1188,10 +1190,7 @@ class Chat {
 
     final name = data.cvName;
 
-    var cond = Chat_.dateDeleted.isNull();
-    if (name != null) {
-      cond = cond.and(Chat_.apnTitle.equals(name));
-    }
+    var cond = name != null ? Chat_.apnTitle.equals(name) : null;
     final query = (Database.chats.query(cond)
           ..linkMany(Chat_.handles, Handle_.address.oneOf(dartParticipants.map((e) => e.address).toList())))
             .build();
@@ -1273,6 +1272,17 @@ class Chat {
       final toDelete = List<Message>.from(messages);
       for (Message element in toDelete) {
         element.dateDeleted = DateTime.now().toUtc();
+      }
+      Database.messages.putMany(toDelete);
+    });
+  }
+
+  void restoreTranscript() {
+    if (kIsWeb) return;
+    Database.runInTransaction(TxMode.write, () {
+      final toDelete = List<Message>.from(messages);
+      for (Message element in toDelete) {
+        element.dateDeleted = null;
       }
       Database.messages.putMany(toDelete);
     });

@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:get/get.dart';
+import 'package:bluebubbles/database/models.dart';
 
 class SamsungConversationList extends StatefulWidget {
   const SamsungConversationList({Key? key, required this.parentController});
@@ -27,6 +28,9 @@ class SamsungConversationList extends StatefulWidget {
 class _SamsungConversationListState extends OptimizedState<SamsungConversationList> {
   bool get showArchived => widget.parentController.showArchivedChats;
   bool get showUnknown => widget.parentController.showUnknownSenders;
+  bool get showDeleted => widget.parentController.showDeletedMessages;
+
+  RxList<Chat> get deletedChats => widget.parentController.deletedChats;
   Color get backgroundColor =>
       ss.settings.windowEffect.value == WindowEffect.disabled ? headerColor : Colors.transparent;
   Color get _tileColor => ss.settings.windowEffect.value == WindowEffect.disabled ? tileColor : Colors.transparent;
@@ -52,7 +56,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
         if (controller.selectedChats.isNotEmpty) {
           controller.clearSelectedChats();
           return;
-        } else if (controller.showArchivedChats || controller.showUnknownSenders) {
+        } else if (controller.showArchivedChats || controller.showUnknownSenders || controller.showDeletedMessages) {
           // Pop the current page
           Navigator.of(context).pop();
         } else {
@@ -62,7 +66,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
       },
       child: Scaffold(
         backgroundColor: backgroundColor,
-        floatingActionButton: !showArchived && !showUnknown
+        floatingActionButton: !showArchived && !showUnknown && !showDeleted
             ? ConversationListFAB(parentController: controller)
             : const SizedBox.shrink(),
         body: SafeArea(
@@ -86,7 +90,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
               showScrollbar: true,
               controller: controller.samsungScrollController,
               child: Obx(() {
-                final _chats = chats.chats
+                final _chats = showDeleted ? deletedChats : chats.chats
                     .archivedHelper(controller.showArchivedChats)
                     .unknownSendersHelper(controller.showUnknownSenders);
 
@@ -95,7 +99,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
                   controller: controller.samsungScrollController,
                   slivers: [
                     SamsungHeader(parentController: controller),
-                    if (!chats.loadedChatBatch.value || _chats.bigPinHelper(false).isEmpty)
+                    if (!chats.loadedChatBatch.value || _chats.isEmpty)
                       SliverToBoxAdapter(
                         child: Center(
                           child: Padding(
@@ -111,7 +115,9 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
                                             ? "You have no archived chats"
                                             : showUnknown
                                                 ? "You have no messages from unknown senders :)"
-                                                : "You have no chats :(",
+                                                : showDeleted 
+                                                  ? "You have no deleted chats" 
+                                                  : "You have no chats :(",
                                     style: context.theme.textTheme.labelLarge,
                                     textAlign: TextAlign.center,
                                   ),
@@ -135,6 +141,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
                               return ListItem(
                                   chat: chat,
                                   controller: controller,
+                                  showDeleted: showDeleted,
                                   update: () {
                                     setState(() {});
                                   });
@@ -155,6 +162,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
                               return ListItem(
                                   chat: chat,
                                   controller: controller,
+                                  showDeleted: showDeleted,
                                   update: () {
                                     setState(() {});
                                   });

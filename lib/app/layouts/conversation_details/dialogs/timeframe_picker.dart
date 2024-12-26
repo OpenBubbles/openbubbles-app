@@ -126,7 +126,11 @@ Future<DateTime?> showTimeframePicker(String title, BuildContext context,
           }
 
           if (finalDate != null) {
-            Navigator.of(context).pop();
+            if (ns.isTabletMode(context)){
+              Get.close(1);
+            } else {
+              Navigator.of(context).pop();
+            }
           }
         } else if (finalDate != null) {
           Navigator.of(context).pop();

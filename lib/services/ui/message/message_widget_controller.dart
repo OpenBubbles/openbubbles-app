@@ -124,7 +124,7 @@ class MessageWidgetController extends StatefulController with GetSingleTickerPro
         updateWidgets<MessageHolder>(null);
       }
       updateWidgets<DeliveredIndicator>(null);
-    } else if (newItem.dateEdited != message.dateEdited || newItem.error != message.error) {
+    } else if (newItem.dateEdited != message.dateEdited || message.dateScheduled != null || newItem.error != message.error) {
       message = Message.merge(newItem, message);
       parts.clear();
       buildMessageParts();

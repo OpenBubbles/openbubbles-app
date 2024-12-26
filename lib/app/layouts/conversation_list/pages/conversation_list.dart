@@ -27,10 +27,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:bluebubbles/database/database.dart';
 
 class ConversationListController extends StatefulController {
   final bool showArchivedChats;
   final bool showUnknownSenders;
+  final bool showDeletedMessages;
   final ScrollController iosScrollController = ScrollController();
   final ScrollController materialScrollController = ScrollController();
   final ScrollController samsungScrollController = ScrollController();
@@ -38,7 +40,17 @@ class ConversationListController extends StatefulController {
   bool showMaterialFABText = true;
   double materialScrollStartPosition = 0;
 
-  ConversationListController({required this.showArchivedChats, required this.showUnknownSenders});
+  ConversationListController({required this.showArchivedChats, required this.showUnknownSenders, this.showDeletedMessages = false}) {
+    if (showDeletedMessages) {
+      var subscription = (Database.chats.query()
+        ..backlink(Message_.chat, Message_.dateDeleted.notNull()))
+        .watch(triggerImmediately: true);
+
+      sub = subscription.listen((Query<Chat> query) {
+        deletedChats.value = query.find();
+      });
+    }
+  }
 
   void updateSelectedChats() {
     if (ss.settings.skin.value == Skins.Material) {
@@ -48,6 +60,16 @@ class ConversationListController extends StatefulController {
       updateWidgets<SamsungFooter>(null);
       updateWidgets<ExpandedHeaderText>(null);
     }
+  }
+
+  RxList<Chat> deletedChats = <Chat>[].obs;
+
+  StreamSubscription? sub;
+
+  @override
+  void dispose() {
+    if (!kIsWeb) sub?.cancel();
+    super.dispose();
   }
 
   void clearSelectedChats() {
@@ -97,18 +119,21 @@ class ConversationListController extends StatefulController {
 }
 
 class ConversationList extends CustomStateful<ConversationListController> {
-  ConversationList({super.key, required bool showArchivedChats, required bool showUnknownSenders})
+  ConversationList({super.key, required bool showArchivedChats, required bool showUnknownSenders, showDeletedMessages = false})
       : super(
             parentController: Get.put(
                 ConversationListController(
                   showArchivedChats: showArchivedChats,
                   showUnknownSenders: showUnknownSenders,
+                  showDeletedMessages: showDeletedMessages,
                 ),
                 tag: showArchivedChats
                     ? "Archived"
                     : showUnknownSenders
                         ? "Unknown"
-                        : "Messages"));
+                        : showDeletedMessages
+                            ? "Recently Deleted"
+                            : "Messages"));
 
   @override
   State<StatefulWidget> createState() => _ConversationListState();
@@ -122,7 +147,9 @@ class _ConversationListState extends CustomState<ConversationList, void, Convers
         ? "Archived"
         : controller.showUnknownSenders
             ? "Unknown"
-            : "Messages";
+            : controller.showDeletedMessages
+              ? "Recently Deleted"
+              : "Messages";
 
     if (!ss.settings.reachedConversationList.value) {
       Timer.periodic(const Duration(seconds: 1), (Timer t) {
@@ -170,7 +197,7 @@ class _ConversationListState extends CustomState<ConversationList, void, Convers
       samsungSkin: SamsungConversationList(parentController: controller),
     );
 
-    if (controller.showArchivedChats || controller.showUnknownSenders) return child;
+    if (controller.showArchivedChats || controller.showUnknownSenders || controller.showDeletedMessages) return child;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(

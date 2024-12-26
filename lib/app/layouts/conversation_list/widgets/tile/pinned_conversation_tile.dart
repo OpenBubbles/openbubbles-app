@@ -77,7 +77,7 @@ class _PinnedConversationTileState extends CustomState<PinnedConversationTile, v
           onLongPressStart: (details) {
             longPressPosition = details.globalPosition;
           },
-          onTap: () => controller.onTap(context),
+          onTap: () => controller.onTap(context, false),
           onLongPress: kIsDesktop || kIsWeb
               ? null
               : () async {

@@ -203,6 +203,7 @@ dependencies:
   barcode_widget: ^2.0.4
   vpn_connection_detector: ^1.0.6
   ffmpeg_kit_flutter: 6.0.3
+  dotted_border: ^2.1.0
 
 
 dependency_overrides:
@@ -282,6 +283,7 @@ flutter:
     - assets/reactions/question-black.svg
     - assets/reactions/love-black.svg
     - assets/icon/moon.svg
+    - assets/icon/bb-icon.svg
     - assets/images/google-sign-in.png
     - assets/images/person.png
     - assets/images/person64.png

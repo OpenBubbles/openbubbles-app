@@ -32,7 +32,9 @@ import 'package:universal_io/io.dart';
 import 'package:bluebubbles/src/rust/api/api.dart' as api;
 
 class FindMyPage extends StatefulWidget {
-  const FindMyPage({super.key});
+  FindMyPage({super.key, this.defaultFriend});
+
+  String? defaultFriend;
 
   @override
   State<StatefulWidget> createState() => _FindMyPageState();
@@ -69,6 +71,10 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
   @override
   void initState() {
     super.initState();
+    if (widget.defaultFriend != null) {
+      index.value = 1; // select friends tab
+      tabController.index = 1;
+    }
     getLocations();
 
     myTimer = Timer.periodic(const Duration(seconds: 5), (timer) => getLocations());
@@ -119,7 +125,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
         Geolocator.getCurrentPosition().then((loc) {
           location = loc;
           buildLocationMarker(location!);
-          if (!kIsDesktop) {
+          if (!kIsDesktop && locationSub == null) {
             locationSub = Geolocator.getPositionStream().listen((event) {
               setState(() {
                 buildLocationMarker(event);
@@ -172,6 +178,28 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
         fetching2 = false;
         refreshing2 = false;
       });
+      if (widget.defaultFriend != null) {
+        var friend = friends.firstWhereOrNull((friend) => friend.id == widget.defaultFriend);
+        widget.defaultFriend = null;
+        if (friend != null) {
+          if (context.isPhone) {
+            await panelController.close();
+          }
+          await completer.future;
+
+          await api.selectFriend(state: pushService.state, client: fmfClient!, friend: friend.id);
+
+
+          if (friend.latitude != null) {
+
+            final marker = markers.values.firstWhere(
+                (e) => (e.key as ValueKey?)?.value == "friend-${friend.handle?.uniqueAddressAndService}");
+            popupController.showPopupsOnlyFor([marker]);
+            mapController.move(LatLng(friend.latitude!, friend.longitude!), 10);
+
+          }
+        }
+      }
     } catch (e, s) {
       Logger.error("Failed to parse FindMy Friends location data!", error: e, trace: s);
       setState(() {
@@ -1441,7 +1469,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
     return FlutterMap(
       mapController: mapController,
       options: MapOptions(
-        initialZoom: 5.0,
+        initialZoom: 15.0,
         minZoom: 1.0,
         maxZoom: 18.0,
         initialCenter: location == null ? const LatLng(0, 0) : LatLng(location!.latitude, location!.longitude),
@@ -1476,8 +1504,8 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                 final ValueKey? key = marker.key as ValueKey?;
                 if (key?.value == "current") return const SizedBox();
                 if (key?.value.contains("device")) {
-                  final item = devices.firstWhere((e) =>
-                      e.location?.latitude == marker.point.latitude && e.location?.longitude == marker.point.longitude);
+                  String prefix = key!.value.replaceFirst("device-", "");
+                  final item = devices.firstWhere((e) => e.id == prefix);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 5.0),
                     child: Container(
@@ -1498,8 +1526,8 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                     ),
                   );
                 } else {
-                  final item = friends
-                      .firstWhere((e) => e.latitude == marker.point.latitude && e.longitude == marker.point.longitude);
+                  String prefix = key!.value.replaceFirst("friend-", "");
+                  final item = friends.firstWhere((e) => e.handle?.uniqueAddressAndService == prefix);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 5.0),
                     child: Container(

@@ -626,6 +626,7 @@ pub async fn send(state: &Arc<PushState>, mut msg: MessageInst) -> anyhow::Resul
     let inner = state.0.read().await;
     println!("sending_2");
     let result = inner.client.as_ref().unwrap().send(&mut msg).await?;
+    println!("send_finish");
 
     if let Some(handle) = result.handle {
         let uuid = msg.id.clone();

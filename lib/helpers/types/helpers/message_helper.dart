@@ -172,6 +172,11 @@ class MessageHelper {
       if (associatedMessage != null) {
         // grab the verb we'll use from the reactionToVerb map
         String? verb = ReactionTypes.reactionToVerb[message.associatedMessageType];
+        
+        if (message.associatedMessageEmoji != null && verb != null) {
+          verb = verb.replaceFirst("emoji_placeholder", message.associatedMessageEmoji!);
+        }
+
         // we need to check balloonBundleId first because for some reason
         // game pigeon messages have the text "�"
         if (associatedMessage.isInteractive) {

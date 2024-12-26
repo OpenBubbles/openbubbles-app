@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class MaterialConversationTile extends CustomStateful<ConversationTileController> {
-  const MaterialConversationTile({Key? key, required super.parentController});
+  MaterialConversationTile({Key? key, required super.parentController, required this.deletedMode});
+
+  bool deletedMode;
 
   @override
   State<StatefulWidget> createState() => _MaterialConversationTileState();
@@ -43,9 +45,9 @@ class _MaterialConversationTileState extends CustomState<MaterialConversationTil
       ),
       child: InkWell(
         mouseCursor: MouseCursor.defer,
-        onTap: () => controller.onTap(context),
-        onSecondaryTapUp: (details) => controller.onSecondaryTap(Get.context!, details),
-        onLongPress: controller.onLongPress,
+        onTap: () => controller.onTap(context, widget.deletedMode),
+        onSecondaryTapUp: widget.deletedMode ? null : (details) => controller.onSecondaryTap(Get.context!, details),
+        onLongPress: widget.deletedMode ? null : controller.onLongPress,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           bottomLeft: Radius.circular(20),
@@ -67,7 +69,10 @@ class _MaterialConversationTileState extends CustomState<MaterialConversationTil
                     )
                     .apply(fontSizeFactor: 1.1),
               )),
-          subtitle: controller.subtitle ??
+          subtitle: widget.deletedMode ? Builder(builder: (context) {
+                var count = controller.chat.messages.where((i) => i.dateDeleted != null).length;
+                return Text("$count message${count == 1 ? '' : 's'}");
+              }) : controller.subtitle ??
               Obx(() {
                 final unread = GlobalChatService.unreadState(controller.chat.guid).value;
                 return ChatSubtitle(
@@ -83,7 +88,40 @@ class _MaterialConversationTileState extends CustomState<MaterialConversationTil
       }),
           contentPadding: const EdgeInsets.only(left: 6, right: 16),
           leading: leading,
-          trailing: MaterialTrailing(parentController: controller),
+          trailing: widget.deletedMode ? Builder(builder: (context) {
+                  DateTime oldestDeletion = DateTime.now();
+                  for (var message in controller.chat.messages) {
+                    if (message.dateDeleted == null) continue;
+                    // we are less than the oldest
+                    if (message.dateDeleted!.compareTo(oldestDeletion) < 0) {
+                      oldestDeletion = message.dateDeleted!;
+                    }
+                  }
+
+                  var deleteDate = oldestDeletion.add(const Duration(days: 30));
+                  var diff = deleteDate.difference(DateTime.now());
+                  String d;
+                  if (diff.isNegative) {
+                    d = "Pending Deletion";
+                  } else if (diff.inDays != 0) {
+                    d = "${diff.inDays}d";
+                  } else if (diff.inHours != 0) {
+                    d = "${diff.inHours}h";
+                  } else {
+                    d = "${diff.inMinutes}m";
+                  }
+
+
+                  var bodyStyle = context.theme.textTheme.bodySmall!
+                      .copyWith(
+                        color: controller.shouldHighlight.value
+                                ? context.theme.colorScheme.onBubble(context, controller.chat.isIMessage)
+                                : context.theme.colorScheme.outline,
+                        fontWeight: controller.shouldHighlight.value ? FontWeight.w500 : null,
+                      )
+                      .apply(fontSizeFactor: 1.1);
+                  return Padding(padding: const EdgeInsets.only(right: 8), child: Text(d, style: bodyStyle));
+                }) : MaterialTrailing(parentController: controller),
         ),
       ),
     );
@@ -112,7 +150,7 @@ class _MaterialConversationTileState extends CustomState<MaterialConversationTil
         child: ns.isAvatarOnly(context)
             ? InkWell(
                 mouseCursor: MouseCursor.defer,
-                onTap: () => controller.onTap(context),
+                onTap: () => controller.onTap(context, widget.deletedMode),
                 onSecondaryTapUp: (details) => controller.onSecondaryTap(Get.context!, details),
                 onLongPress: controller.onLongPress,
                 borderRadius: const BorderRadius.only(
@@ -229,7 +267,7 @@ class _MaterialTrailingState extends CustomState<MaterialTrailing, void, Convers
                 Text(
                   (cachedLatestMessage?.error ?? 0) > 0
                       ? "Error"
-                      : "${indicatorText.isNotEmpty ? "$indicatorText\n" : ""}${buildChatListDateMaterial(dateCreated)}",
+                      : "${indicatorText.isNotEmpty ? "$indicatorText\n" : ""}${buildChatListDateMaterial(cachedLatestMessage?.chatViewDate)}",
                   textAlign: TextAlign.right,
                   style: context.theme.textTheme.bodySmall!
                       .copyWith(

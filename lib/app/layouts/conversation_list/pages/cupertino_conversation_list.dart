@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:bluebubbles/database/database.dart';
+import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/app/layouts/conversation_list/pages/conversation_list.dart';
 import 'package:bluebubbles/app/layouts/conversation_list/widgets/tile/conversation_tile.dart';
@@ -31,6 +34,9 @@ class CupertinoConversationListState extends OptimizedState<CupertinoConversatio
   bool get showArchived => widget.parentController.showArchivedChats;
 
   bool get showUnknown => widget.parentController.showUnknownSenders;
+  bool get showDeleted => widget.parentController.showDeletedMessages;
+
+  RxList<Chat> get deletedChats => widget.parentController.deletedChats;
 
   List<String> handles = [];
   Color get backgroundColor => ss.settings.windowEffect.value == WindowEffect.disabled ? context.theme.colorScheme.background : Colors.transparent;
@@ -57,18 +63,18 @@ class CupertinoConversationListState extends OptimizedState<CupertinoConversatio
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ss.settings.windowEffect.value != WindowEffect.disabled ? Colors.transparent : context.theme.colorScheme.background,
-      extendBodyBehindAppBar: !showArchived && !showUnknown,
-      floatingActionButton: Obx(() => !ss.settings.moveChatCreatorToHeader.value && !showArchived && !showUnknown
+      extendBodyBehindAppBar: !showArchived && !showUnknown && !showDeleted,
+      floatingActionButton: Obx(() => !ss.settings.moveChatCreatorToHeader.value && !showArchived && !showUnknown && !showDeleted
           ? ConversationListFAB(parentController: controller)
           : const SizedBox.shrink()),
-      appBar: showArchived || showUnknown
+      appBar: showArchived || showUnknown || showDeleted
           ? AppBar(
               leading: buildBackButton(context),
               elevation: 0,
               systemOverlayStyle: brightness == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
               centerTitle: true,
               backgroundColor: Colors.transparent,
-              title: Text(showArchived ? "Archive" : "Unknown Senders", style: context.theme.textTheme.titleLarge),
+              title: Text(showDeleted ? "Recently Deleted" : showArchived ? "Archive" : "Unknown Senders", style: context.theme.textTheme.titleLarge),
             )
           : null,
       body: Obx(() => Stack(
@@ -80,10 +86,10 @@ class CupertinoConversationListState extends OptimizedState<CupertinoConversatio
                   controller: controller.iosScrollController,
                   physics: ts.scrollPhysics,
                   slivers: <Widget>[
-                    if (!showArchived && !showUnknown) CupertinoHeader(controller: controller),
+                    if (!showArchived && !showUnknown && !showDeleted) CupertinoHeader(controller: controller),
                     Obx(() {
                       ns.listener.value;
-                      final _chats = chats.chats.archivedHelper(showArchived).unknownSendersHelper(showUnknown).bigPinHelper(true);
+                      final _chats = showDeleted ? [].obs : chats.chats.archivedHelper(showArchived).unknownSendersHelper(showUnknown).bigPinHelper(true);
 
                       if (_chats.isEmpty) {
                         return const SliverToBoxAdapter(child: SizedBox.shrink());
@@ -205,7 +211,7 @@ class CupertinoConversationListState extends OptimizedState<CupertinoConversatio
                       );
                     }),
                     Obx(() {
-                      final _chats = chats.chats.archivedHelper(showArchived).unknownSendersHelper(showUnknown).bigPinHelper(false);
+                      final _chats = showDeleted ? deletedChats : chats.chats.archivedHelper(showArchived).unknownSendersHelper(showUnknown).bigPinHelper(false);
 
                       if (!chats.loadedChatBatch.value || _chats.isEmpty) {
                         return SliverToBoxAdapter(
@@ -223,6 +229,8 @@ class CupertinoConversationListState extends OptimizedState<CupertinoConversatio
                                               ? "You have no archived chats"
                                               : showUnknown
                                                   ? "You have no messages from unknown senders :)"
+                                                  : showDeleted 
+                                                  ? "You have no deleted chats" 
                                                   : "You have no chats :(",
                                       style: context.textTheme.labelLarge,
                                       textAlign: TextAlign.center,
@@ -239,10 +247,11 @@ class CupertinoConversationListState extends OptimizedState<CupertinoConversatio
                       return SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            final chat = chats.chats.firstWhere((e) => e.guid == _chats[index].guid);
+                            final chat = (showDeleted ? deletedChats : chats.chats).firstWhere((e) => e.guid == _chats[index].guid);
                             final child = ConversationTile(
                               key: Key(chat.guid.toString()),
                               chat: chat,
+                              deletedMode: showDeleted,
                               controller: controller,
                             );
                             final separator = Obx(() => !ss.settings.hideDividers.value
@@ -271,7 +280,7 @@ class CupertinoConversationListState extends OptimizedState<CupertinoConversatio
                   ],
                 )),
           ),
-          if (!showArchived && !showUnknown) CupertinoMiniHeader(controller: controller),
+          if (!showArchived && !showUnknown && !showDeleted) CupertinoMiniHeader(controller: controller),
           if (chats.chats.isEmpty && chats.loadedChatBatch.value)
           Positioned(child: IgnorePointer(child: Container(
             decoration: const BoxDecoration(

@@ -9,9 +9,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `config`, `do_login`, `get_login_config`, `get_phase`, `map_regstate`, `plist_to_bin`, `plist_to_buf`, `plist_to_string`, `restore`, `setup_push`, `wrap_sink`
+// These functions are ignored because they are not marked as `pub`: `config`, `do_login`, `get_login_config`, `get_phase`, `plist_to_bin`, `plist_to_buf`, `plist_to_string`, `restore`, `setup_push`, `wrap_sink`
 // These types are ignored because they are not used by any `pub` functions: `FLUTTER_RUST_BRIDGE_HANDLER`, `InnerPushState`, `NSArrayClass`, `NSArrayIconArray`, `NSArrayImageArray`, `SavedHardwareState`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `deref`, `deref`, `eq`, `fmt`, `initialize`, `spawn`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `deref`, `deref`, `eq`, `fmt`, `initialize`, `spawn`
 
 Future<ArcPushState> newPushState({required String dir}) =>
     RustLib.instance.api.crateApiApiNewPushState(dir: dir);
@@ -483,6 +483,18 @@ class ConversationData {
           cvName == other.cvName &&
           senderGuid == other.senderGuid &&
           afterGuid == other.afterGuid;
+}
+
+@freezed
+sealed class DeleteTarget with _$DeleteTarget {
+  const DeleteTarget._();
+
+  const factory DeleteTarget.chat(
+    OperatedChat field0,
+  ) = DeleteTarget_Chat;
+  const factory DeleteTarget.messages(
+    List<String> field0,
+  ) = DeleteTarget_Messages;
 }
 
 class DeviceInfo {
@@ -1177,6 +1189,16 @@ sealed class Message with _$Message {
   const factory Message.error(
     ErrorMessage field0,
   ) = Message_Error;
+  const factory Message.moveToRecycleBin(
+    MoveToRecycleBinMessage field0,
+  ) = Message_MoveToRecycleBin;
+  const factory Message.recoverChat(
+    OperatedChat field0,
+  ) = Message_RecoverChat;
+  const factory Message.permanentDelete(
+    PermanentDeleteMessage field0,
+  ) = Message_PermanentDelete;
+  const factory Message.unschedule() = Message_Unschedule;
 }
 
 class MessageInst {
@@ -1352,6 +1374,27 @@ class MMCSTransferProgress {
           file == other.file;
 }
 
+class MoveToRecycleBinMessage {
+  final DeleteTarget target;
+  final int recoverableDeleteDate;
+
+  const MoveToRecycleBinMessage({
+    required this.target,
+    required this.recoverableDeleteDate,
+  });
+
+  @override
+  int get hashCode => target.hashCode ^ recoverableDeleteDate.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MoveToRecycleBinMessage &&
+          runtimeType == other.runtimeType &&
+          target == other.target &&
+          recoverableDeleteDate == other.recoverableDeleteDate;
+}
+
 class MyAsyncRuntime {
   const MyAsyncRuntime();
 
@@ -1377,6 +1420,7 @@ class NormalMessage {
   ExtensionApp? app;
   LinkMeta? linkMeta;
   bool voice;
+  int? scheduledMs;
 
   NormalMessage({
     required this.parts,
@@ -1388,6 +1432,7 @@ class NormalMessage {
     this.app,
     this.linkMeta,
     required this.voice,
+    this.scheduledMs,
   });
 
   @override
@@ -1400,7 +1445,8 @@ class NormalMessage {
       subject.hashCode ^
       app.hashCode ^
       linkMeta.hashCode ^
-      voice.hashCode;
+      voice.hashCode ^
+      scheduledMs.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1415,7 +1461,8 @@ class NormalMessage {
           subject == other.subject &&
           app == other.app &&
           linkMeta == other.linkMeta &&
-          voice == other.voice;
+          voice == other.voice &&
+          scheduledMs == other.scheduledMs;
 }
 
 enum NSDictionaryClass {
@@ -1445,6 +1492,41 @@ class NSURL {
           relative == other.relative;
 }
 
+class OperatedChat {
+  final List<String> participants;
+  final String groupId;
+  final String guid;
+  final bool? deleteIncomingMessages;
+  final bool? wasReportedAsJunk;
+
+  const OperatedChat({
+    required this.participants,
+    required this.groupId,
+    required this.guid,
+    this.deleteIncomingMessages,
+    this.wasReportedAsJunk,
+  });
+
+  @override
+  int get hashCode =>
+      participants.hashCode ^
+      groupId.hashCode ^
+      guid.hashCode ^
+      deleteIncomingMessages.hashCode ^
+      wasReportedAsJunk.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OperatedChat &&
+          runtimeType == other.runtimeType &&
+          participants == other.participants &&
+          groupId == other.groupId &&
+          guid == other.guid &&
+          deleteIncomingMessages == other.deleteIncomingMessages &&
+          wasReportedAsJunk == other.wasReportedAsJunk;
+}
+
 @freezed
 sealed class PartExtension with _$PartExtension {
   const PartExtension._();
@@ -1464,6 +1546,27 @@ sealed class PartExtension with _$PartExtension {
     required PlatformInt64 effectType,
     required String stickerId,
   }) = PartExtension_Sticker;
+}
+
+class PermanentDeleteMessage {
+  final DeleteTarget target;
+  final bool isScheduled;
+
+  const PermanentDeleteMessage({
+    required this.target,
+    required this.isScheduled,
+  });
+
+  @override
+  int get hashCode => target.hashCode ^ isScheduled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PermanentDeleteMessage &&
+          runtimeType == other.runtimeType &&
+          target == other.target &&
+          isScheduled == other.isScheduled;
 }
 
 @freezed

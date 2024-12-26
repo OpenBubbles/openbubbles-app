@@ -128,6 +128,7 @@ class _InteractiveHolderState extends CustomState<InteractiveHolder, void, Messa
             if (url != null && url.startsWith("data:")) {
               es.engageApp(message);
             }
+            if (message.interactiveText == "Live Location") return; // better way to handle this?
             if (url != null && Uri.tryParse(url) != null) {
               await launchUrl(
                 Uri.parse(url),
@@ -206,7 +207,7 @@ class _InteractiveHolderState extends CustomState<InteractiveHolder, void, Messa
                                       data: data,
                                       message: message,
                                     );
-                                  case "com.apple.findmy.FindMyMessagesApp":
+                                  case "Live Location":
                                     return FindMy(
                                       data: data,
                                       message: message,

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:bluebubbles/app/components/custom/custom_bouncing_scroll_physics.dart';
 import 'package:bluebubbles/app/components/custom_text_editing_controllers.dart';
+import 'package:bluebubbles/app/layouts/conversation_details/dialogs/timeframe_picker.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/dialogs/custom_mention_dialog.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/media_picker/text_field_attachment_picker.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/send_animation.dart';
@@ -318,40 +319,6 @@ class ConversationTextFieldState extends CustomState<ConversationTextField, void
 
   Future<void> sendMessage({String? effect}) async {
     final text = controller.textController.text;
-    if (controller.scheduledDate.value != null) {
-      final date = controller.scheduledDate.value!;
-      if (date.isBefore(DateTime.now())) return showSnackbar("Error", "Pick a date in the future!");
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: context.theme.colorScheme.properSurface,
-            title: Text(
-              "Scheduling message...",
-              style: context.theme.textTheme.titleLarge,
-            ),
-            content: Container(
-              height: 70,
-              child: Center(
-                child: CircularProgressIndicator(
-                  backgroundColor: context.theme.colorScheme.properSurface,
-                  valueColor: AlwaysStoppedAnimation<Color>(context.theme.colorScheme.primary),
-                ),
-              ),
-            ),
-          );
-        },
-      );
-      final response = await http.createScheduled(chat.guid, text, date.toUtc(), {"type": "once"});
-      Navigator.of(context).pop();
-      if (response.statusCode == 200 && response.data != null) {
-        showSnackbar("Notice", "Message scheduled successfully for ${buildFullDate(date)}");
-      } else {
-        Logger.error("Scheduled message error: ${response.statusCode}");
-        Logger.error(response.data);
-        showSnackbar("Error", "Something went wrong!");
-      }
-    } else {
       if (text.isEmpty && controller.subjectTextController.text.isEmpty && !ss.settings.privateAPIAttachmentSend.value && !usingRustPush) {
         if (controller.replyToMessage != null) {
           return showSnackbar("Error", "Turn on Private API Attachment Send to send replies with media!");
@@ -390,8 +357,8 @@ class ConversationTextFieldState extends CustomState<ConversationTextField, void
         effect,
         controller.pickedApp.value?.$2,
         false,
+        controller.scheduledDate.value
       );
-    }
     controller.pickedApp.value = null;
     controller.pickedAttachments.clear();
     controller.textController.clear();
@@ -560,6 +527,16 @@ class ConversationTextFieldState extends CustomState<ConversationTextField, void
                   onPressed: () {
                     showEmojiPicker.value = !showEmojiPicker.value;
                     (controller.editing.lastOrNull?.item3.focusNode ?? controller.lastFocusedNode).requestFocus();
+                  },
+              ),
+                if (kIsDesktop || kIsWeb)
+                IconButton(
+                  icon: Icon(iOS ? CupertinoIcons.clock_fill : Icons.timer_rounded, color: context.theme.colorScheme.outline, size: 28),
+                  onPressed: () async {
+                    final date = await showTimeframePicker("Pick date and time", context, presetsAhead: true);
+                    if (date != null && date.isAfter(DateTime.now())) {
+                      controller.scheduledDate.value = date;
+                    }
                   },
                 ),
               if (kIsDesktop && !Platform.isLinux)
@@ -919,7 +896,9 @@ class TextFieldComponentState extends State<TextFieldComponent> {
                     indent: 10,
                     color: context.theme.colorScheme.properSurface,
                   ),
-                TextField(
+                CallbackShortcuts(
+                  bindings: txtController.getShortcuts(),
+                  child: TextField(
                   textCapitalization: TextCapitalization.sentences,
                   focusNode: controller?.focusNode ?? focusNode,
                   autocorrect: true,
@@ -977,6 +956,7 @@ class TextFieldComponentState extends State<TextFieldComponent> {
                     sendMessage.call();
                   },
                   contentInsertionConfiguration: ContentInsertionConfiguration(onContentInserted: onContentCommit),
+                )
                 ),
               ],
             ),

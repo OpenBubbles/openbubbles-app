@@ -141,6 +141,16 @@ class ChatsService extends GetxService {
         );
       });
     }
+
+    // prune older chats and messages
+    var c = Database.chats.query(Chat_.dateDeleted.lessThanDate(DateTime.now().subtract(const Duration(days: 30)))).build().find();
+    for (var chat in c) {
+      Chat.deleteChat(chat);
+    }
+    var messages = Database.messages.query(Message_.dateDeleted.lessThanDate(DateTime.now().subtract(const Duration(days: 30)))).build().find();
+    for (var message in messages) {
+      Message.delete(message.guid!);
+    }
   }
 
   @override

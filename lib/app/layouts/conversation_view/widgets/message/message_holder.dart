@@ -25,6 +25,7 @@ import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:collection/collection.dart';
+import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -461,7 +462,8 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                                                               if (ReplyScope.maybeOf(context) != null) return;
                                                               replyOffsets[index].value = 0;
                                                             },
-                                                            child: ClipPath(
+                                                            child: Builder(builder: (context) {
+                                                              var child = ClipPath(
                                                               clipper: TailClipper(
                                                                 isFromMe: message.isFromMe!,
                                                                 showTail: message.showTail(newerMessage) && e.part == controller.parts.length - 1,
@@ -532,7 +534,9 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                                                                                 }
                                                                                 return KeyEventResult.ignored;
                                                                               },
-                                                                              child: TextField(
+                                                                              child: CallbackShortcuts(
+                                                                                bindings: editStuff.item3.getShortcuts(),
+                                                                                child: TextField(
                                                                                 textCapitalization: TextCapitalization.sentences,
                                                                                 autocorrect: true,
                                                                                 controller: editStuff.item3,
@@ -645,6 +649,7 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                                                                                   completeEdit(editStuff.item3.getFinalAnnotations(), e.part);
                                                                                 },
                                                                               ),
+                                                                              ),
                                                                             ),
                                                                           ),
                                                                         )
@@ -652,7 +657,24 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                                                                     }),
                                                                 ],
                                                               ),
-                                                            ),
+                                                            );
+
+                                                            return message.dateScheduled != null ? DottedBorder(
+                                                              customPath: (size) => TailClipper(
+                                                                isFromMe: message.isFromMe!,
+                                                                showTail: message.showTail(newerMessage) && e.part == controller.parts.length - 1,
+                                                                connectLower: iOS ? false : (e.part != 0 && e.part != controller.parts.length - 1)
+                                                                    || (e.part == 0 && controller.parts.length > 1),
+                                                                connectUpper: iOS ? false : e.part != 0,
+                                                              ).getClip(size),
+                                                              color: context.theme.colorScheme.primaryContainer,
+                                                              strokeWidth: 2,
+                                                              dashPattern: [7, 4],
+                                                              child: child,
+                                                            ) : child;
+                                                            })
+                                                            
+                                                            
                                                           ),
                                                         ),
                                                       ),

@@ -40,15 +40,15 @@ class ReactionTypes {
     LAUGH: "laughed at",
     EMPHASIZE: "emphasized",
     QUESTION: "questioned",
-    EMOJI: "emoji_placeholder",
-    STICKERBACK: "Reacted with a sticker to ",
+    EMOJI: "reacted emoji_placeholder to",
+    STICKERBACK: "reacted with a sticker to",
     "-$LOVE": "removed a heart from",
     "-$LIKE": "removed a like from",
     "-$DISLIKE": "removed a dislike from",
     "-$LAUGH": "removed a laugh from",
     "-$EMPHASIZE": "removed an exclamation from",
     "-$QUESTION": "removed a question mark from",
-    "-$EMOJI": "remove an emoji_placeholder from",
+    "-$EMOJI": "removed emoji_placeholder from",
     "-$STICKERBACK": "removed a sticker from",
   };
 

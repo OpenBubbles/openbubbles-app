@@ -785,6 +785,7 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
                                 effect,
                                 null,
                                 false,
+                                null,
                               );
 
                               fakeController.value!.replyToMessage = null;

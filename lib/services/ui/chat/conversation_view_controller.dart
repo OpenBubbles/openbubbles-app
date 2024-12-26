@@ -89,7 +89,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
   bool keyboardOpen = false;
   double _keyboardOffset = 0;
   Timer? _scrollDownDebounce;
-  Future<void> Function(Tuple7<List<PlatformFile>, AttributedBody, String, String?, int?, String?, PayloadData?>, bool)? sendFunc;
+  Future<void> Function(Tuple7<List<PlatformFile>, AttributedBody, String, String?, int?, String?, PayloadData?>, bool, DateTime?)? sendFunc;
   bool isProcessingImage = false;
 
   @override
@@ -171,8 +171,21 @@ class ConversationViewController extends StatefulController with GetSingleTicker
     }
   }
 
-  Future<void> send(List<PlatformFile> attachments, AttributedBody text, String subject, String? replyGuid, int? replyPart, String? effectId, PayloadData? payload, bool isAudioMessage) async {
-    sendFunc?.call(Tuple7(attachments, text, subject, replyGuid, replyPart, effectId, payload), isAudioMessage);
+  Future<void> scrollToTime(DateTime time) async {
+    var messages = ms(chat.guid).struct.messages;
+    messages.sort(Message.sort);
+    if (scrollController.positions.isNotEmpty) {
+      var test = messages.indexWhere((element) => element.chatViewDate?.isBefore(time) ?? false);
+      await scrollController.scrollToIndex(test, preferPosition: AutoScrollPosition.begin);
+    }
+
+    if (ss.settings.openKeyboardOnSTB.value) {
+      focusNode.requestFocus();
+    }
+  }
+
+  Future<void> send(List<PlatformFile> attachments, AttributedBody text, String subject, String? replyGuid, int? replyPart, String? effectId, PayloadData? payload, bool isAudioMessage, DateTime? scheduledDate) async {
+    sendFunc?.call(Tuple7(attachments, text, subject, replyGuid, replyPart, effectId, payload), isAudioMessage, scheduledDate);
   }
 
   void queueImage(Tuple4<Attachment, PlatformFile, BuildContext, Completer<Uint8List>> item) {

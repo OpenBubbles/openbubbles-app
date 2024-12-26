@@ -20,6 +20,15 @@ class HttpBackend implements BackendService {
   }
 
   @override
+  Future<void> moveToRecycleBin(Chat c, Message? message) async { }
+
+  @override
+  Future<void> restoreChat(Chat c) async { }
+
+  @override
+  Future<void> permanentlyDeleteChat(Chat c) async { }
+
+  @override
   void init() { }
 
   @override

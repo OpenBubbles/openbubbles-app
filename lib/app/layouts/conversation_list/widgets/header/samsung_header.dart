@@ -21,6 +21,7 @@ class _SamsungHeaderState extends CustomState<SamsungHeader, void, ConversationL
       : Colors.transparent;
   bool get showArchived => controller.showArchivedChats;
   bool get showUnknown => controller.showUnknownSenders;
+  bool get showDeleted => controller.showDeletedMessages;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +76,7 @@ class _SamsungHeaderState extends CustomState<SamsungHeader, void, ConversationL
                   child: Align(
                     alignment: Alignment.bottomLeft,
                     child: Container(
-                      padding: EdgeInsets.only(left: showArchived || showUnknown ? 60 : 16),
+                      padding: EdgeInsets.only(left: showArchived || showUnknown || showDeleted ? 60 : 16),
                       height: (kToolbarHeight + (kIsDesktop ? 20 : 0)),
                       child: Align(
                         alignment: Alignment.centerLeft,
@@ -101,7 +102,7 @@ class _SamsungHeaderState extends CustomState<SamsungHeader, void, ConversationL
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          if (showArchived || showUnknown)
+                          if (showArchived || showUnknown || showDeleted)
                             IconButton(
                                 onPressed: () async {
                                   Navigator.of(context).pop();
@@ -109,13 +110,13 @@ class _SamsungHeaderState extends CustomState<SamsungHeader, void, ConversationL
                                 padding: EdgeInsets.zero,
                                 icon: buildBackButton(context)
                             ),
-                          if (!showArchived && !showUnknown)
+                          if (!showArchived && !showUnknown && !showDeleted)
                             const SizedBox.shrink(),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (!showArchived && !showUnknown)
+                              if (!showArchived && !showUnknown && !showDeleted)
                                 Padding(
                                   padding: const EdgeInsets.only(left: 2),
                                   child: IconButton(
@@ -127,7 +128,7 @@ class _SamsungHeaderState extends CustomState<SamsungHeader, void, ConversationL
                                       color: context.theme.colorScheme.properOnSurface,
                                     ),
                                   )),
-                              if (!showArchived && !showUnknown)
+                              if (!showArchived && !showUnknown && !showDeleted)
                                 IconButton(
                                   onPressed: () async {
                                     ns.pushLeft(
@@ -139,7 +140,7 @@ class _SamsungHeaderState extends CustomState<SamsungHeader, void, ConversationL
                                     Icons.search,
                                     color: context.theme.colorScheme.properOnSurface,
                                   )),
-                              if (!showArchived && !showUnknown)
+                              if (!showArchived && !showUnknown && !showDeleted)
                                 const Padding(
                                   padding: EdgeInsets.only(right: 8.0),
                                   child: Material(
@@ -187,6 +188,8 @@ class _ExpandedHeaderTextState extends CustomState<ExpandedHeaderText, void, Con
               ? "Archived"
               : controller.showUnknownSenders
               ? "Unknown Senders"
+              : controller.showDeletedMessages
+              ? "Recently Deleted"
               : unreadChats > 0
               ? "$unreadChats unread message${unreadChats > 1 ? "s" : ""}"
               : "Messages",

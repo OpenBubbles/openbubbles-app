@@ -1,15 +1,21 @@
 import 'dart:io';
 
 import 'package:bluebubbles/app/components/avatars/contact_avatar_widget.dart';
+import 'package:bluebubbles/app/layouts/findmy/findmy_location_clipper.dart';
+import 'package:bluebubbles/app/layouts/findmy/findmy_page.dart';
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
+import 'package:bluebubbles/app/wrappers/theme_switcher.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/services/backend/settings/settings_service.dart';
 import 'package:bluebubbles/services/rustpush/rustpush_service.dart';
+import 'package:bluebubbles/services/services.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:convert';
@@ -44,6 +50,8 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
   late Function cancel;
   String mainLocation = "";
 
+  StreamSubscription? locationSub;
+  Position? location;
 
   @override
   void initState() {
@@ -79,6 +87,7 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
     if (widget.isPopup) {
       api.selectBackgroundFriend(state: pushService.state, friend: null);
     }
+    locationSub?.cancel();
     cancel();
     super.dispose();
   }
@@ -125,6 +134,7 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
         lastUpdated: e.lastLocation?.timestamp != null ? DateTime.fromMillisecondsSinceEpoch(e.lastLocation!.timestamp) : null,
         status: null, 
         locatingInProgress: false,
+        id: e.id,
       );
     }
 
@@ -133,7 +143,7 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
 
   void buildFriendMarker(FindMyFriend friend) { 
     markers[friend.handle?.uniqueAddressAndService ?? randomString(6)] = Marker(
-      key: ValueKey('friend-${friend.handle?.uniqueAddressAndService ?? randomString(6)}'),
+      key: ValueKey(friend.handle?.uniqueAddressAndService),
       point: LatLng(friend.latitude!, friend.longitude!),
       width: 35,
       height: 35,
@@ -151,7 +161,27 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
     );
   }
 
-  void updatePositions() {
+  void updatePositions() async {
+
+    if (!(Platform.isLinux && !kIsWeb) && widget.isPopup) {
+      LocationPermission granted = await Geolocator.checkPermission();
+      if (granted == LocationPermission.denied) {
+        granted = await Geolocator.requestPermission();
+      }
+      if (granted == LocationPermission.whileInUse || granted == LocationPermission.always) {
+        Geolocator.getCurrentPosition().then((loc) {
+          location = loc;
+          buildLocationMarker(location!);
+          if (!kIsDesktop && locationSub == null) {
+            locationSub = Geolocator.getPositionStream().listen((event) {
+              setState(() {
+                buildLocationMarker(event);
+              });
+            });
+          }
+        });
+      }
+    }
 
     friendsWithLocation = userPosition.values.where((item) => (item.latitude ?? 0) != 0 && (item.longitude ?? 0) != 0).toList();
     friendsWithoutLocation = userPosition.values.where((item) => (item.latitude ?? 0) == 0 && (item.longitude ?? 0) == 0).toList();
@@ -166,6 +196,54 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
 
     print(userPosition);
     setState(() {});
+  }
+
+  void buildLocationMarker(Position pos) {
+    markers['current'] = Marker(
+      key: const ValueKey('current'),
+      point: LatLng(pos.latitude, pos.longitude),
+      width: 25,
+      height: 55,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (pos.heading.isFinite)
+            Transform.rotate(
+              angle: pos.heading,
+              child: ClipPath(
+                clipper: const FindMyLocationClipper(),
+                child: Container(
+                  width: 25,
+                  height: 55,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: AlignmentDirectional.center,
+                      end: Alignment.topCenter,
+                      colors: [context.theme.colorScheme.primary, context.theme.colorScheme.primary.withAlpha(50)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Container(
+            width: 25,
+            height: 25,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+            padding: const EdgeInsets.all(5),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.theme.colorScheme.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+      alignment: Alignment.topCenter,
+    );
   }
 
   String getExpiry() {
@@ -184,14 +262,16 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
     super.build(context);
     const icon = Icons.apple;
     final str = data.userInfo?.subcaption;
-    return Stack(
+    var child = Container(
+      height: ns.width(context) / 1.5,
+      child:Stack(
       children: [
         IgnorePointer(
           ignoring: !widget.isPopup,
           child: FlutterMap(
             mapController: mapController,
             options: MapOptions(
-              initialZoom: 15.0,
+              initialZoom: 17.0,
               minZoom: 1.0,
               maxZoom: 18.0,
               initialCenter: userPosition[mainLocation] == null ? const LatLng(0, 0) : LatLng(userPosition[mainLocation]!.latitude!, userPosition[mainLocation]!.longitude!),
@@ -218,7 +298,7 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
                       final ValueKey? key = marker.key as ValueKey?;
                       if (key?.value == "current") return const SizedBox();
                       final item = userPosition.values
-                            .firstWhere((e) => e.latitude == marker.point.latitude && e.longitude == marker.point.longitude);
+                            .firstWhere((e) => e.handle?.uniqueAddressAndService == key?.value);
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 5.0),
                         child: Container(
@@ -266,19 +346,30 @@ class _FindMyState extends OptimizedState<FindMy> with AutomaticKeepAliveClientM
               ],
             ),
             child: expires != null ? Row(children: [
-              const Icon(CupertinoIcons.timer, size: 15,),
+              const Icon(CupertinoIcons.timer, size: 15, color: Colors.white),
               const SizedBox(width: 5,),
-              Text(getExpiry(), style: const TextStyle(fontSize: 15))
+              Text(getExpiry(), style: const TextStyle(fontSize: 15, color: Colors.white))
             ],) : const Row(children: [
-              Icon(Icons.warning_rounded, size: 15,),
+              Icon(Icons.warning_rounded, size: 15, color: Colors.white),
               SizedBox(width: 5,),
-              Text("Not Live", style: TextStyle(fontSize: 15))
+              Text("Not Live", style: TextStyle(fontSize: 15, color: Colors.white))
             ],),
           ),
           left: 10,
           top: 10,
         )
       ],
-    );
+    ));
+    return userPosition[mainLocation]!.id == null || widget.isPopup || !isLive ? child : InkWell(
+      onTap: () async {
+        await Navigator.of(Get.context!).push(
+          ThemeSwitcher.buildPageRoute(
+            builder: (BuildContext context) {
+              return FindMyPage(defaultFriend: userPosition[mainLocation]!.id);
+            },
+          ),
+        );
+      },
+      child: child);
   }
 }

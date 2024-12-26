@@ -430,83 +430,6 @@ class MessagesViewState extends OptimizedState<MessagesView> {
                                         )
                                       : const SizedBox.shrink())),
                             ),
-                          if (!chat.isGroup && chat.isIMessage)
-                            SliverToBoxAdapter(
-                                child: AnimatedSize(
-                              key: controller.focusInfoKey,
-                              duration: const Duration(milliseconds: 250),
-                              child: Obx(() => controller.recipientNotifsSilenced.value
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(10.0),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                String.fromCharCode(moonIcon.codePoint),
-                                                style: TextStyle(
-                                                  fontFamily: moonIcon.fontFamily,
-                                                  package: moonIcon.fontPackage,
-                                                  fontSize: context.theme.textTheme.bodyMedium!.fontSize,
-                                                  color: context.theme.colorScheme.tertiaryContainer,
-                                                ),
-                                              ),
-                                              Text(
-                                                " ${chat.title ?? "Recipient"} has notifications silenced",
-                                                style:
-                                                    context.theme.textTheme.bodyMedium!.copyWith(color: context.theme.colorScheme.tertiaryContainer),
-                                              ),
-                                            ],
-                                          ),
-                                          Obx(() {
-                                            // DO NOT REMOVE, used to update Obx widget
-                                            latestMessageDeliveredState.value;
-                                            if (_messages.firstOrNull?.isFromMe == true &&
-                                                _messages.firstOrNull?.dateRead == null &&
-                                                _messages.firstOrNull?.wasDeliveredQuietly == true &&
-                                                _messages.firstOrNull?.didNotifyRecipient == false) {
-                                              return TextButton(
-                                                child: Text("Notify Anyway",
-                                                    style: context.theme.textTheme.labelLarge!
-                                                        .copyWith(color: context.theme.colorScheme.tertiaryContainer)),
-                                                onPressed: () async {
-                                                  await http.notify(_messages.first.guid!);
-                                                },
-                                              );
-                                            }
-                                            return const SizedBox.shrink();
-                                          }),
-                                        ],
-                                      ),
-                                    )
-                                  : const SizedBox.shrink()),
-                            )),
-                          SliverToBoxAdapter(
-                            child: Obx(() => Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    if (controller.showTypingIndicator.value && ss.settings.alwaysShowAvatars.value && iOS)
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 10.0),
-                                        child: ContactAvatarWidget(
-                                          key: Key("${chat.participants.first.address}-typing-indicator"),
-                                          handle: chat.participants.first,
-                                          size: 30,
-                                          fontSize: 14,
-                                          borderThickness: 0.1,
-                                        ),
-                                      ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 5),
-                                      child: TypingIndicator(
-                                        controller: controller,
-                                      ),
-                                    ),
-                                  ],
-                                )),
-                          ),
                           if (_messages.isEmpty && widget.customService != null)
                             const SliverToBoxAdapter(
                               child: Loader(text: "Loading surrounding message context..."),
@@ -538,24 +461,21 @@ class MessagesViewState extends OptimizedState<MessagesView> {
                                 }
 
                                 final message = _messages[index];
+
                                 final messageWidget = Padding(
                                   padding: const EdgeInsets.only(left: 5.0, right: 5.0),
-                                  child: AutoScrollTag(
-                                    key: ValueKey("${message.guid!}-scrolling"),
-                                    index: index,
-                                    controller: scrollController,
-                                    highlightColor: context.theme.colorScheme.surface.withOpacity(0.7),
-                                    child: MessageHolder(
-                                      cvController: controller,
-                                      message: message,
-                                      oldMessageGuid: olderMessage?.guid,
-                                      newMessageGuid: newerMessage?.guid,
-                                    ),
+                                  child: MessageHolder(
+                                    cvController: controller,
+                                    message: message,
+                                    oldMessageGuid: olderMessage?.guid,
+                                    newMessageGuid: newerMessage?.guid,
                                   ),
                                 );
 
-                                if (index == 0) {
-                                  return SizeTransition(
+                                Widget toReturn;
+
+                                if (index == 0 || newerMessage?.dateScheduled != null) {
+                                  toReturn = SizeTransition(
                                     axis: Axis.vertical,
                                     sizeFactor: animation.drive(Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeInOut))),
                                     child: SlideTransition(
@@ -584,12 +504,102 @@ class MessagesViewState extends OptimizedState<MessagesView> {
                                           child: messageWidget,
                                         )),
                                   );
+                                } else {
+                                  toReturn = SizedBox(
+                                    key: ValueKey(_messages[index].guid!),
+                                    child: messageWidget,
+                                  );
                                 }
 
-                                return SizedBox(
-                                  key: ValueKey(_messages[index].guid!),
-                                  child: messageWidget,
-                                );
+                                // we are the last non-scheduled message
+                                if (message.dateScheduled == null && (newerMessage?.dateScheduled != null || index == 0)) {
+                                  toReturn = Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      toReturn,
+                                      if (!chat.isGroup && chat.isIMessage)
+                                        AnimatedSize(
+                                          key: controller.focusInfoKey,
+                                          duration: const Duration(milliseconds: 250),
+                                          child: Obx(() => controller.recipientNotifsSilenced.value
+                                              ? Padding(
+                                                  padding: const EdgeInsets.all(10.0),
+                                                  child: Column(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            String.fromCharCode(moonIcon.codePoint),
+                                                            style: TextStyle(
+                                                              fontFamily: moonIcon.fontFamily,
+                                                              package: moonIcon.fontPackage,
+                                                              fontSize: context.theme.textTheme.bodyMedium!.fontSize,
+                                                              color: context.theme.colorScheme.tertiaryContainer,
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            " ${chat.title ?? "Recipient"} has notifications silenced",
+                                                            style:
+                                                                context.theme.textTheme.bodyMedium!.copyWith(color: context.theme.colorScheme.tertiaryContainer),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      Obx(() {
+                                                        // DO NOT REMOVE, used to update Obx widget
+                                                        latestMessageDeliveredState.value;
+                                                        if (_messages.firstOrNull?.isFromMe == true &&
+                                                            _messages.firstOrNull?.dateRead == null &&
+                                                            _messages.firstOrNull?.wasDeliveredQuietly == true &&
+                                                            _messages.firstOrNull?.didNotifyRecipient == false) {
+                                                          return TextButton(
+                                                            child: Text("Notify Anyway",
+                                                                style: context.theme.textTheme.labelLarge!
+                                                                    .copyWith(color: context.theme.colorScheme.tertiaryContainer)),
+                                                            onPressed: () async {
+                                                              await http.notify(_messages.first.guid!);
+                                                            },
+                                                          );
+                                                        }
+                                                        return const SizedBox.shrink();
+                                                      }),
+                                                    ],
+                                                  ),
+                                                )
+                                              : const SizedBox.shrink()),
+                                        ),
+                                      Obx(() => Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: <Widget>[
+                                                if (controller.showTypingIndicator.value && ss.settings.alwaysShowAvatars.value && iOS)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(left: 10.0),
+                                                    child: ContactAvatarWidget(
+                                                      key: Key("${chat.participants.first.address}-typing-indicator"),
+                                                      handle: chat.participants.first,
+                                                      size: 30,
+                                                      fontSize: 14,
+                                                      borderThickness: 0.1,
+                                                    ),
+                                                  ),
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 5),
+                                                  child: TypingIndicator(
+                                                    controller: controller,
+                                                  ),
+                                                ),
+                                              ],
+                                            ))
+                                    ],
+                                  );
+                                }
+                                return AutoScrollTag(
+                                    key: ValueKey("${message.guid!}-scrolling"),
+                                    index: index,
+                                    controller: scrollController,
+                                    highlightColor: context.theme.colorScheme.surface.withOpacity(0.7),
+                                    child: toReturn);
                               }),
                           const SliverPadding(
                             padding: EdgeInsets.all(70),

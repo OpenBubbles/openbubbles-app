@@ -11,6 +11,7 @@ import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/services.dart';
+import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mime_type/mime_type.dart';
@@ -43,7 +44,7 @@ class _SendAnimationState
     });
   }
 
-  Future<void> send(Tuple7<List<PlatformFile>, AttributedBody, String, String?, int?, String?, PayloadData?> tuple, bool isAudioMessage) async {
+  Future<void> send(Tuple7<List<PlatformFile>, AttributedBody, String, String?, int?, String?, PayloadData?> tuple, bool isAudioMessage, DateTime? schedule) async {
     // do not add anything above this line, the attachments must be extracted first
     final attachments = List<PlatformFile>.from(tuple.item1);
     AttributedBody annotations = tuple.item2;
@@ -53,7 +54,7 @@ class _SendAnimationState
     final effectId = tuple.item6;
     final payload = tuple.item7;
     if (ss.settings.scrollToBottomOnSend.value) {
-      await controller.scrollToBottom();
+      await controller.scrollToTime(schedule ?? DateTime.now());
     }
     if (ss.settings.sendSoundPath.value != null && !(isNullOrEmptyString(annotations.string) && isNullOrEmptyString(subject) && controller.pickedAttachments.isEmpty && controller.pickedApp.value == null)) {
       if (kIsDesktop) {
@@ -78,6 +79,7 @@ class _SendAnimationState
       final message = Message(
         text: "",
         dateCreated: DateTime.now(),
+        dateScheduled: schedule,
         hasAttachments: true,
         attachments: [
           Attachment(
@@ -111,6 +113,7 @@ class _SendAnimationState
         threadOriginatorPart: attachments.isEmpty ? replyRun : null,
         expressiveSendStyleId: effectId,
         dateCreated: DateTime.now(),
+        dateScheduled: schedule,
         hasAttachments: false,
         isFromMe: true,
         handleId: 0,
@@ -169,10 +172,7 @@ class _SendAnimationState
           builder: (context, linear, child) {
             var value = curve.transform(linear);
             var exp = Curves.easeIn.transform(linear);
-            return Transform.scale(
-              scale: (1-value) < .5 ? lerpDouble(1.1, .9, (1-value) / .5) : lerpDouble(.9, 1, (.5-value) / .5),
-              alignment: Alignment.centerRight,
-              child: ClipPath(
+            var child = ClipPath(
                 clipper: TailClipper(
                   isFromMe: true,
                   showTail: true,
@@ -182,13 +182,13 @@ class _SendAnimationState
                 child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Container(
                       constraints: BoxConstraints(
-                        maxWidth: max(messageBoxSize * exp, typicalWidth),
-                        minWidth: messageBoxSize * exp,
-                        minHeight: 40,
+                        maxWidth: max(messageBoxSize * exp, typicalWidth) - (message?.dateScheduled != null ? 4 : 0),
+                        minWidth: max(messageBoxSize * exp - (message?.dateScheduled != null ? 4 : 0), 0),
+                        minHeight: 40 - (message?.dateScheduled != null ? 4 : 0),
                       ),
-                      color: !message!.isBigEmoji ? context.theme.colorScheme.primary.withAlpha(((1-value) * 255).toInt()) : null,
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15).add(EdgeInsets.only(
-                        left: message!.isFromMe! || message!.isBigEmoji ? 0 : 10, right: message!.isFromMe! && !message!.isBigEmoji ? 10 : 0)),
+                      color: !message!.isBigEmoji && message?.dateScheduled == null ? context.theme.colorScheme.primary.withAlpha(((1-value) * 255).toInt()) : null,
+                      padding: EdgeInsets.symmetric(vertical: 10 - (message?.dateScheduled != null ? 4 : 0), horizontal: 15 - (message?.dateScheduled != null ? 4 : 0)).add(EdgeInsets.only(
+                        left: message?.dateScheduled != null && message!.isBigEmoji ? -8 : message!.isFromMe! || message!.isBigEmoji ? 0 : 10, right: message!.isFromMe! && !message!.isBigEmoji ? 10 : 0)),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         widthFactor: 1,
@@ -200,14 +200,29 @@ class _SendAnimationState
                                 context,
                                 message!.buildMessageParts().firstOrNull ?? MessagePart(part: 0, text: message!.text, subject: message!.subject),
                                 message!,
-                                colorOverride: Color.lerp(context.theme.colorScheme.properOnSurface, context.theme.colorScheme.onPrimary, 1 - value)
+                                colorOverride: Color.lerp(context.theme.colorScheme.properOnSurface, message?.dateScheduled != null ? context.theme.colorScheme.primary : context.theme.colorScheme.onPrimary, 1 - value)
                               ),
                             ),
                           ),
                         ),
                       )
                     ),),
-              ),
+              );
+            return Transform.scale(
+              scale: (1-value) < .5 ? lerpDouble(1.1, .9, (1-value) / .5) : lerpDouble(.9, 1, (.5-value) / .5),
+              alignment: Alignment.centerRight,
+              child: message!.dateScheduled != null ? DottedBorder(
+                          customPath: (size) => TailClipper(
+                            isFromMe: true,
+                            showTail: true,
+                            connectLower: false,
+                            connectUpper: false,
+                          ).getClip(size),
+                          color: context.theme.colorScheme.primaryContainer,
+                          strokeWidth: 2,
+                          dashPattern: [7, 4],
+                          child: child,
+                        ) : child,
             );
           },
         ),

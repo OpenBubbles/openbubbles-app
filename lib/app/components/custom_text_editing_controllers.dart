@@ -11,6 +11,7 @@ import "package:collection/collection.dart";
 import "package:emojis/emoji.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:get/get.dart";
 import "package:languagetool_textfield/core/enums/mistake_type.dart";
 import 'package:languagetool_textfield/languagetool_textfield.dart';
@@ -444,7 +445,17 @@ class MentionTextEditingController extends SpellCheckTextEditingController {
         if (caret != textdiff) {
           Logger.info("Caret diff $caret $textdiff");
         }
-        mutateRange(oldTextFieldSelection, oldTextFieldSelection.isCollapsed ? textdiff : caret);
+        try {
+          mutateRange(oldTextFieldSelection, oldTextFieldSelection.isCollapsed ? textdiff : caret);
+        } catch (e, s) {
+          Logger.error("Invalid changed annotations!", error: e, trace: s);
+          if (text.isNotEmpty) {
+            annotations = [Annotation(range: [0, text.length])];
+          } else {
+            annotations = [];
+          }
+          mentionCache = {};
+        }
       }
       oldTextFieldSelection = selection;
       lastText = text;
@@ -732,6 +743,59 @@ class MentionTextEditingController extends SpellCheckTextEditingController {
         ),
       )).toList().cast<Run>(),
     );
+  }
+
+  Map<ShortcutActivator, VoidCallback> getShortcuts() {
+    return <ShortcutActivator, VoidCallback>{
+      const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
+        var range = selection;
+        if (selection.isCollapsed) return;
+        if (range.baseOffset > range.extentOffset) {
+          range = TextSelection(baseOffset: range.extentOffset, extentOffset: range.baseOffset);
+        }
+
+        var annotations = annotationsForRange(range);
+        var already = annotations!.every((a) => a.bold == true);
+        markRange(range, Annotation(bold: !already));
+        refresh();
+      },
+      const SingleActivator(LogicalKeyboardKey.keyI, control: true): () {
+        var range = selection;
+        if (selection.isCollapsed) return;
+        if (range.baseOffset > range.extentOffset) {
+          range = TextSelection(baseOffset: range.extentOffset, extentOffset: range.baseOffset);
+        }
+
+        var annotations = annotationsForRange(range);
+        var already = annotations!.every((a) => a.italic == true);
+        markRange(range, Annotation(italic: !already));
+        refresh();
+      },
+      const SingleActivator(LogicalKeyboardKey.keyD, control: true): () {
+        var range = selection;
+        if (selection.isCollapsed) return;
+        if (range.baseOffset > range.extentOffset) {
+          range = TextSelection(baseOffset: range.extentOffset, extentOffset: range.baseOffset);
+        }
+
+        var annotations = annotationsForRange(range);
+        var already = annotations!.every((a) => a.strikethrough == true);
+        markRange(range, Annotation(strikethrough: !already));
+        refresh();
+      },
+      const SingleActivator(LogicalKeyboardKey.keyU, control: true): () {
+        var range = selection;
+        if (selection.isCollapsed) return;
+        if (range.baseOffset > range.extentOffset) {
+          range = TextSelection(baseOffset: range.extentOffset, extentOffset: range.baseOffset);
+        }
+
+        var annotations = annotationsForRange(range);
+        var already = annotations!.every((a) => a.underline == true);
+        markRange(range, Annotation(underline: !already));
+        refresh();
+      },
+    };
   }
 
   Widget Function(BuildContext, EditableTextState)? getContextMenuBuilder() {

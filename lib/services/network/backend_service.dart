@@ -14,6 +14,9 @@ abstract class BackendService {
   Future<Message> sendMessage(Chat c, Message m, {CancelToken? cancelToken});
   Future<bool> renameChat(Chat chat, String newName);
   Future<bool> chatParticipant(ParticipantOp method, Chat chat, String newName);
+  Future<void> moveToRecycleBin(Chat c, Message? message);
+  Future<void> restoreChat(Chat c);
+  Future<void> permanentlyDeleteChat(Chat c);
   Future<bool> leaveChat(Chat chat);
   Future<Message> sendTapback(
       Chat chat, Message selected, String reaction, int? repPart);

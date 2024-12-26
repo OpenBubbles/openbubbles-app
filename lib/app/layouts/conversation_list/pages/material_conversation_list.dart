@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:get/get.dart';
+import 'package:bluebubbles/database/models.dart';
 
 class MaterialConversationList extends StatefulWidget {
   const MaterialConversationList({Key? key, required this.parentController});
@@ -24,6 +25,11 @@ class MaterialConversationList extends StatefulWidget {
 class _MaterialConversationListState extends OptimizedState<MaterialConversationList> {
   bool get showArchived => widget.parentController.showArchivedChats;
   bool get showUnknown => widget.parentController.showUnknownSenders;
+
+  bool get showDeleted => widget.parentController.showDeletedMessages;
+
+  RxList<Chat> get deletedChats => widget.parentController.deletedChats;
+
   Color get backgroundColor => ss.settings.windowEffect.value == WindowEffect.disabled
       ? context.theme.colorScheme.background
       : Colors.transparent;
@@ -49,7 +55,7 @@ class _MaterialConversationListState extends OptimizedState<MaterialConversation
         if (controller.selectedChats.isNotEmpty) {
           controller.clearSelectedChats();
           return;
-        } else if (controller.showArchivedChats || controller.showUnknownSenders) {
+        } else if (controller.showArchivedChats || controller.showUnknownSenders || controller.showDeletedMessages) {
           // Pop the current page
           Navigator.of(context).pop();
         } else {
@@ -68,11 +74,11 @@ class _MaterialConversationListState extends OptimizedState<MaterialConversation
           backgroundColor: backgroundColor,
           extendBodyBehindAppBar: true,
           floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-          floatingActionButton: !showArchived && !showUnknown
+          floatingActionButton: !showArchived && !showUnknown && !showDeleted
               ? ConversationListFAB(parentController: controller)
               : const SizedBox.shrink(),
           body: Obx(() {
-            final _chats = chats.chats.archivedHelper(showArchived).unknownSendersHelper(showUnknown);
+            final _chats = showDeleted ? deletedChats : chats.chats.archivedHelper(showArchived).unknownSendersHelper(showUnknown);
 
             if (!chats.loadedChatBatch.value || _chats.isEmpty) {
               return Center(
@@ -89,7 +95,9 @@ class _MaterialConversationListState extends OptimizedState<MaterialConversation
                                   ? "You have no archived chats"
                                   : showUnknown
                                       ? "You have no messages from unknown senders :)"
-                                      : "You have no chats :(",
+                                      : showDeleted 
+                                                  ? "You have no deleted chats" 
+                                                  : "You have no chats :(",
                           style: context.theme.textTheme.labelLarge,
                           textAlign: TextAlign.center,
                         ),
@@ -122,6 +130,7 @@ class _MaterialConversationListState extends OptimizedState<MaterialConversation
                           child: ListItem(
                             chat: chat,
                             controller: controller,
+                            showDeleted: showDeleted,
                             update: () {
                               setState(() {});
                             }

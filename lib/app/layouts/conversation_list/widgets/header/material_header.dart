@@ -22,6 +22,7 @@ class _MaterialHeaderState extends CustomState<MaterialHeader, void, Conversatio
   bool get showArchived => controller.showArchivedChats;
 
   bool get showUnknown => controller.showUnknownSenders;
+  bool get showDeleted => controller.showDeletedMessages;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +41,7 @@ class _MaterialHeaderState extends CustomState<MaterialHeader, void, Conversatio
                       ns.listener.value;
                       return Container(
                         decoration: BoxDecoration(
-                          color: !ns.isAvatarOnly(context) && !showArchived && !showUnknown ? context.theme.colorScheme.properSurface
+                          color: !ns.isAvatarOnly(context) && !showArchived && !showUnknown && !showDeleted ? context.theme.colorScheme.properSurface
                               .withOpacity(ss.settings.windowEffect.value == WindowEffect.disabled ? 1 : 0.7) : Colors.transparent,
                         ),
                         child: Padding(
@@ -58,7 +59,7 @@ class _MaterialHeaderState extends CustomState<MaterialHeader, void, Conversatio
                                   if (!ns.isAvatarOnly(context))
                                     Padding(
                                       padding: const EdgeInsets.only(left: 18, right: 20),
-                                      child: (!showArchived && !showUnknown)
+                                      child: (!showArchived && !showUnknown && !showDeleted)
                                           ? SvgPicture.asset(
                                               'assets/icon/bb-icon.svg',
                                               width: 26,
@@ -76,7 +77,7 @@ class _MaterialHeaderState extends CustomState<MaterialHeader, void, Conversatio
                                             ),
                                     ),
                                   if (!ns.isAvatarOnly(context)) HeaderText(controller: controller, fontSize: 20),
-                                  if (!ns.isAvatarOnly(context) && !showArchived && !showUnknown)
+                                  if (!ns.isAvatarOnly(context) && !showArchived && !showUnknown && !showDeleted)
                                     Expanded(
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.end,

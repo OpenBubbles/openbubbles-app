@@ -37,6 +37,7 @@ void sendEffectAction(
   int? part,
   String? chatGuid,
   Future<void> Function({String? effect}) sendMessage,
+  DateTime? schedule,
 ) {
   if (!ss.settings.enablePrivateAPI.value) return;
   String typeSelected = "bubble";
@@ -55,6 +56,7 @@ void sendEffectAction(
     threadOriginatorPart: replyRun,
     expressiveSendStyleId: effectMap["slam"],
     dateCreated: DateTime.now(),
+    dateScheduled: schedule,
     hasAttachments: false,
     isFromMe: true,
     handleId: 0,

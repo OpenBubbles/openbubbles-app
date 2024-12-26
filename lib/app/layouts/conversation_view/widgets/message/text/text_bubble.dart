@@ -93,15 +93,15 @@ class _TextBubbleState extends CustomState<TextBubble, void, MessageWidgetContro
   Widget build(BuildContext context) {
     return Container(
       constraints: BoxConstraints(
-        maxWidth: message.isBigEmoji ? ns.width(context) : ns.width(context) * MessageWidgetController.maxBubbleSizeFactor - 40,
-        minHeight: 40,
+        maxWidth: message.isBigEmoji ? ns.width(context) : ns.width(context) * MessageWidgetController.maxBubbleSizeFactor - 40 - (message.dateScheduled != null ? 4 : 0),
+        minHeight: 40 - (message.dateScheduled != null ? 4 : 0),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15)
+      padding: EdgeInsets.symmetric(vertical: 10 - (message.dateScheduled != null ? 4 : 0), horizontal: 15 - (message.dateScheduled != null ? 4 : 0))
         .add(EdgeInsets.only(
-          left: message.isFromMe! || message.isBigEmoji ? 0 : 10,
-          right: message.isFromMe! && !message.isBigEmoji ? 10 : 0
+          left: message.dateScheduled != null && message.isBigEmoji ? -8 : message.isFromMe! || message.isBigEmoji ? 0 : 10,
+          right: message.isFromMe! && (!message.isBigEmoji) ? 10 : 0
         )),
-      color: message.isFromMe! && !message.isBigEmoji
+      color: message.isFromMe! && !message.isBigEmoji && message.dateScheduled == null
           ? (selected ? context.theme.colorScheme.tertiaryContainer : context.theme.colorScheme.primary)
           : null,
       decoration: message.isFromMe! || message.isBigEmoji ? null : BoxDecoration(
@@ -117,7 +117,8 @@ class _TextBubbleState extends CustomState<TextBubble, void, MessageWidgetContro
           context,
           part,
           message,
-          colorOverride: selected ? context.theme.colorScheme.onTertiaryContainer
+          colorOverride: message.dateScheduled != null ? context.theme.colorScheme.primary :
+              selected ? context.theme.colorScheme.onTertiaryContainer
               : ss.settings.colorfulBubbles.value && !message.isFromMe!
               ? getBubbleColors().first.oppositeLightenOrDarken(75) : null,
           hideBodyText: widget.subjectOnly,
@@ -126,7 +127,8 @@ class _TextBubbleState extends CustomState<TextBubble, void, MessageWidgetContro
           context,
           part,
           message,
-          colorOverride: selected ? context.theme.colorScheme.onTertiaryContainer
+          colorOverride: message.dateScheduled != null ? context.theme.colorScheme.primary :
+            selected ? context.theme.colorScheme.onTertiaryContainer
               : ss.settings.colorfulBubbles.value && !message.isFromMe!
               ? getBubbleColors().first.oppositeLightenOrDarken(75) : null,
           hideBodyText: widget.subjectOnly,

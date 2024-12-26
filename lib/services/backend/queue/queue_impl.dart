@@ -11,18 +11,22 @@ abstract class Queue extends GetxService {
   bool isProcessing = false;
   List<QueueItem> items = [];
 
-  Future<void> queue(QueueItem item) async {
-    final returned = await prepItem(item);
-    // we may get a link split into 2 messages
-    if (item is OutgoingItem && returned is List) {
-      items.addAll(returned.map((e) => OutgoingItem(
-        type: item.type,
-        chat: item.chat,
-        message: e,
-        completer: item.completer,
-        selected: item.selected,
-        reaction: item.reaction,
-      )));
+  Future<void> queue(QueueItem item, {bool prep = true}) async {
+    if (prep) {
+      final returned = await prepItem(item);
+      // we may get a link split into 2 messages
+      if (item is OutgoingItem && returned is List) {
+        items.addAll(returned.map((e) => OutgoingItem(
+          type: item.type,
+          chat: item.chat,
+          message: e,
+          completer: item.completer,
+          selected: item.selected,
+          reaction: item.reaction,
+        )));
+      } else {
+        items.add(item);
+      }
     } else {
       items.add(item);
     }

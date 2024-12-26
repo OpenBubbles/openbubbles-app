@@ -35,6 +35,8 @@ class HeaderText extends StatelessWidget {
             ? "Archive"
             : controller.showUnknownSenders
             ? "Unknown Senders"
+            : controller.showDeletedMessages
+            ? "Recently Deleted"
             : "Messages",
         style: context.textTheme.headlineLarge!.copyWith(
           color: context.theme.colorScheme.onBackground,
@@ -118,6 +120,8 @@ class MaterialOverflowMenu extends StatelessWidget {
           await goToSearch(context);
         } else if (value == 7) {
           controller?.openNewChatCreator(context);
+        } else if (value == 8) {
+          goToRecentlyDeleted(context);
         }
       },
       itemBuilder: (context) {
@@ -128,6 +132,13 @@ class MaterialOverflowMenu extends StatelessWidget {
               'Mark All As Read',
               style: context.textTheme.bodyLarge!.apply(color: context.theme.colorScheme.properOnSurface),
             ),
+          ),
+          PopupMenuItem(
+            child: Text(
+              'Recently Deleted',
+              style: context.textTheme.bodyLarge!.apply(color: context.theme.colorScheme.properOnSurface),
+            ),
+            value: 8,
           ),
           PopupMenuItem(
             value: 1,
@@ -263,6 +274,11 @@ class CupertinoOverflowMenu extends StatelessWidget {
           onTap: chats.markAllAsRead,
         ),
         PullDownMenuItem(
+          title: 'Recently Deleted',
+          icon: CupertinoIcons.delete,
+          onTap: () => goToRecentlyDeleted(context),
+        ),
+        PullDownMenuItem(
           title: 'Archived',
           icon: CupertinoIcons.archivebox,
           onTap: () => goToArchived(context),
@@ -336,6 +352,17 @@ Future<void> goToSearch(BuildContext context) async {
   eventDispatcher.emit("override-split", current);
 }
 
+Future<void> goToRecentlyDeleted(BuildContext context) async {
+  ns.pushLeft(
+    context,
+    ConversationList(
+      showArchivedChats: false,
+      showUnknownSenders: false,
+      showDeletedMessages: true,
+    )
+  );
+}
+
 Future<void> goToFindMy(BuildContext context) async {
   final currentChat = cm.activeChat?.chat;
   ns.closeAllConversationView(context);
@@ -343,7 +370,7 @@ Future<void> goToFindMy(BuildContext context) async {
   await Navigator.of(Get.context!).push(
     ThemeSwitcher.buildPageRoute(
       builder: (BuildContext context) {
-        return const FindMyPage();
+        return FindMyPage();
       },
     ),
   );

@@ -94,7 +94,23 @@ class _MessagePropertiesState extends CustomState<MessageProperties, void, Messa
         text: "Verification failed",
         style: TextStyle(color: context.theme.colorScheme.error),
         recognizer: TapGestureRecognizer()..onTap = () {
-          controller.showEdits.toggle();
+          showDialog(
+            context: Get.context!,
+            builder: (context) => AlertDialog(
+              title: const Text('Verification failed'),
+              content: Text(
+                "The authenticity of this message could not be verified when it was received.",
+                style: Get.textTheme.bodyLarge,
+              ),
+              actions: <Widget>[
+                TextButton(
+                        onPressed: () async {
+                            Get.back();
+                        },
+                        child: Text("Ok", style: context.theme.textTheme.bodyLarge!.copyWith(color: context.theme.colorScheme.primary))),
+              ],
+            ),
+          );
         }
       ));
     }

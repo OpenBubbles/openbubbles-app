@@ -171,7 +171,7 @@ class _TextFieldSuffixState extends OptimizedState<TextFieldSuffix> {
                               onPressed: () async {
                                 await widget.controller!.send(
                                   [file],
-                                  AttributedBody.empty(), "", null, null, null, null, true,
+                                  AttributedBody.empty(), "", null, null, null, null, true, null
                                 );
                                 deleteAudioRecording(file.path!);
                                 Get.back();
@@ -197,6 +197,7 @@ class _TextFieldSuffixState extends OptimizedState<TextFieldSuffix> {
                     widget.controller!.replyToMessage?.item2,
                     widget.controller!.chat.guid,
                     widget.sendMessage,
+                    widget.controller!.scheduledDate.value,
                   );
                 },
               ),

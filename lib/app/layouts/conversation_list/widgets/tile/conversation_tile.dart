@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/typing/typing_indicator.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
@@ -12,7 +13,9 @@ import 'package:bluebubbles/app/wrappers/theme_switcher.dart';
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/database/models.dart';
+import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/services/services.dart';
+import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:faker/faker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -42,7 +45,101 @@ class ConversationTileController extends StatefulController {
     this.subtitle,
   });
 
-  void onTap(BuildContext context) {
+  void onTap(BuildContext context, bool deleteMode) {
+    if (deleteMode) {
+      var messages = chat.messages.where((i) => i.dateDeleted != null).length;
+
+      DateTime oldestDeletion = DateTime.now();
+      for (var message in chat.messages) {
+        if (message.dateDeleted == null) continue;
+        // we are less than the oldest
+        if (message.dateDeleted!.compareTo(oldestDeletion) < 0) {
+          oldestDeletion = message.dateDeleted!;
+        }
+      }
+
+      var deleteDate = oldestDeletion.add(const Duration(days: 30));
+      var diff = deleteDate.difference(DateTime.now());
+      String d;
+      if (diff.inDays != 0) {
+        d = "${diff.inDays} days";
+      } else if (diff.inHours != 0) {
+        d = "${diff.inHours} hours";
+      } else {
+        d = "${diff.inMinutes} minutes";
+      }
+
+      showDialog(
+        context: Get.context!,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(
+              "$messages message selected.",
+              style: context.theme.textTheme.titleLarge,
+            ),
+            content: Text(
+                diff.isNegative ? "They are to be deleted imminently." : "They will start being deleted $d from now.",
+                style: context.theme.textTheme.bodyLarge),
+            backgroundColor: context.theme.colorScheme.properSurface,
+            actions: <Widget>[
+              TextButton(
+                child: Text("Close",
+                    style: context.theme.textTheme.bodyLarge!
+                        .copyWith(color: context.theme.colorScheme.primary)),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: Text("Recover",
+                    style: context.theme.textTheme.bodyLarge!
+                        .copyWith(color: context.theme.colorScheme.primary)),
+                onPressed: () async {
+                  Chat.unDelete(chat);
+                  chat.restoreTranscript();
+                  await chats.addChat(chat);
+                  chat.restoreTranscript();
+                  Navigator.of(context).pop();
+
+                  await backend.restoreChat(chat);
+                },
+              ),
+              TextButton(
+                child: Text("Delete",
+                    style: context.theme.textTheme.bodyLarge!
+                        .copyWith(color: Colors.red[700])),
+                onPressed: () async {
+                  var msg2 = chat;
+                  if (msg2.dateDeleted != null) {
+                    // chats.removeChat(msg2); // already deleted
+                    Chat.deleteChat(msg2); // perma delete
+                  } else {
+                    // some messages are deleted
+                    final query = (Database.messages.query(Message_.dateDeleted.notNull())
+                        ..link(Message_.chat, Chat_.id.equals(msg2.id!)))
+                        .build();
+                    for (var message in query.find()) {
+                      for (var attachment in (message.fetchAttachments() ?? [])) {
+                        if (attachment == null) continue;
+                        try {
+                          File(attachment.getFile().path!).deleteSync();
+                        } catch(e) {
+                          Logger.debug("Failed to rm attachment $e");
+                        }
+                      }
+                      Message.delete(message.guid!);
+                    }
+                  }
+                  Navigator.of(context).pop();
+
+                  await backend.permanentlyDeleteChat(chat);
+                },
+              ),
+            ],
+          );
+        });
+      return;
+    }
     if ((inSelectMode || listController.selectedChats.isNotEmpty) && onSelect != null) {
       onLongPress();
     } else if ((!kIsDesktop && !kIsWeb) || cm.activeChat?.chat.guid != chat.guid) {
@@ -99,6 +196,7 @@ class ConversationTile extends CustomStateful<ConversationTileController> {
     required ConversationListController controller,
     Function(bool)? onSelect,
     bool inSelectMode = false,
+    this.deletedMode = false,
     Widget? subtitle,
   }) : super(parentController: !inSelectMode && Get.isRegistered<ConversationTileController>(tag: chat.guid)
       ? Get.find<ConversationTileController>(tag: chat.guid)
@@ -110,6 +208,8 @@ class ConversationTile extends CustomStateful<ConversationTileController> {
         subtitle: subtitle,
       ), tag: inSelectMode ? randomString(8) : chat.guid, permanent: kIsDesktop || kIsWeb)
   );
+
+  bool deletedMode;
 
   @override
   State<ConversationTile> createState() => _ConversationTileState();
@@ -155,12 +255,15 @@ class _ConversationTileState extends CustomState<ConversationTile, void, Convers
       child: ThemeSwitcher(
         iOSSkin: CupertinoConversationTile(
           parentController: controller,
+          deletedMode: widget.deletedMode,
         ),
         materialSkin: MaterialConversationTile(
           parentController: controller,
+          deletedMode: widget.deletedMode,
         ),
         samsungSkin: SamsungConversationTile(
           parentController: controller,
+          deletedMode: widget.deletedMode,
         ),
       ),
     );

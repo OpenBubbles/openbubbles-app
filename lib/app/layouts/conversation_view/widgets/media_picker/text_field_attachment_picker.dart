@@ -74,6 +74,16 @@ class AttachmentPickerState extends OptimizedState<AttachmentPicker> {
         }
       },
       {
+        "icon": iOS ? CupertinoIcons.clock_solid : Icons.lock_clock,
+        "text": "Send Later",
+        "handle": () async {
+          final date = await showTimeframePicker("Pick date and time", context, presetsAhead: true);
+          if (date != null && date.isAfter(DateTime.now())) {
+            controller.scheduledDate.value = date;
+          }
+        }
+      },
+      {
         "icon": iOS ? CupertinoIcons.pencil_outline : Icons.draw,
         "text": "Handwritten",
         "handle": () async {

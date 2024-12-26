@@ -83,6 +83,9 @@ class _DeliveredIndicatorState extends CustomState<DeliveredIndicator, void, Mes
     } else if (message.guid!.contains("temp") && !(controller.cvController?.chat ?? cm.activeChat!.chat).isGroup && !iOS) {
       return buildTwoPiece("Sending...", "");
     } else if (widget.forceShow) {
+      if (message.dateScheduled != null) {
+        return buildTwoPiece("Scheduled", buildDate(message.dateScheduled));
+      }
       return buildTwoPiece("Sent", buildDate(message.dateCreated));
     }
 

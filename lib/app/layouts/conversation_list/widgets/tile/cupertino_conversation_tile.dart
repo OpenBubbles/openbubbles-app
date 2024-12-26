@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/app/layouts/conversation_list/dialogs/conversation_peek_view.dart';
@@ -6,14 +7,18 @@ import 'package:bluebubbles/app/layouts/conversation_list/widgets/tile/conversat
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/database/models.dart';
+import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/services/services.dart';
+import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class CupertinoConversationTile extends CustomStateful<ConversationTileController> {
-  const CupertinoConversationTile({Key? key, required super.parentController});
+  CupertinoConversationTile({Key? key, required super.parentController, required this.deletedMode});
+
+  bool deletedMode;
 
   @override
   State<StatefulWidget> createState() => _CupertinoConversationTileState();
@@ -41,9 +46,9 @@ class _CupertinoConversationTileState extends CustomState<CupertinoConversationT
       color: Colors.transparent,
       child: InkWell(
         mouseCursor: MouseCursor.defer,
-        onTap: () => controller.onTap(context),
-        onSecondaryTapUp: (details) => controller.onSecondaryTap(Get.context!, details),
-        onLongPress: kIsDesktop || kIsWeb
+        onTap: () => controller.onTap(context, widget.deletedMode),
+        onSecondaryTapUp: widget.deletedMode ? null : (details) => controller.onSecondaryTap(Get.context!, details),
+        onLongPress: kIsDesktop || kIsWeb || widget.deletedMode
             ? null
             : () async {
                 await peekChat(context, controller.chat, longPressPosition ?? Offset.zero);
@@ -70,12 +75,51 @@ class _CupertinoConversationTileState extends CustomState<CupertinoConversationT
                   ),
                 ),
                 const SizedBox(width: 10,),
+                if (!widget.deletedMode)
                 CupertinoTrailing(parentController: controller),
+                if (widget.deletedMode)
+                Builder(builder: (context) {
+                  DateTime oldestDeletion = DateTime.now();
+                  for (var message in controller.chat.messages) {
+                    if (message.dateDeleted == null) continue;
+                    // we are less than the oldest
+                    if (message.dateDeleted!.compareTo(oldestDeletion) < 0) {
+                      oldestDeletion = message.dateDeleted!;
+                    }
+                  }
+
+                  var deleteDate = oldestDeletion.add(const Duration(days: 30));
+                  var diff = deleteDate.difference(DateTime.now());
+                  String d;
+                  if (diff.isNegative) {
+                    d = "Pending Deletion";
+                  } else if (diff.inDays != 0) {
+                    d = "${diff.inDays}d";
+                  } else if (diff.inHours != 0) {
+                    d = "${diff.inHours}h";
+                  } else {
+                    d = "${diff.inMinutes}m";
+                  }
+
+
+                  var bodyStyle = context.theme.textTheme.bodySmall!
+                      .copyWith(
+                        color: controller.shouldHighlight.value
+                                ? context.theme.colorScheme.onBubble(context, controller.chat.isIMessage)
+                                : context.theme.colorScheme.outline,
+                        fontWeight: controller.shouldHighlight.value ? FontWeight.w500 : null,
+                      )
+                      .apply(fontSizeFactor: 1.1);
+                  return Padding(padding: const EdgeInsets.only(right: 8), child: Text(d, style: bodyStyle));
+                }),
               ],
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(right: 20.0),
-              child: controller.subtitle ??
+              child: widget.deletedMode ? Builder(builder: (context) {
+                var count = controller.chat.messages.where((i) => i.dateDeleted != null).length;
+                return Text("$count message${count == 1 ? '' : 's'}");
+              }) : controller.subtitle ??
                   ChatSubtitle(
                     parentController: controller,
                     style: context.theme.textTheme.bodyMedium!.copyWith(
@@ -108,7 +152,7 @@ class _CupertinoConversationTileState extends CustomState<CupertinoConversationT
         child: ns.isAvatarOnly(context)
             ? InkWell(
                 mouseCursor: MouseCursor.defer,
-                onTap: () => controller.onTap(context),
+                onTap: () => controller.onTap(context, widget.deletedMode),
                 onSecondaryTapUp: (details) => controller.onSecondaryTap(Get.context!, details),
                 onLongPress: kIsDesktop || kIsWeb
                     ? null
@@ -222,7 +266,7 @@ class _CupertinoTrailingState extends CustomState<CupertinoTrailing, void, Conve
               (cachedLatestMessage?.error ?? 0) > 0
                   ? "Error"
                   // fix layout
-                  : "${indicatorText.isNotEmpty && indicatorText != "None" ? "$indicatorText " : ""}${buildDate(dateCreated)}",
+                  : "${indicatorText.isNotEmpty && indicatorText != "None" ? "$indicatorText " : ""}${buildDate(cachedLatestMessage?.chatViewDate)}",
               textAlign: TextAlign.right,
               style: context.theme.textTheme.bodySmall!
                   .copyWith(

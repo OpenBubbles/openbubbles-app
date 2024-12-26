@@ -437,7 +437,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(13, 4148278195232901830),
       name: 'Message',
-      lastPropertyId: const obx_int.IdUid(56, 1614237679156627573),
+      lastPropertyId: const obx_int.IdUid(57, 5276795239995260938),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -673,6 +673,11 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(56, 1614237679156627573),
             name: 'associatedMessageEmoji',
             type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(57, 5276795239995260938),
+            name: 'dateScheduled',
+            type: 10,
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[],
@@ -1524,7 +1529,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
               object.associatedMessageEmoji == null
                   ? null
                   : fbb.writeString(object.associatedMessageEmoji!);
-          fbb.startTable(57);
+          fbb.startTable(58);
           fbb.addInt64(0, object.id ?? 0);
           fbb.addInt64(1, object.originalROWID);
           fbb.addOffset(2, guidOffset);
@@ -1571,6 +1576,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addBool(53, object.verificationFailed);
           fbb.addOffset(54, sendingServiceIdOffset);
           fbb.addOffset(55, associatedMessageEmojiOffset);
+          fbb.addInt64(56, object.dateScheduled?.millisecondsSinceEpoch);
           fbb.finish(fbb.endTable());
           return object.id ?? 0;
         },
@@ -1589,6 +1595,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
               const fb.Int64Reader().vTableGetNullable(buffer, rootOffset, 70);
           final dateEditedValue =
               const fb.Int64Reader().vTableGetNullable(buffer, rootOffset, 88);
+          final dateScheduledValue =
+              const fb.Int64Reader().vTableGetNullable(buffer, rootOffset, 116);
           final idParam =
               const fb.Int64Reader().vTableGetNullable(buffer, rootOffset, 4);
           final originalROWIDParam =
@@ -1683,6 +1691,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final associatedMessageEmojiParam =
               const fb.StringReader(asciiOptimization: true)
                   .vTableGetNullable(buffer, rootOffset, 114);
+          final dateScheduledParam = dateScheduledValue == null
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch(dateScheduledValue);
           final object = Message(
               id: idParam,
               originalROWID: originalROWIDParam,
@@ -1722,7 +1733,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
               amkSessionId: amkSessionIdParam,
               verificationFailed: verificationFailedParam,
               sendingServiceId: sendingServiceIdParam,
-              associatedMessageEmoji: associatedMessageEmojiParam)
+              associatedMessageEmoji: associatedMessageEmojiParam,
+              dateScheduled: dateScheduledParam)
             ..bigEmoji =
                 const fb.BoolReader().vTableGetNullable(buffer, rootOffset, 76)
             ..dbAttributedBody = const fb.StringReader(asciiOptimization: true)
@@ -2395,6 +2407,10 @@ class Message_ {
   /// See [Message.associatedMessageEmoji].
   static final associatedMessageEmoji =
       obx.QueryStringProperty<Message>(_entities[5].properties[45]);
+
+  /// See [Message.dateScheduled].
+  static final dateScheduled =
+      obx.QueryDateProperty<Message>(_entities[5].properties[46]);
 
   /// see [Message.dbAttachments]
   static final dbAttachments =

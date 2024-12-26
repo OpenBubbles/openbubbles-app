@@ -140,7 +140,7 @@ class MaterialHeader extends StatelessWidget implements PreferredSizeWidget {
                         style: context.theme.textTheme.titleLarge,
                       ),
                       content: Text(
-                        "This chat will be deleted from this device only",
+                        "This chat will be moved to trash on all synced devices",
                         style: context.theme.textTheme.bodyLarge
                       ),
                       backgroundColor: context.theme.colorScheme.properSurface,

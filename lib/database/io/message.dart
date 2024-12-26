@@ -282,6 +282,7 @@ class Message {
   bool didNotifyRecipient;
   bool isBookmarked;
   bool verificationFailed;
+  DateTime? dateScheduled;
   // service that is sending this message.
   // null if message is not in progress of sending
   // if service is mismatched with current running service, something crashed. Mark as failed.
@@ -333,6 +334,8 @@ class Message {
       ? null : jsonEncode(metadata);
   set dbMetadata(String? json) => metadata = json == null
       ? null : jsonDecode(json) as Map<String, dynamic>;
+
+  DateTime? get chatViewDate => dateScheduled ?? dateCreated;
 
 
   Future<void> forwardIfNessesary(Chat chat, {bool markFailed = false}) async {
@@ -429,6 +432,7 @@ class Message {
     this.verificationFailed = false,
     this.sendingServiceId,
     this.associatedMessageEmoji,
+    this.dateScheduled,
   }) {
       if (handle != null && handleId == null) handleId = handle!.originalROWID;
       if (error != null) _error.value = error;
@@ -529,6 +533,7 @@ class Message {
       verificationFailed: json['verificationFailed'],
       sendingServiceId: json['sendingServiceId'],
       associatedMessageEmoji: json['associatedMessageEmoji'],
+      dateScheduled: parseDate(json['dateScheduled']),
     );
   }
 
@@ -792,6 +797,10 @@ class Message {
     existing.stagingGuid = newMessage.stagingGuid;
     existing.verificationFailed = newMessage.verificationFailed;
     existing.amkSessionId = newMessage.amkSessionId;
+    if (existing.dateScheduled != null && newMessage.dateScheduled == null) {
+      existing.dateCreated = newMessage.dateCreated;
+    }
+    existing.dateScheduled = newMessage.dateScheduled;
 
     try {
       Database.messages.put(existing, mode: PutMode.update);
@@ -903,9 +912,10 @@ class Message {
     });
   }
 
-  static void softDelete(String guid) {
+  static void softDelete(String guid) async {
     if (kIsWeb) return;
     Message? toDelete = Message.findOne(guid: guid);
+    if (toDelete != null) await backend.moveToRecycleBin(toDelete.chat.target!, toDelete);
     toDelete?.dateDeleted = DateTime.now().toUtc();
     toDelete?.save();
   }
@@ -914,14 +924,18 @@ class Message {
   static int sort(Message a, Message b, {bool descending = true}) {
     late DateTime aDateToUse;
 
-    if (a.dateDelivered == null) {
+    if (a.dateScheduled != null) {
+      aDateToUse = a.dateScheduled!;
+    } else if (a.dateDelivered == null) {
       aDateToUse = a.dateCreated!;
     } else {
       aDateToUse = a.dateCreated!.isBefore(a.dateDelivered!) ? a.dateCreated! : a.dateDelivered!;
     }
 
     late DateTime bDateToUse;
-    if (b.dateDelivered == null) {
+    if (b.dateScheduled != null) {
+      bDateToUse = b.dateScheduled!;
+    } else if (b.dateDelivered == null) {
       bDateToUse = b.dateCreated!;
     } else {
       bDateToUse = b.dateCreated!.isBefore(b.dateDelivered!) ? b.dateCreated! : b.dateDelivered!;
@@ -1019,6 +1033,7 @@ class Message {
     if (dateRead != null) return Indicator.READ;
     if (isDelivered) return Indicator.DELIVERED;
     if (dateDelivered != null) return Indicator.DELIVERED;
+    if (dateScheduled != null) return Indicator.SCHEDULED;
     if (dateCreated != null) return Indicator.SENT;
     return Indicator.NONE;
   }
@@ -1319,6 +1334,7 @@ class Message {
     newMessage.stagingGuid = existing.stagingGuid;
     newMessage.verificationFailed = existing.verificationFailed;
     newMessage.amkSessionId = existing.amkSessionId;
+    newMessage.dateScheduled = existing.dateScheduled;
 
     return existing;
   }
@@ -1418,6 +1434,7 @@ class Message {
       "amkSessionId": amkSessionId,
       "sendingServiceId": sendingServiceId,
       "associatedMessageEmoji": associatedMessageEmoji,
+      "dateScheduled": dateScheduled?.millisecondsSinceEpoch,
     };
     if (includeObjects) {
       map['attachments'] = (attachments).map((e) => e!.toMap()).toList();

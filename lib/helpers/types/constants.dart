@@ -50,6 +50,7 @@ const balloonBundleIdMap = {
     'com.google.Maps.MessagesExtension': 'Google Maps',
     'com.apple.Animoji.StickersApp.MessagesExtension': 'Animoji Sticker',
     'com.apple.Stickers.UserGenerated.MessagesExtension': 'Sticker',
+    'com.apple.findmy.FindMyMessagesApp': "Live Location",
   }
 };
 
@@ -125,7 +126,7 @@ enum Monet {
   full,
 }
 
-enum Indicator { READ, DELIVERED, SENT, NONE }
+enum Indicator { READ, DELIVERED, SENT, NONE, SCHEDULED }
 
 enum LoadMessageResult { RETRIEVED_MESSAGES, FAILED_TO_RETRIEVE, RETRIEVED_LAST_PAGE }
 

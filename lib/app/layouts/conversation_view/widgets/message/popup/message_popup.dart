@@ -189,11 +189,20 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
       reactions.add(currentlySelectedReaction!); // add current reaction
     }
 
-    for (var emoji in recentEmojis.take(15)) {
+    for (var emoji in recentEmojis.take(10)) {
       if (reactions.contains(emoji.emoji.emoji)) continue;
       reactions.add(emoji.emoji.emoji);
       emojiMap[emoji.emoji.emoji] = emoji.emoji;
     }
+
+    var emojis = ["❤️", "😍", "😒", "👌", "☺️", "😊", "😘", "😭", "😩", "💕"];
+    while (reactions.length < 16 && emojis.isNotEmpty) {
+      var emoji = emojis.removeAt(0);
+      if (reactions.contains(emoji)) continue;
+      reactions.add(emoji);
+    }
+
+    
     
     return reactions;
   }
@@ -324,7 +333,7 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
                           child: reactions.isNotEmpty ? ReactionDetails(reactions: reactions) : const SizedBox.shrink(),
                         ),
                       ),
-                    if (ss.settings.enablePrivateAPI.value && isSent && minSierra && chat.isIMessage)
+                    if (ss.settings.enablePrivateAPI.value && isSent && minSierra && chat.isIMessage && message.dateScheduled == null)
                       Positioned(
                         bottom: (iOS ? itemHeight * numberToShow + 35 + widget.size.height : context.height - materialOffset)
                             .clamp(0, context.height - (narrowScreen ? 200 : 125)),
@@ -396,7 +405,20 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
                                                           if (selfReaction != e) {
                                                             (() async {
                                                               // Add an emoji to recently used list or increase its counter
-                                                              await EmojiPickerUtils().addEmojiToRecentlyUsed(key: GlobalKey(), emoji: emojiMap[e]!);
+                                                              Emoji? emoji = emojiMap[e];
+                                                              if (emoji == null) {
+                                                                outerLoop:
+                                                                for (var category in defaultEmojiSet) {
+                                                                  for (var myEmoji in category.emoji) {
+                                                                    if (myEmoji.emoji == e) {
+                                                                      emojiMap[e] = myEmoji;
+                                                                      emoji = myEmoji;
+                                                                      break outerLoop;
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                              if (emoji != null) await EmojiPickerUtils().addEmojiToRecentlyUsed(key: GlobalKey(), emoji: emoji);
                                                             })();
                                                           }
                                                           reactEmoji(e);
@@ -436,7 +458,7 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
                                 ),
                         ),
                       ),
-                    if (ss.settings.enablePrivateAPI.value && isSent && minSierra && chat.isIMessage)
+                    if (ss.settings.enablePrivateAPI.value && isSent && minSierra && chat.isIMessage && message.dateScheduled == null)
                       Positioned(
                         bottom: (iOS ? itemHeight * numberToShow + 5 + widget.size.height : context.height - materialOffset)
                             .clamp(0, context.height - (narrowScreen ? 200 : 125)),
@@ -1165,7 +1187,8 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
   }
 
   get _allActions {
-    final canEdit = (message.dateCreated?.toUtc().isWithin(DateTime.now().toUtc(), minutes: 15) ?? false);
+    final canEdit = (message.dateCreated?.toUtc().isWithin(DateTime.now().toUtc(), minutes: 15) ?? false) 
+        || (message.dateCreated?.toUtc().isAfter(DateTime.now().toUtc()) ?? false);
     return [
         if (ss.settings.enablePrivateAPI.value && minBigSur && chat.isIMessage && isSent)
           DetailsMenuActionWidget(
@@ -1246,7 +1269,7 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
             onTap: createContact,
             action: DetailsMenuAction.CreateContact,
           ),
-        if (backend.canEditUnsend() && message.isFromMe! && !message.guid!.startsWith("temp"))
+        if (backend.canEditUnsend() && message.isFromMe! && !message.guid!.startsWith("temp") && message.dateScheduled == null)
           DetailsMenuActionWidget(
             onTap: unsend,
             action: DetailsMenuAction.UndoSend,
