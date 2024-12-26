@@ -415,6 +415,9 @@ class Chat {
     _latestMessage = latestMessage;
   }
 
+  @Property()
+  bool isWhitelisted = false;
+
   factory Chat.fromMap(Map<String, dynamic> json) {
     final message = json['lastMessage'] != null ? Message.fromMap(json['lastMessage']!.cast<String, Object>()) : null;
     return Chat(
@@ -486,6 +489,7 @@ class Chat {
     bool updateAPNTitle = false,
     bool updateGuidRefs = false,
     bool updateTelephonyId = false,
+    bool updateWhitelisted = false,
   }) {
     if (kIsWeb) return this;
     Database.runInTransaction(TxMode.write, () {
@@ -560,6 +564,9 @@ class Chat {
       }
       if (!updateTelephonyId) {
         telephonyId = existing?.telephonyId ?? telephonyId;
+      }
+      if (updateWhitelisted) {
+        existing?.isWhitelisted = isWhitelisted;
       }
 
       /// Save the chat and add the participants
@@ -796,10 +803,10 @@ class Chat {
 
   /// Return whether or not the notification should be muted
   bool shouldMuteNotification(Message? message) {
-    /// Filter unknown senders & sender doesn't have a contact, then don't notify
     if (ss.settings.filterUnknownSenders.value &&
         participants.length == 1 &&
-        participants.first.contact == null) {
+        participants.first.contact == null &&
+        !isWhitelisted)
       return true;
 
       /// Check if global text detection is on and notify accordingly
@@ -1014,6 +1021,12 @@ class Chat {
     // we need to ensure that all of the chat participants are correct by syncing with the server
     if (message.isParticipantEvent && checkForMessageText) {
       serverSyncParticipants();
+    }
+
+    // Once we send a message, consider them "known"
+    if (message.isFromMe! && participants.length == 1 && participants.first.contact == null && ss.settings.filterUnknownSenders.value) {
+      isWhitelisted = true;
+      save(updateWhitelisted: true);
     }
 
     // Return the current chat instance (with updated vals)
