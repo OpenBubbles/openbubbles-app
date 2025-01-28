@@ -158,6 +158,7 @@ class ActionHandler extends GetxService {
   }
 
   Future<void> sendMessage(Chat c, Message m, Message? selected, String? r) async {
+    if (c.isArchived!) c.toggleArchived(false);
     final completer = Completer<void>();
     if (r == null) {
       backend.sendMessage(c, m).then((newMessage) async {
