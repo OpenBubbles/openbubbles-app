@@ -8,7 +8,7 @@ import 'package:slugify/slugify.dart';
 import 'package:tuple/tuple.dart';
 import 'package:bluebubbles/services/network/backend_service.dart';
 
-void showAddParticipant(BuildContext context, Chat chat) {
+void showAddParticipant(BuildContext context, Chat chat, {bool isOngoingCall = false}) {
   final TextEditingController participantController = TextEditingController();
   showDialog(
     context: context,
@@ -130,7 +130,9 @@ void showAddParticipant(BuildContext context, Chat chat) {
                     );
                   }
               );
-              final response = await backend.chatParticipant(ParticipantOp.Add, chat, participantController.text);
+              final response = isOngoingCall
+                  ? await pushService.addMember(participantController.text)
+                  : await backend.chatParticipant(ParticipantOp.Add, chat, participantController.text);
               if (response) {
                 Get.back();
                 Get.back();
