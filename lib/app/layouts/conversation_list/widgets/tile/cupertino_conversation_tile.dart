@@ -300,7 +300,16 @@ class _CupertinoTrailingState extends CustomState<CupertinoTrailing, void, Conve
                           ? context.theme.colorScheme.onBubble(context, controller.chat.isIMessage)
                           : context.theme.colorScheme.outline,
                       size: 12,
-                    ))
+                    )),
+              if (cachedLatestMessage?.error ?? 0 > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5.0),
+                  child: Icon(
+                    CupertinoIcons.clear_circled_solid,
+                    color: context.theme.colorScheme.error,
+                    size: 12,
+                  ),
+                ),
             ],
           ),
         ],

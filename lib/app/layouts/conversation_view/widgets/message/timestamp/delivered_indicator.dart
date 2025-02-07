@@ -87,6 +87,8 @@ class _DeliveredIndicatorState extends CustomState<DeliveredIndicator, void, Mes
         return buildTwoPiece("Scheduled", buildDate(message.dateScheduled));
       }
       return buildTwoPiece("Sent", buildDate(message.dateCreated));
+    } else if (message.error > 0) {
+      return buildTwoPiece("Failed", buildDate(message.dateCreated));
     }
 
     return [];

@@ -314,6 +314,14 @@ class _MaterialTrailingState extends CustomState<MaterialTrailing, void, Convers
                         color: controller.shouldHighlight.value || unread ? context.theme.colorScheme.primary : context.theme.colorScheme.outline,
                         size: 15,
                       )),
+                if ((cachedLatestMessage?.error ?? 0) > 0)
+                  const SizedBox(width: 5),
+                if ((cachedLatestMessage?.error ?? 0) > 0)
+                  Icon(
+                    Icons.error,
+                    color: context.theme.colorScheme.error,
+                    size: 15,
+                  ),
               ],
             ),
           ],
