@@ -26,7 +26,7 @@ If you need help setting up the app, have any issues or feature requests, or jus
 ## Useful links
 
 * Our Website: [here](https://openbubbles.app)
-* Discord: [here](https://discord.gg/4F7nbf3)!
+* Discord: [here](https://discord.gg/hbgR8rfzfN)!
     - We highly encourage users to join to get in direct communication with the developers and community
 * GitHub: [here](https://github.com/OpenBubbles)
     - Please submit any issues with the app here so we can properly track them! Remember to search before opening a ticket :)
