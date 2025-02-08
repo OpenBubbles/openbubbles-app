@@ -64,6 +64,9 @@ class MessagesViewState extends OptimizedState<MessagesView> {
 
   Chat get chat => controller.chat;
 
+  Message? lastReadMessage;
+  Message? firstUnreadMessage;
+
   @override
   void initState() {
     super.initState();
@@ -126,6 +129,15 @@ class MessagesViewState extends OptimizedState<MessagesView> {
             jumpingToOldestUnread.value = false;
           });
         });
+      }
+
+      // Determine the last read message and the first unread message
+      lastReadMessage = _messages.firstWhereOrNull((message) => message.guid == chat.lastReadMessageGuid);
+      if (lastReadMessage != null) {
+        final lastReadMessageIndex = _messages.indexOf(lastReadMessage!);
+        if (lastReadMessageIndex + 1 < _messages.length) {
+          firstUnreadMessage = _messages[lastReadMessageIndex + 1];
+        }
       }
     });
   }
@@ -508,6 +520,19 @@ class MessagesViewState extends OptimizedState<MessagesView> {
                                   toReturn = SizedBox(
                                     key: ValueKey(_messages[index].guid!),
                                     child: messageWidget,
+                                  );
+                                }
+
+                                // Add a line separator between old and new messages
+                                if (message == firstUnreadMessage) {
+                                  toReturn = Column(
+                                    children: [
+                                      Divider(
+                                        color: context.theme.colorScheme.primary,
+                                        thickness: 2,
+                                      ),
+                                      toReturn,
+                                    ],
                                   );
                                 }
 

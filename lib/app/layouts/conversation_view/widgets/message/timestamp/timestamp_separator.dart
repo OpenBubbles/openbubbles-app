@@ -17,9 +17,11 @@ class TimestampSeparator extends StatelessWidget {
     super.key,
     required this.olderMessage,
     required this.message,
+    this.isNewMessageSeparator = false,
   });
   final Message? olderMessage;
   final Message message;
+  final bool isNewMessageSeparator;
 
   bool withinTimeThreshold(Message first, Message? second) {
     if (second == null) return true;
@@ -29,7 +31,9 @@ class TimestampSeparator extends StatelessWidget {
   }
 
   Tuple2<String?, String>? buildTimeStamp() {
-    if (ss.settings.skin.value == Skins.Samsung && message.chatViewDate?.day != olderMessage?.chatViewDate?.day) {
+    if (isNewMessageSeparator) {
+      return Tuple2(null, "New Messages");
+    } else if (ss.settings.skin.value == Skins.Samsung && message.chatViewDate?.day != olderMessage?.chatViewDate?.day) {
       return Tuple2(null, buildSeparatorDateSamsung(message.chatViewDate!));
     } else if (ss.settings.skin.value != Skins.Samsung && withinTimeThreshold(message, olderMessage)) {
       final time = message.chatViewDate!;
@@ -46,8 +50,6 @@ class TimestampSeparator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timestamp = buildTimeStamp();
-
-
 
     var child = timestamp != null ? Padding(
       padding: const EdgeInsets.all(14.0),
