@@ -199,7 +199,7 @@ dependencies:
     path: rust_builder
   freezed_annotation: ^2.4.1
   telephony_plus:
-    path: /home/tae/Downloads/telephony_plus
+    path: https://github.com/OpenBubbles/telephony_plus
   barcode_widget: ^2.0.4
   vpn_connection_detector: ^1.0.6
   ffmpeg_kit_flutter: 6.0.3
