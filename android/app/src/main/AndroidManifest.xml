@@ -68,6 +68,7 @@
     <application
         android:name="${applicationName}"
         android:allowBackup="false"
+        android:memtagMode="async"
         android:appCategory="social"
         android:debuggable="false"
         android:extractNativeLibs="true"
