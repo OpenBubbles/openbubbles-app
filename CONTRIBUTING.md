@@ -44,6 +44,8 @@ In order to start contributing, follow these steps:
 6. Pull the latest changes, or a specific branch you want to start from
     * Pull code from the main repository's master branch: `git pull upstream master`
     * Checkout a specific branch: `git checkout upstream <name of branch>`
+7. Initialize and update git submodules (required for building the Rust components)
+    * `git submodule update --init --recursive`
 
 ## Picking an Issue
 
