@@ -24,6 +24,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   system_tray
   tray_manager
   url_launcher_linux
+  volume_controller
   window_manager
 )
 
