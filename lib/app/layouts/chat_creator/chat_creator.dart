@@ -231,7 +231,7 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
         for (SelectedContact contact in selectedContacts) {
           for (Handle participant in c.participants) {
             // If one is an email and the other isn't, skip
-            if (contact.address.isEmail && !participant.address.isEmail) continue;
+            if (contact.address.isEmail != participant.address.isEmail) continue;
             if (contact.address == participant.address || phoneNumbersMatch(contact.address, participant.address)) {
               matches += 1;
               break;

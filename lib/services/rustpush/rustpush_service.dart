@@ -2370,6 +2370,7 @@ class RustPushService extends GetxService {
     // Build chat cache for fast lookups during message sync
     Map<String, Chat> chatCache = {};
     for (var c in chats.chats) {
+      chatCache[c.guid] = c;
       if (c.chatIdentifier != null) chatCache[c.chatIdentifier!] = c;
       if (c.cloudGuid != null) chatCache[c.cloudGuid!] = c;
     }

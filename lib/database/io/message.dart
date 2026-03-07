@@ -185,9 +185,18 @@ class BulkSaveNewMessages extends AsyncTask<List<dynamic>, List<Message>> {
 
       // 5. Fetch only the handles needed by this batch instead of loading ALL handles
       final handleIds = inputMessages.map((e) => e.handleId).whereNotNull().where((e) => e != 0).toSet().toList();
-      List<Handle> handles = handleIds.isNotEmpty
-          ? Database.handles.query(Handle_.originalROWID.oneOf(handleIds)).build().find()
-          : [];
+      List<Handle> handles = [];
+      if (handleIds.isNotEmpty) {
+        handles = Database.handles.query(Handle_.originalROWID.oneOf(handleIds)).build().find();
+        // Fallback: if some handles lack originalROWID, also query by id
+        if (handles.length < handleIds.length) {
+          final foundIds = handles.map((e) => e.originalROWID).toSet();
+          final missingIds = handleIds.where((id) => !foundIds.contains(id)).toList();
+          if (missingIds.isNotEmpty) {
+            handles.addAll(Database.handles.query(Handle_.id.oneOf(missingIds)).build().find());
+          }
+        }
+      }
 
       for (final msg in inputMessages) {
         msg.chat.target = inputChat;

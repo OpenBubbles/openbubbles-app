@@ -63,6 +63,7 @@ class ChatManager extends GetxService {
     // Defer expensive Rust FFI work until after the page transition completes
     SchedulerBinding.instance.addPostFrameCallback((_) {
       (() async {
+        if (activeChat?.chat.guid != chat.guid) return;
         if (!chat.isIMessage) return;
         var statuskit = pushService.state?.icloudServices?.statuskitClient;
         if (statuskit == null) return;

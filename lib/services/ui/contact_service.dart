@@ -24,9 +24,11 @@ ContactsService cs = Get.isRegistered<ContactsService>() ? Get.find<ContactsServ
 bool phoneNumbersMatch(String a, String b) {
   final na = a.numericOnly();
   final nb = b.numericOnly();
+  if (na.isEmpty || nb.isEmpty) return false;
   if (na == nb) return true;
   final sa = na.replaceFirst(RegExp(r'^0+'), '');
   final sb = nb.replaceFirst(RegExp(r'^0+'), '');
+  if (sa.isEmpty || sb.isEmpty) return false;
   if (sa == sb) return true;
   final shorter = sa.length <= sb.length ? sa : sb;
   final longer = sa.length > sb.length ? sa : sb;
@@ -291,6 +293,9 @@ class ContactsService extends GetxService {
         continue;
       }
 
+      // Skip emails that didn't match above — don't try phone matching
+      if (h.address.contains("@")) continue;
+
       // Match phone numbers with fuzzy comparison
       if (c.phones.any((p) => phoneNumbersMatch(h.address, p))) {
         handleMatches.add(h);
@@ -310,6 +315,7 @@ class ContactsService extends GetxService {
       if (h.address.contains("@") && c.emails.contains(h.address)) {
         return c;
       }
+      if (h.address.contains("@")) continue;
       if (c.phones.any((p) => phoneNumbersMatch(h.address, p))) {
         return c;
       }
