@@ -6,6 +6,7 @@ import 'package:bluebubbles/services/services.dart';
 import 'package:dio/dio.dart';
 import 'package:bluebubbles/services/rustpush/rustpush_service.dart';
 import 'package:bluebubbles/services/network/backend_service.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart' hide Response;
 import 'package:tuple/tuple.dart';
 import 'package:bluebubbles/src/rust/api/api.dart' as api;
@@ -59,23 +60,26 @@ class ChatManager extends GetxService {
     eventDispatcher.emit("update-highlight", chat.guid);
     Logger.debug('Setting active chat to ${chat.guid} (${chat.displayName})');
 
-    (() async {
-      if (!chat.isIMessage) return;
-      var statuskit = pushService.state?.icloudServices?.statuskitClient;
-      if (statuskit == null) return;
-      Logger.info("ensuring keys");
-      var participants = (await chat.getConversationData()).participants;
-      var targets = await pushService.doValidateTargets(participants, await chat.ensureHandle());
-      Logger.info("finished ensuring keys ${targets.length}/${participants.length}");
-      if (chat.participants.length == 1) {
-        participants.remove(await chat.ensureHandle());
-        Logger.info("showing interest in handle ${participants[0]}");
-        provider?.dispose();
-        provider = await api.requestHandles(status: statuskit, to: [participants[0]]);
-        Logger.info("showed interest in handles");
-        chat.fixZenModeShared();
-      }
-    })();
+    // Defer expensive Rust FFI work until after the page transition completes
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      (() async {
+        if (!chat.isIMessage) return;
+        var statuskit = pushService.state?.icloudServices?.statuskitClient;
+        if (statuskit == null) return;
+        Logger.info("ensuring keys");
+        var participants = (await chat.getConversationData()).participants;
+        var targets = await pushService.doValidateTargets(participants, await chat.ensureHandle());
+        Logger.info("finished ensuring keys ${targets.length}/${participants.length}");
+        if (chat.participants.length == 1) {
+          participants.remove(await chat.ensureHandle());
+          Logger.info("showing interest in handle ${participants[0]}");
+          provider?.dispose();
+          provider = await api.requestHandles(status: statuskit, to: [participants[0]]);
+          Logger.info("showed interest in handles");
+          chat.fixZenModeShared();
+        }
+      })();
+    });
 
     createChatController(chat, active: true);
     if (clearNotifications) {

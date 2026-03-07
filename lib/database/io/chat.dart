@@ -265,7 +265,7 @@ class GetChats extends AsyncTask<List<dynamic>, List<Chat>> {
 
   @override
   FutureOr<List<Chat>> run() {
-    return Database.runInTransaction(TxMode.write, () {
+    return Database.runInTransaction(TxMode.read, () {
       late final QueryBuilder<Chat> queryBuilder;
 
       // If the 3rd param is available, it's for an ID query.

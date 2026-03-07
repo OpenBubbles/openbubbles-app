@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
@@ -10,6 +12,7 @@ class _GlobalChatService extends GetxService {
   final RxInt _unreadCount = 0.obs;
   final Map<String, RxBool> _unreadCountMap = <String, RxBool>{}.obs;
   final Map<String, RxnString> _muteTypeMap = <String, RxnString>{}.obs;
+  Timer? _debounceTimer;
 
   RxInt get unreadCount => _unreadCount;
 
@@ -39,23 +42,34 @@ class _GlobalChatService extends GetxService {
     watchChats();
   }
 
+  @override
+  void onClose() {
+    _debounceTimer?.cancel();
+    super.onClose();
+  }
+
   void watchChats() {
     final query = Database.chats.query().watch(triggerImmediately: true);
     query.listen((event) {
-      final chats = event.find();
-
-      // Detect changes and make updates
-      _evaluateUnreadInfo(chats);
-      _evaluateMuteInfo(chats);
+      // Debounce: this watcher fires on ANY write to the chats table.
+      // During sync, hundreds of writes per second would each trigger a
+      // full table load + two full iterations. Debounce to coalesce.
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(const Duration(milliseconds: 200), () {
+        final chats = event.find();
+        _evaluateUnreadInfo(chats);
+        _evaluateMuteInfo(chats);
+      });
     });
   }
 
   void _evaluateUnreadInfo(List<Chat> chats) {
-    unreadCount.value = chats.where((element) => element.hasUnreadMessage ?? false).length;
+    // Use a COUNT query instead of loading all chats and filtering in memory
+    unreadCount.value = Database.chats.query(Chat_.hasUnreadMessage.equals(true)).build().count();
 
     for (Chat chat in chats) {
       final RxBool? currentUnreadStatus = _unreadCountMap[chat.guid];
-      
+
       // Set the default value
       if (currentUnreadStatus == null) {
         _unreadCountMap[chat.guid] = RxBool(false);

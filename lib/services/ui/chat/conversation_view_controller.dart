@@ -11,6 +11,7 @@ import 'package:bluebubbles/services/services.dart';
 import 'package:emojis/emoji.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:get/get.dart';
 import 'package:google_ml_kit/google_ml_kit.dart' hide Message;
@@ -197,7 +198,8 @@ class ConversationViewController extends StatefulController with GetSingleTicker
         _subjectWasLastFocused = true;
       }
     });
-    updatePoster();
+    // Defer poster loading until after the page transition
+    SchedulerBinding.instance.addPostFrameCallback((_) => updatePoster());
   }
 
   void updatePoster() async {

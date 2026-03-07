@@ -284,6 +284,7 @@ class _ChatTitleState extends CustomState<ChatTitle, void, ConversationTileContr
   StreamSubscription? sub;
   String? cachedDisplayName = "";
   List<Handle> cachedParticipants = [];
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -300,23 +301,28 @@ class _ChatTitleState extends CustomState<ChatTitle, void, ConversationTileContr
       updateObx(() {
         final titleQuery = Database.chats.query(Chat_.guid.equals(controller.chat.guid))
             .watch();
-        sub = titleQuery.listen((Query<Chat> query) async {
-          final chat = controller.chat.id == null ? null : await runAsync(() {
-            return Database.chats.get(controller.chat.id!);
-          });
-          if (chat == null) return;
-          // check if we really need to update this widget
-          if (chat.displayName != cachedDisplayName
-              || chat.handles.length != cachedParticipants.length) {
-            final newTitle = chat.getTitle();
-            if (newTitle != title) {
-              setState(() {
-                title = newTitle;
-              });
+        sub = titleQuery.listen((Query<Chat> query) {
+          // Debounce: ObjectBox watchers fire on ANY table write, so during
+          // sync this can fire hundreds of times per second across all tiles.
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+            final chat = controller.chat.id == null ? null : await runAsync(() {
+              return Database.chats.get(controller.chat.id!);
+            });
+            if (chat == null) return;
+            // check if we really need to update this widget
+            if (chat.displayName != cachedDisplayName
+                || chat.handles.length != cachedParticipants.length) {
+              final newTitle = chat.getTitle();
+              if (newTitle != title) {
+                setState(() {
+                  title = newTitle;
+                });
+              }
             }
-          }
-          cachedDisplayName = chat.displayName;
-          cachedParticipants = chat.handles;
+            cachedDisplayName = chat.displayName;
+            cachedParticipants = chat.handles;
+          });
         });
       });
       // listen for contacts update (if tile is active, we can update it)
@@ -366,6 +372,7 @@ class _ChatTitleState extends CustomState<ChatTitle, void, ConversationTileContr
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     if (!kIsWeb) sub?.cancel();
     super.dispose();
   }
@@ -410,6 +417,7 @@ class _ChatSubtitleState extends CustomState<ChatSubtitle, void, ConversationTil
   DateTime? cachedDateEdited;
   bool isDelivered = false;
   bool isFromMe = false;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -433,31 +441,36 @@ class _ChatSubtitleState extends CustomState<ChatSubtitle, void, ConversationTil
           ..order(Message_.dateCreated, flags: Order.descending))
             .watch();
 
-        sub = latestMessageQuery.listen((Query<Message> query) async {
-          final message = await runAsync(() {
-            return query.findFirst();
-          });
-          isFromMe = message?.isFromMe ?? false;
-          isDelivered = controller.chat.isGroup || !isFromMe || message?.dateDelivered != null || message?.dateRead != null;
-          // check if we really need to update this widget
-          if (message != null && (message.guid != cachedLatestMessageGuid || message.dateEdited != cachedDateEdited)) {
-            message.handle = message.getHandle();
-            String newSubtitle = MessageHelper.getNotificationText(message);
-            if (newSubtitle != subtitle) {
-              setState(() {
-                subtitle = newSubtitle;
-                fakeText = faker.lorem.words(subtitle.split(" ").length).join(" ");
-              });
+        sub = latestMessageQuery.listen((Query<Message> query) {
+          // Debounce: ObjectBox watchers fire on ANY table write, so during
+          // sync this can fire hundreds of times per second across all tiles.
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+            final message = await runAsync(() {
+              return query.findFirst();
+            });
+            isFromMe = message?.isFromMe ?? false;
+            isDelivered = controller.chat.isGroup || !isFromMe || message?.dateDelivered != null || message?.dateRead != null;
+            // check if we really need to update this widget
+            if (message != null && (message.guid != cachedLatestMessageGuid || message.dateEdited != cachedDateEdited)) {
+              message.handle = message.getHandle();
+              String newSubtitle = MessageHelper.getNotificationText(message);
+              if (newSubtitle != subtitle) {
+                setState(() {
+                  subtitle = newSubtitle;
+                  fakeText = faker.lorem.words(subtitle.split(" ").length).join(" ");
+                });
+              }
+            } else if (!controller.chat.isGroup
+                && message != null
+                && message.isFromMe!
+                && (message.dateDelivered != null || message.dateRead != null)) {
+              // update delivered status
+              setState(() {});
             }
-          } else if (!controller.chat.isGroup
-              && message != null
-              && message.isFromMe!
-              && (message.dateDelivered != null || message.dateRead != null)) {
-            // update delivered status
-            setState(() {});
-          }
-          cachedLatestMessageGuid = message?.guid;
-          cachedDateEdited = message?.dateEdited;
+            cachedLatestMessageGuid = message?.guid;
+            cachedDateEdited = message?.dateEdited;
+          });
         });
       });
     } else {
@@ -503,6 +516,7 @@ class _ChatSubtitleState extends CustomState<ChatSubtitle, void, ConversationTil
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     sub?.cancel();
     super.dispose();
   }

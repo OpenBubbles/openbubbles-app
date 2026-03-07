@@ -128,10 +128,19 @@ class ChatsService extends GetxService {
         cm.createChatController(c, active: cm.activeChat?.chat.guid == c.guid);
       }
       newChats.addAll(temp);
-      newChats.sort(Chat.sort);
-      chats.value = newChats;
-      loadedChatBatch.value = true;
+
+      // Show first batch immediately so the user sees something quickly,
+      // then accumulate the rest without sorting/assigning per batch.
+      if (i == 0) {
+        newChats.sort(Chat.sort);
+        chats.value = newChats;
+        loadedChatBatch.value = true;
+      }
     }
+    // Final sort and assign after all batches loaded
+    newChats.sort(Chat.sort);
+    chats.value = newChats;
+
     loadChatSuggestions();
     loadedAllChats.complete();
     Logger.info("Finished fetching chats (${chats.length}).", tag: "ChatBloc");
