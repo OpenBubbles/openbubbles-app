@@ -892,10 +892,12 @@ Future<void> deleteChats(
 Future<(Uint8List, Map<String, CloudMessage?>, int)> syncMessages(
         {required ArcCloudMessagesClientDefaultAnisetteProvider
             cloudMessagesClient,
-        Uint8List? continuationToken}) =>
+        Uint8List? continuationToken,
+        int? cutoffNs}) =>
     RustLib.instance.api.crateApiApiSyncMessages(
         cloudMessagesClient: cloudMessagesClient,
-        continuationToken: continuationToken);
+        continuationToken: continuationToken,
+        cutoffNs: cutoffNs);
 
 Future<Map<String, bool>> saveMessages(
         {required ArcCloudMessagesClientDefaultAnisetteProvider

@@ -183,8 +183,11 @@ class BulkSaveNewMessages extends AsyncTask<List<dynamic>, List<Message>> {
       List<String> existingMessageGuids = query.build().find().map((e) => e.guid!).toList();
       inputMessages = inputMessages.where((element) => !existingMessageGuids.contains(element.guid)).toList();
 
-      // 5. Fetch all handles and map the old handle ROWIDs from each message to the new ones based on the original ROWID
-      List<Handle> handles = Database.handles.getAll();
+      // 5. Fetch only the handles needed by this batch instead of loading ALL handles
+      final handleIds = inputMessages.map((e) => e.handleId).whereNotNull().where((e) => e != 0).toSet().toList();
+      List<Handle> handles = handleIds.isNotEmpty
+          ? Database.handles.query(Handle_.originalROWID.oneOf(handleIds)).build().find()
+          : [];
 
       for (final msg in inputMessages) {
         msg.chat.target = inputChat;
@@ -1097,22 +1100,30 @@ class Message {
     );
   }
 
-  void applyFromCloud(api.CloudMessage c, String cloudkitId) {
+  Chat? applyFromCloud(api.CloudMessage c, String cloudkitId, {Map<String, Chat>? chatCache}) {
     Logger.info("item ${c.chatId}");
     Chat? chat;
-    if (c.chatId.contains(";")) {
-      final query = Database.chats.query(Chat_.chatIdentifier.equals(c.chatId.split(";")[2])).build();
-      chat = query.findFirst();
-      query.close();
+    if (chatCache != null) {
+      if (c.chatId.contains(";")) {
+        chat = chatCache[c.chatId.split(";")[2]];
+      } else {
+        chat = chatCache[c.chatId];
+      }
     } else {
-      final query = Database.chats.query(Chat_.cloudGuid.equals(c.chatId)).build();
-      chat = query.findFirst();
-      query.close();
-      
-      chat ??= Chat.findByRustGuid(c.chatId);
+      if (c.chatId.contains(";")) {
+        final query = Database.chats.query(Chat_.chatIdentifier.equals(c.chatId.split(";")[2])).build();
+        chat = query.findFirst();
+        query.close();
+      } else {
+        final query = Database.chats.query(Chat_.cloudGuid.equals(c.chatId)).build();
+        chat = query.findFirst();
+        query.close();
+
+        chat ??= Chat.findByRustGuid(c.chatId);
+      }
     }
 
-    if (chat?.isRpSms ?? true) return;
+    if (chat?.isRpSms ?? true) return null;
 
     Logger.info("Syncing new message");
 
@@ -1184,7 +1195,8 @@ class Message {
       associatedMessageEmoji = proto4.associatedMessageEmoji;
     }
     
-    save(chat: chat);
+    this.chat.target = chat;
+    return chat;
   }
 
   /// Fetch reactions

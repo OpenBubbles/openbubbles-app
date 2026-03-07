@@ -11985,6 +11985,7 @@ fn wire__crate__api__api__sync_messages_impl(
                 >,
             >>::sse_decode(&mut deserializer);
             let api_continuation_token = <Option<Vec<u8>>>::sse_decode(&mut deserializer);
+            let api_cutoff_ns = <Option<i64>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -12013,6 +12014,7 @@ fn wire__crate__api__api__sync_messages_impl(
                         let output_ok = crate::api::api::sync_messages(
                             &*api_cloud_messages_client_guard,
                             api_continuation_token,
+                            api_cutoff_ns,
                         )
                         .await?;
                         Ok(output_ok)

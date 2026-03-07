@@ -212,6 +212,7 @@ class Settings {
 
   final RxBool cloudSyncingEnabled = false.obs;
   final RxBool attachmentSyncEnabled = false.obs;
+  final RxInt cloudSyncWindow = 0.obs; // 0=all, 1/6/12/24=months
   final RxnString keychainDefaultPassword = RxnString();
 
   final RxMap<String, String?> ctags = <String, String?>{}.obs;
@@ -439,6 +440,7 @@ class Settings {
       'isTester': isTester.value,
       'cloudSyncingEnabled': cloudSyncingEnabled.value,
       'attachmentSyncEnabled': attachmentSyncEnabled.value,
+      'cloudSyncWindow': cloudSyncWindow.value,
       'contactSyncProvider': contactSyncProvider.value,
     };
     if (includeAll) {
@@ -618,6 +620,7 @@ class Settings {
     ss.settings.isTester.value = map['isTester'] ?? false;
     ss.settings.cloudSyncingEnabled.value = map['cloudSyncingEnabled'] ?? false;
     ss.settings.attachmentSyncEnabled.value = map['attachmentSyncEnabled'] ?? false;
+    ss.settings.cloudSyncWindow.value = map['cloudSyncWindow'] ?? 0;
     ss.settings.ctags.value = map['ctags'] ?? {};
     ss.settings.tokens.value = map['tokens'] ?? {};
     ss.settings.save();
@@ -792,6 +795,7 @@ class Settings {
     s.isTester.value = map['isTester'] ?? false;
     s.cloudSyncingEnabled.value = map['cloudSyncingEnabled'] ?? false;
     s.attachmentSyncEnabled.value = map['attachmentSyncEnabled'] ?? false;
+    s.cloudSyncWindow.value = map['cloudSyncWindow'] ?? 0;
 
     s.ctags.value =  map['ctags'] is String ? jsonDecode(map['ctags']).cast<String, String?>() : <String, String?>{};
     s.tokens.value =  map['tokens'] is String ? jsonDecode(map['tokens']).cast<String, String?>() : <String, String?>{};

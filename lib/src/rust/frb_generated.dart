@@ -858,7 +858,8 @@ abstract class RustLibApi extends BaseApi {
   Future<(Uint8List, Map<String, CloudMessage?>, int)> crateApiApiSyncMessages(
       {required ArcCloudMessagesClientDefaultAnisetteProvider
           cloudMessagesClient,
-      Uint8List? continuationToken});
+      Uint8List? continuationToken,
+      int? cutoffNs});
 
   Future<void> crateApiApiSyncNow(
       {required SyncManagerDefaultAnisetteProviderMyFilePackager lock});
@@ -7598,13 +7599,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<(Uint8List, Map<String, CloudMessage?>, int)> crateApiApiSyncMessages(
       {required ArcCloudMessagesClientDefaultAnisetteProvider
           cloudMessagesClient,
-      Uint8List? continuationToken}) {
+      Uint8List? continuationToken,
+      int? cutoffNs}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcCloudMessagesClientDefaultAnisetteProvider(
             cloudMessagesClient, serializer);
         sse_encode_opt_list_prim_u_8_strict(continuationToken, serializer);
+        sse_encode_opt_box_autoadd_i_64(cutoffNs, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 223, port: port_);
       },
@@ -7614,14 +7617,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeErrorData: sse_decode_AnyhowException,
       ),
       constMeta: kCrateApiApiSyncMessagesConstMeta,
-      argValues: [cloudMessagesClient, continuationToken],
+      argValues: [cloudMessagesClient, continuationToken, cutoffNs],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta get kCrateApiApiSyncMessagesConstMeta => const TaskConstMeta(
         debugName: "sync_messages",
-        argNames: ["cloudMessagesClient", "continuationToken"],
+        argNames: ["cloudMessagesClient", "continuationToken", "cutoffNs"],
       );
 
   @override

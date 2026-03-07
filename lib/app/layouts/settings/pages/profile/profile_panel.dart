@@ -489,6 +489,29 @@ class _ProfilePanelState extends OptimizedState<ProfilePanel> with WidgetsBindin
                         subtitle: "Disable to reduce iCloud storage usage",
                         backgroundColor: tileColor,
                       ),
+                      if(ss.settings.cloudSyncingEnabled.value)
+                      SettingsOptions<int>(
+                        onChanged: (int? val) {
+                          if (val == null) return;
+                          ss.settings.cloudSyncWindow.value = val;
+                          ss.saveSettings();
+                        },
+                        options: const [0, 1, 6, 12, 24],
+                        initial: ss.settings.cloudSyncWindow.value,
+                        textProcessing: (int val) {
+                          switch (val) {
+                            case 0: return "All time";
+                            case 1: return "Past month";
+                            case 6: return "Past 6 months";
+                            case 12: return "Past year";
+                            case 24: return "Past 2 years";
+                            default: return "$val months";
+                          }
+                        },
+                        title: "Sync window",
+                        subtitle: "How far back to sync messages",
+                        capitalize: false,
+                      ),
                       if (quotaInfo.value != null && ss.settings.cloudSyncingEnabled.value)
                       Container(
                           child: Padding(

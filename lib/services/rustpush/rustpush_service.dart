@@ -2365,7 +2365,14 @@ class RustPushService extends GetxService {
       }
 
       ss.prefs.setString("chatSyncToken", base64Encode(token));
-    }  
+    }
+
+    // Build chat cache for fast lookups during message sync
+    Map<String, Chat> chatCache = {};
+    for (var c in chats.chats) {
+      if (c.chatIdentifier != null) chatCache[c.chatIdentifier!] = c;
+      if (c.cloudGuid != null) chatCache[c.cloudGuid!] = c;
+    }
 
     if (downloadPfPics.isNotEmpty) {
       await api.downloadCloudGroupPhotos(cloudMessagesClient: pushService.state!.icloudServices!.cloudMessagesClient!, files: downloadPfPics);
@@ -2431,6 +2438,14 @@ class RustPushService extends GetxService {
       ss.prefs.setString("attachmentSyncToken", base64Encode(token3));
     }
 
+    // Calculate cutoff for time-windowed sync
+    int? cutoffNs;
+    final syncWindow = ss.settings.cloudSyncWindow.value;
+    if (syncWindow > 0) {
+      final cutoffDate = DateTime.now().subtract(Duration(days: syncWindow * 30));
+      cutoffNs = RustPushBBUtils.nsSinceAppleEpoch(cutoffDate);
+    }
+
     int localUnchanged = 0;
     int localChanged = 0;
     int localSet = 0;
@@ -2442,13 +2457,17 @@ class RustPushService extends GetxService {
 
     currentState = 0;
     while (currentState != 3) {
-      var (token2, items2, state2) = await api.syncMessages(cloudMessagesClient: pushService.state!.icloudServices!.cloudMessagesClient!, 
-        continuationToken: ss.prefs.getString("messageSyncToken") != null ? base64Decode(ss.prefs.getString("messageSyncToken")!) : null);
+      var (token2, items2, state2) = await api.syncMessages(cloudMessagesClient: pushService.state!.icloudServices!.cloudMessagesClient!,
+        continuationToken: ss.prefs.getString("messageSyncToken") != null ? base64Decode(ss.prefs.getString("messageSyncToken")!) : null,
+        cutoffNs: cutoffNs);
       currentState = state2;
 
       List<String> dupDeleteMessages = [];
       Logger.info("Syncing group of ${items2.length} messages, total $totalMessages");
       totalMessages += items2.length;
+
+      List<Message> newMessagesToSave = [];
+      List<Message> existingToUpdate = [];
 
       for (var item in items2.entries) {
         try {
@@ -2473,16 +2492,31 @@ class RustPushService extends GetxService {
               localSet++;
             }
             existing.ckRecordId = item.key;
-            existing.save();
+            existingToUpdate.add(existing);
             remoteSaved++;
             continue;
           } // don't overwrite existing
           var message = Message();
-          message.applyFromCloud(item.value!, item.key);
+          var chat = message.applyFromCloud(item.value!, item.key, chatCache: chatCache);
+          if (chat != null) {
+            newMessagesToSave.add(message);
+          }
           remoteNew++;
         } catch (e, s) {
-          Logger.error("Failed to sync attachment ${item.key}", error: e, trace: s);
+          Logger.error("Failed to sync message ${item.key}", error: e, trace: s);
         }
+      }
+
+      // Batch save all new and updated messages in one transaction
+      if (newMessagesToSave.isNotEmpty || existingToUpdate.isNotEmpty) {
+        Database.runInTransaction(TxMode.write, () {
+          if (newMessagesToSave.isNotEmpty) {
+            Database.messages.putMany(newMessagesToSave);
+          }
+          if (existingToUpdate.isNotEmpty) {
+            Database.messages.putMany(existingToUpdate);
+          }
+        });
       }
 
       if (dupDeleteMessages.isNotEmpty) {
@@ -2501,7 +2535,7 @@ class RustPushService extends GetxService {
       }
 
       isSyncing.value = "Downloaded $totalMessages messages";
-      
+
       ss.prefs.setString("messageSyncToken", base64Encode(token2));
     }
 

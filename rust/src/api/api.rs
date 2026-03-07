@@ -2310,8 +2310,9 @@ pub async fn delete_chats(
 pub async fn sync_messages(
     cloud_messages_client: &Arc<CloudMessagesClient<DefaultAnisetteProvider>>,
     continuation_token: Option<Vec<u8>>,
+    cutoff_ns: Option<i64>,
 ) -> anyhow::Result<(Vec<u8>, HashMap<String, Option<CloudMessage>>, i32)> {
-    Ok(cloud_messages_client.sync_messages(continuation_token).await?)
+    Ok(cloud_messages_client.sync_messages(continuation_token, cutoff_ns).await?)
 }
 
 pub async fn save_messages(
