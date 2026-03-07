@@ -18,6 +18,21 @@ import 'package:bluebubbles/src/rust/api/api.dart' as api;
 
 ContactsService cs = Get.isRegistered<ContactsService>() ? Get.find<ContactsService>() : Get.put(ContactsService());
 
+/// Compare two phone numbers ignoring formatting and country code differences.
+/// Strips all non-digit characters, removes leading zeros, then checks if
+/// the shorter number is a suffix of the longer one (minimum 7 digits).
+bool phoneNumbersMatch(String a, String b) {
+  final na = a.numericOnly();
+  final nb = b.numericOnly();
+  if (na == nb) return true;
+  final sa = na.replaceFirst(RegExp(r'^0+'), '');
+  final sb = nb.replaceFirst(RegExp(r'^0+'), '');
+  if (sa == sb) return true;
+  final shorter = sa.length <= sb.length ? sa : sb;
+  final longer = sa.length > sb.length ? sa : sb;
+  return shorter.length >= 7 && longer.endsWith(shorter);
+}
+
 class ContactsService extends GetxService {
   final tag = "ContactsService";
   /// The master list of contact objects
@@ -38,6 +53,9 @@ class ContactsService extends GetxService {
 
     if (!kIsWeb) {
       contacts = Contact.getContacts();
+      // Re-match handles against cached contacts on startup
+      // (picks up matching improvements without needing a network fetch)
+      await rematchContacts();
     } else {
       await fetchNetworkContacts();
     }
@@ -149,6 +167,48 @@ class ContactsService extends GetxService {
     return changedIds;
   }
 
+  /// Re-match all handles to contacts using only cached database data.
+  /// Does not fetch from network — useful when matching logic has changed.
+  Future<void> rematchContacts() async {
+    final startTime = DateTime.now().millisecondsSinceEpoch;
+    final dbContacts = Database.contacts.getAll();
+    final handles = Database.handles.getAll();
+    Logger.info("Rematch starting: ${dbContacts.length} contacts, ${handles.length} handles");
+    if (dbContacts.isEmpty || handles.isEmpty) return;
+
+    contacts = dbContacts;
+    int matched = 0;
+    int alreadyMatched = 0;
+    int unmatched = 0;
+    final handlesToSearch = List<Handle>.from(handles);
+    for (Contact c in dbContacts) {
+      final matchedHandles = matchContactToHandles(c, handlesToSearch);
+      if (matchedHandles.isNotEmpty) {
+        final addressesAndServices = matchedHandles.map((e) => e.uniqueAddressAndService).toList();
+        handlesToSearch.removeWhere((e) => addressesAndServices.contains(e.uniqueAddressAndService));
+        for (Handle h in matchedHandles) {
+          if (h.contactRelation.target?.id != c.id) {
+            h.contactRelation.target = c;
+            matched++;
+          } else {
+            alreadyMatched++;
+          }
+        }
+      }
+    }
+    unmatched = handlesToSearch.length;
+    Logger.info("Rematch done: $matched new, $alreadyMatched already matched, $unmatched unmatched (${DateTime.now().millisecondsSinceEpoch - startTime} ms)");
+    if (matched > 0) {
+      Handle.bulkSave(handles);
+    }
+    // Log unmatched handles for debugging
+    for (Handle h in handlesToSearch.take(20)) {
+      if (!h.address.contains("@")) {
+        Logger.info("Unmatched handle: ${h.address}");
+      }
+    }
+  }
+
   Future<List<Contact>> fetchAllContacts() async {
     final _contacts = <Contact>[];
 
@@ -221,7 +281,6 @@ class ContactsService extends GetxService {
   }
 
   List<Handle> matchContactToHandles(Contact c, List<Handle> handles) {
-    final numericPhones = c.phones.map((e) => e.numericOnly()).toList();
     List<Handle> handleMatches = [];
     // multiply phones by 3 because a phone can be matched to iMessage / SMS / Android SMS
     int maxResults = c.phones.length * 3 + c.emails.length;
@@ -232,23 +291,10 @@ class ContactsService extends GetxService {
         continue;
       }
 
-      final numericAddress = h.address.numericOnly();
-
-      // Match phone numbers (exact)
-      if (c.phones.contains(numericAddress)) {
+      // Match phone numbers with fuzzy comparison
+      if (c.phones.any((p) => phoneNumbersMatch(h.address, p))) {
         handleMatches.add(h);
         continue;
-      }
-
-      // try to match last 15 - 7 digits
-      for (String p in numericPhones) {
-        // remove leading zeros which indicate "same country"
-        final leadingZerosRemoved = int.tryParse(p)?.toString() ?? p;
-        final matchLengths = [15, 14, 13, 12, 11, 10, 9, 8, 7];
-        if (matchLengths.contains(leadingZerosRemoved.length) && numericAddress.endsWith(leadingZerosRemoved)) {
-          handleMatches.add(h);
-          continue;
-        }
       }
 
       if (handleMatches.length >= maxResults) break;
@@ -260,31 +306,15 @@ class ContactsService extends GetxService {
   Contact? matchHandleToContact(Handle h) {
     if (!_hasContactAccess) return null;
 
-    Contact? contact;
-    final numericAddress = h.address.numericOnly();
     for (Contact c in contacts) {
-      final numericPhones = c.phones.map((e) => e.numericOnly()).toList();
       if (h.address.contains("@") && c.emails.contains(h.address)) {
-        contact = c;
-        break;
-      } else {
-        // if address is direct match
-        if (c.phones.contains(numericAddress)) {
-          contact = c;
-          break;
-        }
-        // try to match last 11 - 7 digits
-        for (String p in numericPhones) {
-          final matchLengths = [15, 14, 13, 12, 11, 10, 9, 8, 7];
-          if (matchLengths.contains(p.length) && numericAddress.endsWith(p)) {
-            contact = c;
-            break;
-          }
-        }
-        if (contact != null) break;
+        return c;
+      }
+      if (c.phones.any((p) => phoneNumbersMatch(h.address, p))) {
+        return c;
       }
     }
-    return contact;
+    return null;
   }
 
   Contact? getContact(String address) {

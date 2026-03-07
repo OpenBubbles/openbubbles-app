@@ -648,9 +648,14 @@ class CardDavClient {
         .map((e) => e.address.trim())
         .where((e) => e.isNotEmpty)
         .toList();
+    var displayName = contact.displayName;
+    if (displayName.isEmpty) {
+      final parts = [name.first, name.middle, name.last].where((s) => s.isNotEmpty);
+      displayName = parts.join(' ');
+    }
     return contacts.Contact(
       id: contact.id,
-      displayName: contact.displayName,
+      displayName: displayName,
       phones: phones,
       emails: emails,
       structuredName: structured.StructuredName(

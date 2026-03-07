@@ -48,7 +48,15 @@ class Handle {
       }
     }
     if (address.startsWith("urn:biz")) return "Business";
-    if (contact != null) return contact!.displayName;
+    final c = contact;
+    if (c != null) {
+      if (c.displayName.isNotEmpty) return c.displayName;
+      final sn = c.structuredName;
+      if (sn != null) {
+        final name = [sn.givenName, sn.middleName, sn.familyName].where((s) => s.isNotEmpty).join(' ');
+        if (name.isNotEmpty) return name;
+      }
+    }
     return address.contains("@") ? address : (formattedAddress ?? address);
   }
   String? get initials {

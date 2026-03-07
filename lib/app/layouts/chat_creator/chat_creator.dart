@@ -232,14 +232,7 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
           for (Handle participant in c.participants) {
             // If one is an email and the other isn't, skip
             if (contact.address.isEmail && !participant.address.isEmail) continue;
-            if (contact.address == participant.address) {
-              matches += 1;
-              break;
-            }
-            // match last digits
-            final matchLengths = [15, 14, 13, 12, 11, 10, 9, 8, 7];
-            final numeric = contact.address.numericOnly();
-            if (matchLengths.contains(numeric.length) && cleansePhoneNumber(participant.address).endsWith(numeric)) {
+            if (contact.address == participant.address || phoneNumbersMatch(contact.address, participant.address)) {
               matches += 1;
               break;
             }
