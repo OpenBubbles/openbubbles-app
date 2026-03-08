@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-flutter_rust_bridge = "=2.3.0"
+flutter_rust_bridge = "=2.11.1"
 rustpush = { path = "../rustpush", features = ["macos-validation-data", "remote-anisette-v3"] }
 keystore = { path = "../rustpush/keystore" }
 plist = "1.5.0"

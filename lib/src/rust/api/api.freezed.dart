@@ -73,9 +73,6 @@ class _$AttachmentTypeCopyWithImpl<$Res, $Val extends AttachmentType>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of AttachmentType
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -96,8 +93,6 @@ class __$$AttachmentType_InlineImplCopyWithImpl<$Res>
       $Res Function(_$AttachmentType_InlineImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of AttachmentType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -137,9 +132,7 @@ class _$AttachmentType_InlineImpl extends AttachmentType_Inline {
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(field0));
 
-  /// Create a copy of AttachmentType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$AttachmentType_InlineImplCopyWith<_$AttachmentType_InlineImpl>
@@ -216,10 +209,7 @@ abstract class AttachmentType_Inline extends AttachmentType {
 
   @override
   Uint8List get field0;
-
-  /// Create a copy of AttachmentType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$AttachmentType_InlineImplCopyWith<_$AttachmentType_InlineImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -241,8 +231,6 @@ class __$$AttachmentType_MMCSImplCopyWithImpl<$Res>
       $Res Function(_$AttachmentType_MMCSImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of AttachmentType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -281,9 +269,7 @@ class _$AttachmentType_MMCSImpl extends AttachmentType_MMCS {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of AttachmentType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$AttachmentType_MMCSImplCopyWith<_$AttachmentType_MMCSImpl> get copyWith =>
@@ -360,10 +346,7 @@ abstract class AttachmentType_MMCS extends AttachmentType {
 
   @override
   MMCSFile get field0;
-
-  /// Create a copy of AttachmentType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$AttachmentType_MMCSImplCopyWith<_$AttachmentType_MMCSImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -435,9 +418,7 @@ mixin _$BalloonLayout {
   }) =>
       throw _privateConstructorUsedError;
 
-  /// Create a copy of BalloonLayout
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $BalloonLayoutCopyWith<BalloonLayout> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -468,8 +449,6 @@ class _$BalloonLayoutCopyWithImpl<$Res, $Val extends BalloonLayout>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of BalloonLayout
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -543,8 +522,6 @@ class __$$BalloonLayout_TemplateLayoutImplCopyWithImpl<$Res>
       $Res Function(_$BalloonLayout_TemplateLayoutImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of BalloonLayout
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -645,9 +622,7 @@ class _$BalloonLayout_TemplateLayoutImpl extends BalloonLayout_TemplateLayout {
   int get hashCode => Object.hash(runtimeType, imageSubtitle, imageTitle,
       caption, secondarySubcaption, tertiarySubcaption, subcaption, class_);
 
-  /// Create a copy of BalloonLayout
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$BalloonLayout_TemplateLayoutImplCopyWith<
@@ -766,11 +741,8 @@ abstract class BalloonLayout_TemplateLayout extends BalloonLayout {
   String get subcaption;
   @override
   NSDictionaryClass get class_;
-
-  /// Create a copy of BalloonLayout
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$BalloonLayout_TemplateLayoutImplCopyWith<
           _$BalloonLayout_TemplateLayoutImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -835,9 +807,6 @@ class _$DeleteTargetCopyWithImpl<$Res, $Val extends DeleteTarget>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of DeleteTarget
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -857,8 +826,6 @@ class __$$DeleteTarget_ChatImplCopyWithImpl<$Res>
       $Res Function(_$DeleteTarget_ChatImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of DeleteTarget
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -897,9 +864,7 @@ class _$DeleteTarget_ChatImpl extends DeleteTarget_Chat {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of DeleteTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$DeleteTarget_ChatImplCopyWith<_$DeleteTarget_ChatImpl> get copyWith =>
@@ -976,10 +941,7 @@ abstract class DeleteTarget_Chat extends DeleteTarget {
 
   @override
   OperatedChat get field0;
-
-  /// Create a copy of DeleteTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$DeleteTarget_ChatImplCopyWith<_$DeleteTarget_ChatImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1002,8 +964,6 @@ class __$$DeleteTarget_MessagesImplCopyWithImpl<$Res>
       $Res Function(_$DeleteTarget_MessagesImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of DeleteTarget
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1050,9 +1010,7 @@ class _$DeleteTarget_MessagesImpl extends DeleteTarget_Messages {
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(_field0));
 
-  /// Create a copy of DeleteTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$DeleteTarget_MessagesImplCopyWith<_$DeleteTarget_MessagesImpl>
@@ -1129,10 +1087,7 @@ abstract class DeleteTarget_Messages extends DeleteTarget {
 
   @override
   List<String> get field0;
-
-  /// Create a copy of DeleteTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$DeleteTarget_MessagesImplCopyWith<_$DeleteTarget_MessagesImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -1247,9 +1202,6 @@ class _$FTMessageCopyWithImpl<$Res, $Val extends FTMessage>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -1271,8 +1223,6 @@ class __$$FTMessage_LetMeInRequestImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_LetMeInRequestImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1311,9 +1261,7 @@ class _$FTMessage_LetMeInRequestImpl extends FTMessage_LetMeInRequest {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_LetMeInRequestImplCopyWith<_$FTMessage_LetMeInRequestImpl>
@@ -1442,10 +1390,7 @@ abstract class FTMessage_LetMeInRequest extends FTMessage {
   const FTMessage_LetMeInRequest._() : super._();
 
   LetMeInRequest get field0;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_LetMeInRequestImplCopyWith<_$FTMessage_LetMeInRequestImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -1468,8 +1413,6 @@ class __$$FTMessage_LinkChangedImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_LinkChangedImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1508,9 +1451,7 @@ class _$FTMessage_LinkChangedImpl extends FTMessage_LinkChanged {
   @override
   int get hashCode => Object.hash(runtimeType, guid);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_LinkChangedImplCopyWith<_$FTMessage_LinkChangedImpl>
@@ -1639,10 +1580,7 @@ abstract class FTMessage_LinkChanged extends FTMessage {
   const FTMessage_LinkChanged._() : super._();
 
   String get guid;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_LinkChangedImplCopyWith<_$FTMessage_LinkChangedImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -1664,8 +1602,6 @@ class __$$FTMessage_JoinEventImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_JoinEventImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1734,9 +1670,7 @@ class _$FTMessage_JoinEventImpl extends FTMessage_JoinEvent {
   @override
   int get hashCode => Object.hash(runtimeType, guid, participant, handle, ring);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_JoinEventImplCopyWith<_$FTMessage_JoinEventImpl> get copyWith =>
@@ -1871,10 +1805,7 @@ abstract class FTMessage_JoinEvent extends FTMessage {
   BigInt get participant;
   String get handle;
   bool get ring;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_JoinEventImplCopyWith<_$FTMessage_JoinEventImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -1896,8 +1827,6 @@ class __$$FTMessage_AddMembersImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_AddMembersImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1964,9 +1893,7 @@ class _$FTMessage_AddMembersImpl extends FTMessage_AddMembers {
   int get hashCode => Object.hash(
       runtimeType, guid, const DeepCollectionEquality().hash(_members), ring);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_AddMembersImplCopyWith<_$FTMessage_AddMembersImpl>
@@ -2100,10 +2027,7 @@ abstract class FTMessage_AddMembers extends FTMessage {
   String get guid;
   Set<FTMember> get members;
   bool get ring;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_AddMembersImplCopyWith<_$FTMessage_AddMembersImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -2127,8 +2051,6 @@ class __$$FTMessage_RemoveMembersImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_RemoveMembersImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2184,9 +2106,7 @@ class _$FTMessage_RemoveMembersImpl extends FTMessage_RemoveMembers {
   int get hashCode => Object.hash(
       runtimeType, guid, const DeepCollectionEquality().hash(_members));
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_RemoveMembersImplCopyWith<_$FTMessage_RemoveMembersImpl>
@@ -2317,10 +2237,7 @@ abstract class FTMessage_RemoveMembers extends FTMessage {
 
   String get guid;
   Set<FTMember> get members;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_RemoveMembersImplCopyWith<_$FTMessage_RemoveMembersImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -2342,8 +2259,6 @@ class __$$FTMessage_LeaveEventImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_LeaveEventImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2401,9 +2316,7 @@ class _$FTMessage_LeaveEventImpl extends FTMessage_LeaveEvent {
   @override
   int get hashCode => Object.hash(runtimeType, guid, participant, handle);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_LeaveEventImplCopyWith<_$FTMessage_LeaveEventImpl>
@@ -2537,10 +2450,7 @@ abstract class FTMessage_LeaveEvent extends FTMessage {
   String get guid;
   BigInt get participant;
   String get handle;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_LeaveEventImplCopyWith<_$FTMessage_LeaveEventImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -2562,8 +2472,6 @@ class __$$FTMessage_RingImplCopyWithImpl<$Res>
       _$FTMessage_RingImpl _value, $Res Function(_$FTMessage_RingImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2602,9 +2510,7 @@ class _$FTMessage_RingImpl extends FTMessage_Ring {
   @override
   int get hashCode => Object.hash(runtimeType, guid);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_RingImplCopyWith<_$FTMessage_RingImpl> get copyWith =>
@@ -2733,10 +2639,7 @@ abstract class FTMessage_Ring extends FTMessage {
   const FTMessage_Ring._() : super._();
 
   String get guid;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_RingImplCopyWith<_$FTMessage_RingImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2758,8 +2661,6 @@ class __$$FTMessage_DeclineImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_DeclineImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2798,9 +2699,7 @@ class _$FTMessage_DeclineImpl extends FTMessage_Decline {
   @override
   int get hashCode => Object.hash(runtimeType, guid);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_DeclineImplCopyWith<_$FTMessage_DeclineImpl> get copyWith =>
@@ -2929,10 +2828,7 @@ abstract class FTMessage_Decline extends FTMessage {
   const FTMessage_Decline._() : super._();
 
   String get guid;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_DeclineImplCopyWith<_$FTMessage_DeclineImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -2956,8 +2852,6 @@ class __$$FTMessage_RespondedElsewhereImplCopyWithImpl<$Res>
       $Res Function(_$FTMessage_RespondedElsewhereImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -2996,9 +2890,7 @@ class _$FTMessage_RespondedElsewhereImpl extends FTMessage_RespondedElsewhere {
   @override
   int get hashCode => Object.hash(runtimeType, guid);
 
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$FTMessage_RespondedElsewhereImplCopyWith<
@@ -3128,10 +3020,7 @@ abstract class FTMessage_RespondedElsewhere extends FTMessage {
   const FTMessage_RespondedElsewhere._() : super._();
 
   String get guid;
-
-  /// Create a copy of FTMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$FTMessage_RespondedElsewhereImplCopyWith<
           _$FTMessage_RespondedElsewhereImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -3207,9 +3096,6 @@ class _$IdmsMessageCopyWithImpl<$Res, $Val extends IdmsMessage>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3231,8 +3117,6 @@ class __$$IdmsMessage_RequestedSignInImplCopyWithImpl<$Res>
       $Res Function(_$IdmsMessage_RequestedSignInImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3271,9 +3155,7 @@ class _$IdmsMessage_RequestedSignInImpl extends IdmsMessage_RequestedSignIn {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$IdmsMessage_RequestedSignInImplCopyWith<_$IdmsMessage_RequestedSignInImpl>
@@ -3361,10 +3243,7 @@ abstract class IdmsMessage_RequestedSignIn extends IdmsMessage {
 
   @override
   IdmsRequestedSignIn get field0;
-
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$IdmsMessage_RequestedSignInImplCopyWith<_$IdmsMessage_RequestedSignInImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -3388,8 +3267,6 @@ class __$$IdmsMessage_TeardownSignInImplCopyWithImpl<$Res>
       $Res Function(_$IdmsMessage_TeardownSignInImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3428,9 +3305,7 @@ class _$IdmsMessage_TeardownSignInImpl extends IdmsMessage_TeardownSignIn {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$IdmsMessage_TeardownSignInImplCopyWith<_$IdmsMessage_TeardownSignInImpl>
@@ -3518,10 +3393,7 @@ abstract class IdmsMessage_TeardownSignIn extends IdmsMessage {
 
   @override
   TeardownSignIn get field0;
-
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$IdmsMessage_TeardownSignInImplCopyWith<_$IdmsMessage_TeardownSignInImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -3545,8 +3417,6 @@ class __$$IdmsMessage_CircleRequestImplCopyWithImpl<$Res>
       $Res Function(_$IdmsMessage_CircleRequestImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -3593,9 +3463,7 @@ class _$IdmsMessage_CircleRequestImpl extends IdmsMessage_CircleRequest {
   @override
   int get hashCode => Object.hash(runtimeType, field0, field1);
 
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$IdmsMessage_CircleRequestImplCopyWith<_$IdmsMessage_CircleRequestImpl>
@@ -3684,10 +3552,7 @@ abstract class IdmsMessage_CircleRequest extends IdmsMessage {
   @override
   IdmsCircleMessage get field0;
   IdmsRequestedSignIn? get field1;
-
-  /// Create a copy of IdmsMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$IdmsMessage_CircleRequestImplCopyWith<_$IdmsMessage_CircleRequestImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -3786,9 +3651,6 @@ class _$LoginStateCopyWithImpl<$Res, $Val extends LoginState>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3805,9 +3667,6 @@ class __$$LoginState_LoggedInImplCopyWithImpl<$Res>
   __$$LoginState_LoggedInImplCopyWithImpl(_$LoginState_LoggedInImpl _value,
       $Res Function(_$LoginState_LoggedInImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -3950,9 +3809,6 @@ class __$$LoginState_NeedsDevice2FAImplCopyWithImpl<$Res>
       _$LoginState_NeedsDevice2FAImpl _value,
       $Res Function(_$LoginState_NeedsDevice2FAImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -4096,9 +3952,6 @@ class __$$LoginState_Needs2FAVerificationImplCopyWithImpl<$Res>
       _$LoginState_Needs2FAVerificationImpl _value,
       $Res Function(_$LoginState_Needs2FAVerificationImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -4243,9 +4096,6 @@ class __$$LoginState_NeedsSMS2FAImplCopyWithImpl<$Res>
       _$LoginState_NeedsSMS2FAImpl _value,
       $Res Function(_$LoginState_NeedsSMS2FAImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -4392,8 +4242,6 @@ class __$$LoginState_NeedsSMS2FAVerificationImplCopyWithImpl<$Res>
       $Res Function(_$LoginState_NeedsSMS2FAVerificationImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4433,9 +4281,7 @@ class _$LoginState_NeedsSMS2FAVerificationImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$LoginState_NeedsSMS2FAVerificationImplCopyWith<
@@ -4548,10 +4394,7 @@ abstract class LoginState_NeedsSMS2FAVerification extends LoginState {
   const LoginState_NeedsSMS2FAVerification._() : super._();
 
   VerifyBody get field0;
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$LoginState_NeedsSMS2FAVerificationImplCopyWith<
           _$LoginState_NeedsSMS2FAVerificationImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -4576,8 +4419,6 @@ class __$$LoginState_NeedsExtraStepImplCopyWithImpl<$Res>
       $Res Function(_$LoginState_NeedsExtraStepImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -4616,9 +4457,7 @@ class _$LoginState_NeedsExtraStepImpl extends LoginState_NeedsExtraStep {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$LoginState_NeedsExtraStepImplCopyWith<_$LoginState_NeedsExtraStepImpl>
@@ -4730,10 +4569,7 @@ abstract class LoginState_NeedsExtraStep extends LoginState {
   const LoginState_NeedsExtraStep._() : super._();
 
   String get field0;
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$LoginState_NeedsExtraStepImplCopyWith<_$LoginState_NeedsExtraStepImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -4753,9 +4589,6 @@ class __$$LoginState_NeedsLoginImplCopyWithImpl<$Res>
   __$$LoginState_NeedsLoginImplCopyWithImpl(_$LoginState_NeedsLoginImpl _value,
       $Res Function(_$LoginState_NeedsLoginImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of LoginState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -5096,9 +4929,6 @@ class _$MessageCopyWithImpl<$Res, $Val extends Message>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -5118,8 +4948,6 @@ class __$$Message_MessageImplCopyWithImpl<$Res>
       _$Message_MessageImpl _value, $Res Function(_$Message_MessageImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5158,9 +4986,7 @@ class _$Message_MessageImpl extends Message_Message {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_MessageImplCopyWith<_$Message_MessageImpl> get copyWith =>
@@ -5393,10 +5219,7 @@ abstract class Message_Message extends Message {
   const Message_Message._() : super._();
 
   NormalMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_MessageImplCopyWith<_$Message_MessageImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -5419,8 +5242,6 @@ class __$$Message_RenameMessageImplCopyWithImpl<$Res>
       $Res Function(_$Message_RenameMessageImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5459,9 +5280,7 @@ class _$Message_RenameMessageImpl extends Message_RenameMessage {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_RenameMessageImplCopyWith<_$Message_RenameMessageImpl>
@@ -5694,10 +5513,7 @@ abstract class Message_RenameMessage extends Message {
   const Message_RenameMessage._() : super._();
 
   RenameMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_RenameMessageImplCopyWith<_$Message_RenameMessageImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -5721,8 +5537,6 @@ class __$$Message_ChangeParticipantsImplCopyWithImpl<$Res>
       $Res Function(_$Message_ChangeParticipantsImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -5761,9 +5575,7 @@ class _$Message_ChangeParticipantsImpl extends Message_ChangeParticipants {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_ChangeParticipantsImplCopyWith<_$Message_ChangeParticipantsImpl>
@@ -5996,10 +5808,7 @@ abstract class Message_ChangeParticipants extends Message {
   const Message_ChangeParticipants._() : super._();
 
   ChangeParticipantMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_ChangeParticipantsImplCopyWith<_$Message_ChangeParticipantsImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -6021,8 +5830,6 @@ class __$$Message_ReactImplCopyWithImpl<$Res>
       _$Message_ReactImpl _value, $Res Function(_$Message_ReactImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6061,9 +5868,7 @@ class _$Message_ReactImpl extends Message_React {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_ReactImplCopyWith<_$Message_ReactImpl> get copyWith =>
@@ -6294,10 +6099,7 @@ abstract class Message_React extends Message {
   const Message_React._() : super._();
 
   ReactMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_ReactImplCopyWith<_$Message_ReactImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -6316,9 +6118,6 @@ class __$$Message_DeliveredImplCopyWithImpl<$Res>
   __$$Message_DeliveredImplCopyWithImpl(_$Message_DeliveredImpl _value,
       $Res Function(_$Message_DeliveredImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -6579,9 +6378,6 @@ class __$$Message_ReadImplCopyWithImpl<$Res>
   __$$Message_ReadImplCopyWithImpl(
       _$Message_ReadImpl _value, $Res Function(_$Message_ReadImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -6845,8 +6641,6 @@ class __$$Message_TypingImplCopyWithImpl<$Res>
       _$Message_TypingImpl _value, $Res Function(_$Message_TypingImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -6893,9 +6687,7 @@ class _$Message_TypingImpl extends Message_Typing {
   @override
   int get hashCode => Object.hash(runtimeType, field0, field1);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_TypingImplCopyWith<_$Message_TypingImpl> get copyWith =>
@@ -7129,10 +6921,7 @@ abstract class Message_Typing extends Message {
 
   bool get field0;
   TypingApp? get field1;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_TypingImplCopyWith<_$Message_TypingImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -7154,8 +6943,6 @@ class __$$Message_UnsendImplCopyWithImpl<$Res>
       _$Message_UnsendImpl _value, $Res Function(_$Message_UnsendImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7194,9 +6981,7 @@ class _$Message_UnsendImpl extends Message_Unsend {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_UnsendImplCopyWith<_$Message_UnsendImpl> get copyWith =>
@@ -7429,10 +7214,7 @@ abstract class Message_Unsend extends Message {
   const Message_Unsend._() : super._();
 
   UnsendMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_UnsendImplCopyWith<_$Message_UnsendImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -7454,8 +7236,6 @@ class __$$Message_EditImplCopyWithImpl<$Res>
       _$Message_EditImpl _value, $Res Function(_$Message_EditImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7494,9 +7274,7 @@ class _$Message_EditImpl extends Message_Edit {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_EditImplCopyWith<_$Message_EditImpl> get copyWith =>
@@ -7727,10 +7505,7 @@ abstract class Message_Edit extends Message {
   const Message_Edit._() : super._();
 
   EditMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_EditImplCopyWith<_$Message_EditImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -7752,8 +7527,6 @@ class __$$Message_IconChangeImplCopyWithImpl<$Res>
       $Res Function(_$Message_IconChangeImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -7792,9 +7565,7 @@ class _$Message_IconChangeImpl extends Message_IconChange {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_IconChangeImplCopyWith<_$Message_IconChangeImpl> get copyWith =>
@@ -8027,10 +7798,7 @@ abstract class Message_IconChange extends Message {
   const Message_IconChange._() : super._();
 
   IconChangeMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_IconChangeImplCopyWith<_$Message_IconChangeImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -8054,8 +7822,6 @@ class __$$Message_EnableSmsActivationImplCopyWithImpl<$Res>
       $Res Function(_$Message_EnableSmsActivationImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -8094,9 +7860,7 @@ class _$Message_EnableSmsActivationImpl extends Message_EnableSmsActivation {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_EnableSmsActivationImplCopyWith<_$Message_EnableSmsActivationImpl>
@@ -8329,10 +8093,7 @@ abstract class Message_EnableSmsActivation extends Message {
   const Message_EnableSmsActivation._() : super._();
 
   bool get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_EnableSmsActivationImplCopyWith<_$Message_EnableSmsActivationImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -8353,9 +8114,6 @@ class __$$Message_MessageReadOnDeviceImplCopyWithImpl<$Res>
       _$Message_MessageReadOnDeviceImpl _value,
       $Res Function(_$Message_MessageReadOnDeviceImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -8623,8 +8381,6 @@ class __$$Message_SmsConfirmSentImplCopyWithImpl<$Res>
       $Res Function(_$Message_SmsConfirmSentImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -8663,9 +8419,7 @@ class _$Message_SmsConfirmSentImpl extends Message_SmsConfirmSent {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_SmsConfirmSentImplCopyWith<_$Message_SmsConfirmSentImpl>
@@ -8898,10 +8652,7 @@ abstract class Message_SmsConfirmSent extends Message {
   const Message_SmsConfirmSent._() : super._();
 
   bool get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_SmsConfirmSentImplCopyWith<_$Message_SmsConfirmSentImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -8920,9 +8671,6 @@ class __$$Message_MarkUnreadImplCopyWithImpl<$Res>
   __$$Message_MarkUnreadImplCopyWithImpl(_$Message_MarkUnreadImpl _value,
       $Res Function(_$Message_MarkUnreadImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -9185,9 +8933,6 @@ class __$$Message_PeerCacheInvalidateImplCopyWithImpl<$Res>
       _$Message_PeerCacheInvalidateImpl _value,
       $Res Function(_$Message_PeerCacheInvalidateImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -9455,8 +9200,6 @@ class __$$Message_UpdateExtensionImplCopyWithImpl<$Res>
       $Res Function(_$Message_UpdateExtensionImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -9495,9 +9238,7 @@ class _$Message_UpdateExtensionImpl extends Message_UpdateExtension {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_UpdateExtensionImplCopyWith<_$Message_UpdateExtensionImpl>
@@ -9730,10 +9471,7 @@ abstract class Message_UpdateExtension extends Message {
   const Message_UpdateExtension._() : super._();
 
   UpdateExtensionMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_UpdateExtensionImplCopyWith<_$Message_UpdateExtensionImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -9755,8 +9493,6 @@ class __$$Message_ErrorImplCopyWithImpl<$Res>
       _$Message_ErrorImpl _value, $Res Function(_$Message_ErrorImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -9795,9 +9531,7 @@ class _$Message_ErrorImpl extends Message_Error {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_ErrorImplCopyWith<_$Message_ErrorImpl> get copyWith =>
@@ -10028,10 +9762,7 @@ abstract class Message_Error extends Message {
   const Message_Error._() : super._();
 
   ErrorMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_ErrorImplCopyWith<_$Message_ErrorImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -10055,8 +9786,6 @@ class __$$Message_MoveToRecycleBinImplCopyWithImpl<$Res>
       $Res Function(_$Message_MoveToRecycleBinImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -10095,9 +9824,7 @@ class _$Message_MoveToRecycleBinImpl extends Message_MoveToRecycleBin {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_MoveToRecycleBinImplCopyWith<_$Message_MoveToRecycleBinImpl>
@@ -10330,10 +10057,7 @@ abstract class Message_MoveToRecycleBin extends Message {
   const Message_MoveToRecycleBin._() : super._();
 
   MoveToRecycleBinMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_MoveToRecycleBinImplCopyWith<_$Message_MoveToRecycleBinImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -10355,8 +10079,6 @@ class __$$Message_RecoverChatImplCopyWithImpl<$Res>
       $Res Function(_$Message_RecoverChatImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -10395,9 +10117,7 @@ class _$Message_RecoverChatImpl extends Message_RecoverChat {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_RecoverChatImplCopyWith<_$Message_RecoverChatImpl> get copyWith =>
@@ -10630,10 +10350,7 @@ abstract class Message_RecoverChat extends Message {
   const Message_RecoverChat._() : super._();
 
   OperatedChat get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_RecoverChatImplCopyWith<_$Message_RecoverChatImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -10657,8 +10374,6 @@ class __$$Message_PermanentDeleteImplCopyWithImpl<$Res>
       $Res Function(_$Message_PermanentDeleteImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -10697,9 +10412,7 @@ class _$Message_PermanentDeleteImpl extends Message_PermanentDelete {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_PermanentDeleteImplCopyWith<_$Message_PermanentDeleteImpl>
@@ -10932,10 +10645,7 @@ abstract class Message_PermanentDelete extends Message {
   const Message_PermanentDelete._() : super._();
 
   PermanentDeleteMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_PermanentDeleteImplCopyWith<_$Message_PermanentDeleteImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -10954,9 +10664,6 @@ class __$$Message_UnscheduleImplCopyWithImpl<$Res>
   __$$Message_UnscheduleImplCopyWithImpl(_$Message_UnscheduleImpl _value,
       $Res Function(_$Message_UnscheduleImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -11221,8 +10928,6 @@ class __$$Message_UpdateProfileImplCopyWithImpl<$Res>
       $Res Function(_$Message_UpdateProfileImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11261,9 +10966,7 @@ class _$Message_UpdateProfileImpl extends Message_UpdateProfile {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_UpdateProfileImplCopyWith<_$Message_UpdateProfileImpl>
@@ -11496,10 +11199,7 @@ abstract class Message_UpdateProfile extends Message {
   const Message_UpdateProfile._() : super._();
 
   UpdateProfileMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_UpdateProfileImplCopyWith<_$Message_UpdateProfileImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -11523,8 +11223,6 @@ class __$$Message_UpdateProfileSharingImplCopyWithImpl<$Res>
       $Res Function(_$Message_UpdateProfileSharingImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11563,9 +11261,7 @@ class _$Message_UpdateProfileSharingImpl extends Message_UpdateProfileSharing {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_UpdateProfileSharingImplCopyWith<
@@ -11800,10 +11496,7 @@ abstract class Message_UpdateProfileSharing extends Message {
   const Message_UpdateProfileSharing._() : super._();
 
   UpdateProfileSharingMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_UpdateProfileSharingImplCopyWith<
           _$Message_UpdateProfileSharingImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -11826,8 +11519,6 @@ class __$$Message_ShareProfileImplCopyWithImpl<$Res>
       $Res Function(_$Message_ShareProfileImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -11866,9 +11557,7 @@ class _$Message_ShareProfileImpl extends Message_ShareProfile {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_ShareProfileImplCopyWith<_$Message_ShareProfileImpl>
@@ -12102,10 +11791,7 @@ abstract class Message_ShareProfile extends Message {
   const Message_ShareProfile._() : super._();
 
   ShareProfileMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_ShareProfileImplCopyWith<_$Message_ShareProfileImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -12125,9 +11811,6 @@ class __$$Message_NotifyAnywaysImplCopyWithImpl<$Res>
   __$$Message_NotifyAnywaysImplCopyWithImpl(_$Message_NotifyAnywaysImpl _value,
       $Res Function(_$Message_NotifyAnywaysImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -12396,8 +12079,6 @@ class __$$Message_SetTranscriptBackgroundImplCopyWithImpl<$Res>
       $Res Function(_$Message_SetTranscriptBackgroundImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -12411,8 +12092,6 @@ class __$$Message_SetTranscriptBackgroundImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $SetTranscriptBackgroundMessageCopyWith<$Res> get field0 {
@@ -12448,9 +12127,7 @@ class _$Message_SetTranscriptBackgroundImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Message_SetTranscriptBackgroundImplCopyWith<
@@ -12685,10 +12362,7 @@ abstract class Message_SetTranscriptBackground extends Message {
   const Message_SetTranscriptBackground._() : super._();
 
   SetTranscriptBackgroundMessage get field0;
-
-  /// Create a copy of Message
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Message_SetTranscriptBackgroundImplCopyWith<
           _$Message_SetTranscriptBackgroundImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -12765,9 +12439,6 @@ class _$MessagePartCopyWithImpl<$Res, $Val extends MessagePart>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -12789,8 +12460,6 @@ class __$$MessagePart_TextImplCopyWithImpl<$Res>
       $Res Function(_$MessagePart_TextImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -12809,8 +12478,6 @@ class __$$MessagePart_TextImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $TextFormatCopyWith<$Res> get field1 {
@@ -12847,9 +12514,7 @@ class _$MessagePart_TextImpl extends MessagePart_Text {
   @override
   int get hashCode => Object.hash(runtimeType, field0, field1);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$MessagePart_TextImplCopyWith<_$MessagePart_TextImpl> get copyWith =>
@@ -12939,10 +12604,7 @@ abstract class MessagePart_Text extends MessagePart {
   @override
   String get field0;
   TextFormat get field1;
-
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$MessagePart_TextImplCopyWith<_$MessagePart_TextImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -12966,8 +12628,6 @@ class __$$MessagePart_AttachmentImplCopyWithImpl<$Res>
       $Res Function(_$MessagePart_AttachmentImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -13006,9 +12666,7 @@ class _$MessagePart_AttachmentImpl extends MessagePart_Attachment {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$MessagePart_AttachmentImplCopyWith<_$MessagePart_AttachmentImpl>
@@ -13097,10 +12755,7 @@ abstract class MessagePart_Attachment extends MessagePart {
 
   @override
   Attachment get field0;
-
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$MessagePart_AttachmentImplCopyWith<_$MessagePart_AttachmentImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -13122,8 +12777,6 @@ class __$$MessagePart_MentionImplCopyWithImpl<$Res>
       $Res Function(_$MessagePart_MentionImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -13170,9 +12823,7 @@ class _$MessagePart_MentionImpl extends MessagePart_Mention {
   @override
   int get hashCode => Object.hash(runtimeType, field0, field1);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$MessagePart_MentionImplCopyWith<_$MessagePart_MentionImpl> get copyWith =>
@@ -13262,10 +12913,7 @@ abstract class MessagePart_Mention extends MessagePart {
   @override
   String get field0;
   String get field1;
-
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$MessagePart_MentionImplCopyWith<_$MessagePart_MentionImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -13287,8 +12935,6 @@ class __$$MessagePart_ObjectImplCopyWithImpl<$Res>
       $Res Function(_$MessagePart_ObjectImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -13327,9 +12973,7 @@ class _$MessagePart_ObjectImpl extends MessagePart_Object {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$MessagePart_ObjectImplCopyWith<_$MessagePart_ObjectImpl> get copyWith =>
@@ -13418,10 +13062,7 @@ abstract class MessagePart_Object extends MessagePart {
 
   @override
   String get field0;
-
-  /// Create a copy of MessagePart
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$MessagePart_ObjectImplCopyWith<_$MessagePart_ObjectImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -13485,9 +13126,6 @@ class _$MessageTargetCopyWithImpl<$Res, $Val extends MessageTarget>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of MessageTarget
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -13507,8 +13145,6 @@ class __$$MessageTarget_TokenImplCopyWithImpl<$Res>
       $Res Function(_$MessageTarget_TokenImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of MessageTarget
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -13548,9 +13184,7 @@ class _$MessageTarget_TokenImpl extends MessageTarget_Token {
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(field0));
 
-  /// Create a copy of MessageTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$MessageTarget_TokenImplCopyWith<_$MessageTarget_TokenImpl> get copyWith =>
@@ -13627,10 +13261,7 @@ abstract class MessageTarget_Token extends MessageTarget {
 
   @override
   Uint8List get field0;
-
-  /// Create a copy of MessageTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$MessageTarget_TokenImplCopyWith<_$MessageTarget_TokenImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -13652,8 +13283,6 @@ class __$$MessageTarget_UuidImplCopyWithImpl<$Res>
       $Res Function(_$MessageTarget_UuidImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of MessageTarget
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -13692,9 +13321,7 @@ class _$MessageTarget_UuidImpl extends MessageTarget_Uuid {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of MessageTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$MessageTarget_UuidImplCopyWith<_$MessageTarget_UuidImpl> get copyWith =>
@@ -13771,10 +13398,7 @@ abstract class MessageTarget_Uuid extends MessageTarget {
 
   @override
   String get field0;
-
-  /// Create a copy of MessageTarget
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$MessageTarget_UuidImplCopyWith<_$MessageTarget_UuidImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -13840,9 +13464,6 @@ class _$MessageTypeCopyWithImpl<$Res, $Val extends MessageType>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of MessageType
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -13859,9 +13480,6 @@ class __$$MessageType_IMessageImplCopyWithImpl<$Res>
   __$$MessageType_IMessageImplCopyWithImpl(_$MessageType_IMessageImpl _value,
       $Res Function(_$MessageType_IMessageImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of MessageType
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -13972,8 +13590,6 @@ class __$$MessageType_SMSImplCopyWithImpl<$Res>
       _$MessageType_SMSImpl _value, $Res Function(_$MessageType_SMSImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of MessageType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -14033,9 +13649,7 @@ class _$MessageType_SMSImpl extends MessageType_SMS {
   int get hashCode =>
       Object.hash(runtimeType, isPhone, usingNumber, fromHandle);
 
-  /// Create a copy of MessageType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$MessageType_SMSImplCopyWith<_$MessageType_SMSImpl> get copyWith =>
@@ -14118,10 +13732,7 @@ abstract class MessageType_SMS extends MessageType {
   bool get isPhone;
   String get usingNumber;
   String? get fromHandle;
-
-  /// Create a copy of MessageType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$MessageType_SMSImplCopyWith<_$MessageType_SMSImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -14191,9 +13802,6 @@ class _$NumOrStringCopyWithImpl<$Res, $Val extends NumOrString>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -14213,8 +13821,6 @@ class __$$NumOrString_NumImplCopyWithImpl<$Res>
       _$NumOrString_NumImpl _value, $Res Function(_$NumOrString_NumImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -14253,9 +13859,7 @@ class _$NumOrString_NumImpl extends NumOrString_Num {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$NumOrString_NumImplCopyWith<_$NumOrString_NumImpl> get copyWith =>
@@ -14337,10 +13941,7 @@ abstract class NumOrString_Num extends NumOrString {
 
   @override
   int get field0;
-
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$NumOrString_NumImplCopyWith<_$NumOrString_NumImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -14362,8 +13963,6 @@ class __$$NumOrString_StringImplCopyWithImpl<$Res>
       $Res Function(_$NumOrString_StringImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -14402,9 +14001,7 @@ class _$NumOrString_StringImpl extends NumOrString_String {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$NumOrString_StringImplCopyWith<_$NumOrString_StringImpl> get copyWith =>
@@ -14487,10 +14084,7 @@ abstract class NumOrString_String extends NumOrString {
 
   @override
   String get field0;
-
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$NumOrString_StringImplCopyWith<_$NumOrString_StringImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -14512,8 +14106,6 @@ class __$$NumOrString_BoolImplCopyWithImpl<$Res>
       $Res Function(_$NumOrString_BoolImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -14552,9 +14144,7 @@ class _$NumOrString_BoolImpl extends NumOrString_Bool {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$NumOrString_BoolImplCopyWith<_$NumOrString_BoolImpl> get copyWith =>
@@ -14636,10 +14226,7 @@ abstract class NumOrString_Bool extends NumOrString {
 
   @override
   bool get field0;
-
-  /// Create a copy of NumOrString
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$NumOrString_BoolImplCopyWith<_$NumOrString_BoolImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -14734,9 +14321,7 @@ mixin _$PartExtension {
   }) =>
       throw _privateConstructorUsedError;
 
-  /// Create a copy of PartExtension
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $PartExtensionCopyWith<PartExtension> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -14773,8 +14358,6 @@ class _$PartExtensionCopyWithImpl<$Res, $Val extends PartExtension>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of PartExtension
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -14882,8 +14465,6 @@ class __$$PartExtension_StickerImplCopyWithImpl<$Res>
       $Res Function(_$PartExtension_StickerImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PartExtension
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -15052,9 +14633,7 @@ class _$PartExtension_StickerImpl extends PartExtension_Sticker {
       effectType,
       stickerId);
 
-  /// Create a copy of PartExtension
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PartExtension_StickerImplCopyWith<_$PartExtension_StickerImpl>
@@ -15206,11 +14785,8 @@ abstract class PartExtension_Sticker extends PartExtension {
   int get effectType;
   @override
   String get stickerId;
-
-  /// Create a copy of PartExtension
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PartExtension_StickerImplCopyWith<_$PartExtension_StickerImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -15273,9 +14849,6 @@ class _$PollResultCopyWithImpl<$Res, $Val extends PollResult>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of PollResult
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -15292,9 +14865,6 @@ class __$$PollResult_StopImplCopyWithImpl<$Res>
   __$$PollResult_StopImplCopyWithImpl(
       _$PollResult_StopImpl _value, $Res Function(_$PollResult_StopImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of PollResult
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -15403,8 +14973,6 @@ class __$$PollResult_ContImplCopyWithImpl<$Res>
       _$PollResult_ContImpl _value, $Res Function(_$PollResult_ContImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PollResult
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -15418,8 +14986,6 @@ class __$$PollResult_ContImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of PollResult
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $PushMessageCopyWith<$Res>? get field0 {
@@ -15457,9 +15023,7 @@ class _$PollResult_ContImpl extends PollResult_Cont {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PollResult
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PollResult_ContImplCopyWith<_$PollResult_ContImpl> get copyWith =>
@@ -15535,10 +15099,7 @@ abstract class PollResult_Cont extends PollResult {
   const PollResult_Cont._() : super._();
 
   PushMessage? get field0;
-
-  /// Create a copy of PollResult
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PollResult_ContImplCopyWith<_$PollResult_ContImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -15622,9 +15183,6 @@ class _$PosterTypeCopyWithImpl<$Res, $Val extends PosterType>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -15644,8 +15202,6 @@ class __$$PosterType_PhotoImplCopyWithImpl<$Res>
       $Res Function(_$PosterType_PhotoImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -15692,9 +15248,7 @@ class _$PosterType_PhotoImpl extends PosterType_Photo {
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(_assets));
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PosterType_PhotoImplCopyWith<_$PosterType_PhotoImpl> get copyWith =>
@@ -15791,10 +15345,7 @@ abstract class PosterType_Photo extends PosterType {
   const PosterType_Photo._() : super._();
 
   List<PosterAsset> get assets;
-
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PosterType_PhotoImplCopyWith<_$PosterType_PhotoImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -15816,8 +15367,6 @@ class __$$PosterType_MonogramImplCopyWithImpl<$Res>
       $Res Function(_$PosterType_MonogramImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -15867,9 +15416,7 @@ class _$PosterType_MonogramImpl extends PosterType_Monogram {
   @override
   int get hashCode => Object.hash(runtimeType, data, background);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PosterType_MonogramImplCopyWith<_$PosterType_MonogramImpl> get copyWith =>
@@ -15968,10 +15515,7 @@ abstract class PosterType_Monogram extends PosterType {
 
   MonogramData get data;
   PosterColor get background;
-
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PosterType_MonogramImplCopyWith<_$PosterType_MonogramImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -15993,8 +15537,6 @@ class __$$PosterType_MemojiImplCopyWithImpl<$Res>
       $Res Function(_$PosterType_MemojiImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -16043,9 +15585,7 @@ class _$PosterType_MemojiImpl extends PosterType_Memoji {
   @override
   int get hashCode => Object.hash(runtimeType, data, background);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PosterType_MemojiImplCopyWith<_$PosterType_MemojiImpl> get copyWith =>
@@ -16144,10 +15684,7 @@ abstract class PosterType_Memoji extends PosterType {
 
   MemojiData get data;
   PosterColor get background;
-
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PosterType_MemojiImplCopyWith<_$PosterType_MemojiImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -16171,8 +15708,6 @@ class __$$PosterType_TranscriptDynamicImplCopyWithImpl<$Res>
       $Res Function(_$PosterType_TranscriptDynamicImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -16211,9 +15746,7 @@ class _$PosterType_TranscriptDynamicImpl extends PosterType_TranscriptDynamic {
   @override
   int get hashCode => Object.hash(runtimeType, data);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PosterType_TranscriptDynamicImplCopyWith<
@@ -16312,10 +15845,7 @@ abstract class PosterType_TranscriptDynamic extends PosterType {
   const PosterType_TranscriptDynamic._() : super._();
 
   TranscriptDynamicUserData get data;
-
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PosterType_TranscriptDynamicImplCopyWith<
           _$PosterType_TranscriptDynamicImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -16340,8 +15870,6 @@ class __$$PosterType_TranscriptGradientImplCopyWithImpl<$Res>
       $Res Function(_$PosterType_TranscriptGradientImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -16390,9 +15918,7 @@ class _$PosterType_TranscriptGradientImpl
   int get hashCode =>
       Object.hash(runtimeType, const DeepCollectionEquality().hash(_colors));
 
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PosterType_TranscriptGradientImplCopyWith<
@@ -16491,10 +16017,7 @@ abstract class PosterType_TranscriptGradient extends PosterType {
   const PosterType_TranscriptGradient._() : super._();
 
   List<PosterColor> get colors;
-
-  /// Create a copy of PosterType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PosterType_TranscriptGradientImplCopyWith<
           _$PosterType_TranscriptGradientImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -16603,9 +16126,6 @@ class _$PRPosterContentMaterialStyleCopyWithImpl<$Res,
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -16644,8 +16164,6 @@ class __$$PRPosterContentMaterialStyle_PRPosterContentDiscreteColorsStyleImplCop
           _then)
       : super(_value, _then);
 
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -16742,9 +16260,7 @@ class _$PRPosterContentMaterialStyle_PRPosterContentDiscreteColorsStyleImpl
       supportsVariation,
       needsToResolveVariation);
 
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PRPosterContentMaterialStyle_PRPosterContentDiscreteColorsStyleImplCopyWith<
@@ -16879,10 +16395,7 @@ abstract class PRPosterContentMaterialStyle_PRPosterContentDiscreteColorsStyle
   bool get vibrant;
   bool get supportsVariation;
   bool get needsToResolveVariation;
-
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PRPosterContentMaterialStyle_PRPosterContentDiscreteColorsStyleImplCopyWith<
           _$PRPosterContentMaterialStyle_PRPosterContentDiscreteColorsStyleImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -16916,9 +16429,6 @@ class __$$PRPosterContentMaterialStyle_PRPosterContentVibrantMaterialStyleImplCo
               _$PRPosterContentMaterialStyle_PRPosterContentVibrantMaterialStyleImpl)
           _then)
       : super(_value, _then);
-
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -17091,8 +16601,6 @@ class __$$PRPosterContentMaterialStyle_PRPosterContentGradientStyleImplCopyWithI
           _then)
       : super(_value, _then);
 
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -17188,9 +16696,7 @@ class _$PRPosterContentMaterialStyle_PRPosterContentGradientStyleImpl
       const DeepCollectionEquality().hash(locations),
       endPoint);
 
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PRPosterContentMaterialStyle_PRPosterContentGradientStyleImplCopyWith<
@@ -17325,10 +16831,7 @@ abstract class PRPosterContentMaterialStyle_PRPosterContentGradientStyle
   String get startPoint;
   Float64List get locations;
   String get endPoint;
-
-  /// Create a copy of PRPosterContentMaterialStyle
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PRPosterContentMaterialStyle_PRPosterContentGradientStyleImplCopyWith<
           _$PRPosterContentMaterialStyle_PRPosterContentGradientStyleImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -17447,9 +16950,6 @@ class _$PushMessageCopyWithImpl<$Res, $Val extends PushMessage>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -17469,8 +16969,6 @@ class __$$PushMessage_IMessageImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_IMessageImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -17509,9 +17007,7 @@ class _$PushMessage_IMessageImpl extends PushMessage_IMessage {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_IMessageImplCopyWith<_$PushMessage_IMessageImpl>
@@ -17643,10 +17139,7 @@ abstract class PushMessage_IMessage extends PushMessage {
   const PushMessage_IMessage._() : super._();
 
   MessageInst get field0;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_IMessageImplCopyWith<_$PushMessage_IMessageImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -17670,8 +17163,6 @@ class __$$PushMessage_SendConfirmImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_SendConfirmImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -17719,9 +17210,7 @@ class _$PushMessage_SendConfirmImpl extends PushMessage_SendConfirm {
   @override
   int get hashCode => Object.hash(runtimeType, uuid, error);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_SendConfirmImplCopyWith<_$PushMessage_SendConfirmImpl>
@@ -17854,10 +17343,7 @@ abstract class PushMessage_SendConfirm extends PushMessage {
 
   String get uuid;
   String? get error;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_SendConfirmImplCopyWith<_$PushMessage_SendConfirmImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -17883,8 +17369,6 @@ class __$$PushMessage_RegistrationStateImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_RegistrationStateImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -17898,8 +17382,6 @@ class __$$PushMessage_RegistrationStateImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $RegisterStateCopyWith<$Res> get field0 {
@@ -17934,9 +17416,7 @@ class _$PushMessage_RegistrationStateImpl
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_RegistrationStateImplCopyWith<
@@ -18068,10 +17548,7 @@ abstract class PushMessage_RegistrationState extends PushMessage {
   const PushMessage_RegistrationState._() : super._();
 
   RegisterState get field0;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_RegistrationStateImplCopyWith<
           _$PushMessage_RegistrationStateImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -18096,8 +17573,6 @@ class __$$PushMessage_NewPhotostreamImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_NewPhotostreamImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -18136,9 +17611,7 @@ class _$PushMessage_NewPhotostreamImpl extends PushMessage_NewPhotostream {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_NewPhotostreamImplCopyWith<_$PushMessage_NewPhotostreamImpl>
@@ -18269,10 +17742,7 @@ abstract class PushMessage_NewPhotostream extends PushMessage {
   const PushMessage_NewPhotostream._() : super._();
 
   SharedAlbum get field0;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_NewPhotostreamImplCopyWith<_$PushMessage_NewPhotostreamImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -18296,8 +17766,6 @@ class __$$PushMessage_FaceTimeImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_FaceTimeImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -18311,8 +17779,6 @@ class __$$PushMessage_FaceTimeImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $FTMessageCopyWith<$Res> get field0 {
@@ -18346,9 +17812,7 @@ class _$PushMessage_FaceTimeImpl extends PushMessage_FaceTime {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_FaceTimeImplCopyWith<_$PushMessage_FaceTimeImpl>
@@ -18480,10 +17944,7 @@ abstract class PushMessage_FaceTime extends PushMessage {
   const PushMessage_FaceTime._() : super._();
 
   FTMessage get field0;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_FaceTimeImplCopyWith<_$PushMessage_FaceTimeImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -18509,8 +17970,6 @@ class __$$PushMessage_StatusUpdateImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_StatusUpdateImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -18524,8 +17983,6 @@ class __$$PushMessage_StatusUpdateImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $StatusKitMessageCopyWith<$Res> get field0 {
@@ -18559,9 +18016,7 @@ class _$PushMessage_StatusUpdateImpl extends PushMessage_StatusUpdate {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_StatusUpdateImplCopyWith<_$PushMessage_StatusUpdateImpl>
@@ -18692,10 +18147,7 @@ abstract class PushMessage_StatusUpdate extends PushMessage {
   const PushMessage_StatusUpdate._() : super._();
 
   StatusKitMessage get field0;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_StatusUpdateImplCopyWith<_$PushMessage_StatusUpdateImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -18719,8 +18171,6 @@ class __$$PushMessage_IdmsImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_IdmsImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -18734,8 +18184,6 @@ class __$$PushMessage_IdmsImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $IdmsMessageCopyWith<$Res> get field0 {
@@ -18769,9 +18217,7 @@ class _$PushMessage_IdmsImpl extends PushMessage_Idms {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_IdmsImplCopyWith<_$PushMessage_IdmsImpl> get copyWith =>
@@ -18902,10 +18348,7 @@ abstract class PushMessage_Idms extends PushMessage {
   const PushMessage_Idms._() : super._();
 
   IdmsMessage get field0;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_IdmsImplCopyWith<_$PushMessage_IdmsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -18929,8 +18372,6 @@ class __$$PushMessage_TwoFaAuthEventImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_TwoFaAuthEventImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -18969,9 +18410,7 @@ class _$PushMessage_TwoFaAuthEventImpl extends PushMessage_TwoFaAuthEvent {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_TwoFaAuthEventImplCopyWith<_$PushMessage_TwoFaAuthEventImpl>
@@ -19102,10 +18541,7 @@ abstract class PushMessage_TwoFaAuthEvent extends PushMessage {
   const PushMessage_TwoFaAuthEvent._() : super._();
 
   bool get field0;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_TwoFaAuthEventImplCopyWith<_$PushMessage_TwoFaAuthEventImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -19126,9 +18562,6 @@ class __$$PushMessage_CircleFinishEventImplCopyWithImpl<$Res>
       _$PushMessage_CircleFinishEventImpl _value,
       $Res Function(_$PushMessage_CircleFinishEventImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -19295,8 +18728,6 @@ class __$$PushMessage_BeaconSharedImplCopyWithImpl<$Res>
       $Res Function(_$PushMessage_BeaconSharedImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -19354,9 +18785,7 @@ class _$PushMessage_BeaconSharedImpl extends PushMessage_BeaconShared {
   @override
   int get hashCode => Object.hash(runtimeType, sender, beacon, attributes);
 
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PushMessage_BeaconSharedImplCopyWith<_$PushMessage_BeaconSharedImpl>
@@ -19492,10 +18921,7 @@ abstract class PushMessage_BeaconShared extends PushMessage {
   String get sender;
   String get beacon;
   BeaconAttributes get attributes;
-
-  /// Create a copy of PushMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$PushMessage_BeaconSharedImplCopyWith<_$PushMessage_BeaconSharedImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -19561,9 +18987,6 @@ class _$ReactMessageTypeCopyWithImpl<$Res, $Val extends ReactMessageType>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -19587,8 +19010,6 @@ class __$$ReactMessageType_ReactImplCopyWithImpl<$Res>
       $Res Function(_$ReactMessageType_ReactImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -19607,8 +19028,6 @@ class __$$ReactMessageType_ReactImplCopyWithImpl<$Res>
     ));
   }
 
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ReactionCopyWith<$Res> get reaction {
@@ -19648,9 +19067,7 @@ class _$ReactMessageType_ReactImpl extends ReactMessageType_React {
   @override
   int get hashCode => Object.hash(runtimeType, reaction, enable);
 
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$ReactMessageType_ReactImplCopyWith<_$ReactMessageType_ReactImpl>
@@ -19731,10 +19148,7 @@ abstract class ReactMessageType_React extends ReactMessageType {
 
   Reaction get reaction;
   bool get enable;
-
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$ReactMessageType_ReactImplCopyWith<_$ReactMessageType_ReactImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -19759,8 +19173,6 @@ class __$$ReactMessageType_ExtensionImplCopyWithImpl<$Res>
       $Res Function(_$ReactMessageType_ExtensionImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -19817,9 +19229,7 @@ class _$ReactMessageType_ExtensionImpl extends ReactMessageType_Extension {
   @override
   int get hashCode => Object.hash(runtimeType, spec, body, isMeta);
 
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$ReactMessageType_ExtensionImplCopyWith<_$ReactMessageType_ExtensionImpl>
@@ -19902,10 +19312,7 @@ abstract class ReactMessageType_Extension extends ReactMessageType {
   ExtensionApp get spec;
   MessageParts get body;
   bool get isMeta;
-
-  /// Create a copy of ReactMessageType
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$ReactMessageType_ExtensionImplCopyWith<_$ReactMessageType_ExtensionImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -20003,9 +19410,6 @@ class _$ReactionCopyWithImpl<$Res, $Val extends Reaction>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20022,9 +19426,6 @@ class __$$Reaction_HeartImplCopyWithImpl<$Res>
   __$$Reaction_HeartImplCopyWithImpl(
       _$Reaction_HeartImpl _value, $Res Function(_$Reaction_HeartImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20164,9 +19565,6 @@ class __$$Reaction_LikeImplCopyWithImpl<$Res>
   __$$Reaction_LikeImplCopyWithImpl(
       _$Reaction_LikeImpl _value, $Res Function(_$Reaction_LikeImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20306,9 +19704,6 @@ class __$$Reaction_DislikeImplCopyWithImpl<$Res>
   __$$Reaction_DislikeImplCopyWithImpl(_$Reaction_DislikeImpl _value,
       $Res Function(_$Reaction_DislikeImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20448,9 +19843,6 @@ class __$$Reaction_LaughImplCopyWithImpl<$Res>
   __$$Reaction_LaughImplCopyWithImpl(
       _$Reaction_LaughImpl _value, $Res Function(_$Reaction_LaughImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20590,9 +19982,6 @@ class __$$Reaction_EmphasizeImplCopyWithImpl<$Res>
   __$$Reaction_EmphasizeImplCopyWithImpl(_$Reaction_EmphasizeImpl _value,
       $Res Function(_$Reaction_EmphasizeImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20732,9 +20121,6 @@ class __$$Reaction_QuestionImplCopyWithImpl<$Res>
   __$$Reaction_QuestionImplCopyWithImpl(_$Reaction_QuestionImpl _value,
       $Res Function(_$Reaction_QuestionImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -20877,8 +20263,6 @@ class __$$Reaction_EmojiImplCopyWithImpl<$Res>
       _$Reaction_EmojiImpl _value, $Res Function(_$Reaction_EmojiImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -20917,9 +20301,7 @@ class _$Reaction_EmojiImpl extends Reaction_Emoji {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Reaction_EmojiImplCopyWith<_$Reaction_EmojiImpl> get copyWith =>
@@ -21030,10 +20412,7 @@ abstract class Reaction_Emoji extends Reaction {
   const Reaction_Emoji._() : super._();
 
   String get field0;
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Reaction_EmojiImplCopyWith<_$Reaction_EmojiImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -21055,8 +20434,6 @@ class __$$Reaction_StickerImplCopyWithImpl<$Res>
       $Res Function(_$Reaction_StickerImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -21103,9 +20480,7 @@ class _$Reaction_StickerImpl extends Reaction_Sticker {
   @override
   int get hashCode => Object.hash(runtimeType, spec, body);
 
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$Reaction_StickerImplCopyWith<_$Reaction_StickerImpl> get copyWith =>
@@ -21219,10 +20594,7 @@ abstract class Reaction_Sticker extends Reaction {
 
   ExtensionApp? get spec;
   MessageParts get body;
-
-  /// Create a copy of Reaction
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$Reaction_StickerImplCopyWith<_$Reaction_StickerImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -21291,9 +20663,6 @@ class _$RegisterStateCopyWithImpl<$Res, $Val extends RegisterState>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -21315,8 +20684,6 @@ class __$$RegisterState_RegisteredImplCopyWithImpl<$Res>
       $Res Function(_$RegisterState_RegisteredImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -21355,9 +20722,7 @@ class _$RegisterState_RegisteredImpl extends RegisterState_Registered {
   @override
   int get hashCode => Object.hash(runtimeType, nextS);
 
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$RegisterState_RegisteredImplCopyWith<_$RegisterState_RegisteredImpl>
@@ -21439,10 +20804,7 @@ abstract class RegisterState_Registered extends RegisterState {
   const RegisterState_Registered._() : super._();
 
   int get nextS;
-
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$RegisterState_RegisteredImplCopyWith<_$RegisterState_RegisteredImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -21463,9 +20825,6 @@ class __$$RegisterState_RegisteringImplCopyWithImpl<$Res>
       _$RegisterState_RegisteringImpl _value,
       $Res Function(_$RegisterState_RegisteringImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -21579,8 +20938,6 @@ class __$$RegisterState_FailedImplCopyWithImpl<$Res>
       $Res Function(_$RegisterState_FailedImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -21629,9 +20986,7 @@ class _$RegisterState_FailedImpl extends RegisterState_Failed {
   @override
   int get hashCode => Object.hash(runtimeType, retryWait, error);
 
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$RegisterState_FailedImplCopyWith<_$RegisterState_FailedImpl>
@@ -21716,10 +21071,7 @@ abstract class RegisterState_Failed extends RegisterState {
 
   BigInt? get retryWait;
   String get error;
-
-  /// Create a copy of RegisterState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$RegisterState_FailedImplCopyWith<_$RegisterState_FailedImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -21803,9 +21155,7 @@ mixin _$SetTranscriptBackgroundMessage {
   }) =>
       throw _privateConstructorUsedError;
 
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $SetTranscriptBackgroundMessageCopyWith<SetTranscriptBackgroundMessage>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -21832,8 +21182,6 @@ class _$SetTranscriptBackgroundMessageCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -21880,8 +21228,6 @@ class __$$SetTranscriptBackgroundMessage_RemoveImplCopyWithImpl<$Res>
       $Res Function(_$SetTranscriptBackgroundMessage_RemoveImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -21947,9 +21293,7 @@ class _$SetTranscriptBackgroundMessage_RemoveImpl
   @override
   int get hashCode => Object.hash(runtimeType, aid, bid, chatId, remove);
 
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$SetTranscriptBackgroundMessage_RemoveImplCopyWith<
@@ -22072,11 +21416,8 @@ abstract class SetTranscriptBackgroundMessage_Remove
   @override
   String? get chatId;
   bool get remove;
-
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$SetTranscriptBackgroundMessage_RemoveImplCopyWith<
           _$SetTranscriptBackgroundMessage_RemoveImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -22114,8 +21455,6 @@ class __$$SetTranscriptBackgroundMessage_SetImplCopyWithImpl<$Res>
       $Res Function(_$SetTranscriptBackgroundMessage_SetImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -22244,9 +21583,7 @@ class _$SetTranscriptBackgroundMessage_SetImpl
   int get hashCode => Object.hash(runtimeType, aid, bid, chatId, objectId,
       payloadVersion, backgroundId, url, signature, key, fileSize);
 
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$SetTranscriptBackgroundMessage_SetImplCopyWith<
@@ -22384,11 +21721,8 @@ abstract class SetTranscriptBackgroundMessage_Set
   String get signature;
   String get key;
   BigInt get fileSize;
-
-  /// Create a copy of SetTranscriptBackgroundMessage
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$SetTranscriptBackgroundMessage_SetImplCopyWith<
           _$SetTranscriptBackgroundMessage_SetImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -22434,9 +21768,7 @@ mixin _$StatusKitMessage {
   }) =>
       throw _privateConstructorUsedError;
 
-  /// Create a copy of StatusKitMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $StatusKitMessageCopyWith<StatusKitMessage> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -22460,8 +21792,6 @@ class _$StatusKitMessageCopyWithImpl<$Res, $Val extends StatusKitMessage>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of StatusKitMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -22508,8 +21838,6 @@ class __$$StatusKitMessage_StatusChangedImplCopyWithImpl<$Res>
       $Res Function(_$StatusKitMessage_StatusChangedImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of StatusKitMessage
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -22567,9 +21895,7 @@ class _$StatusKitMessage_StatusChangedImpl
   @override
   int get hashCode => Object.hash(runtimeType, user, mode, allowed);
 
-  /// Create a copy of StatusKitMessage
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$StatusKitMessage_StatusChangedImplCopyWith<
@@ -22649,11 +21975,8 @@ abstract class StatusKitMessage_StatusChanged extends StatusKitMessage {
   String? get mode;
   @override
   bool get allowed;
-
-  /// Create a copy of StatusKitMessage
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$StatusKitMessage_StatusChangedImplCopyWith<
           _$StatusKitMessage_StatusChangedImpl>
       get copyWith => throw _privateConstructorUsedError;
@@ -22729,9 +22052,6 @@ class _$SyncStatusCopyWithImpl<$Res, $Val extends SyncStatus>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -22748,9 +22068,6 @@ class __$$SyncStatus_SyncedImplCopyWithImpl<$Res>
   __$$SyncStatus_SyncedImplCopyWithImpl(_$SyncStatus_SyncedImpl _value,
       $Res Function(_$SyncStatus_SyncedImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -22871,8 +22188,6 @@ class __$$SyncStatus_DownloadingImplCopyWithImpl<$Res>
       $Res Function(_$SyncStatus_DownloadingImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -22922,9 +22237,7 @@ class _$SyncStatus_DownloadingImpl extends SyncStatus_Downloading {
   @override
   int get hashCode => Object.hash(runtimeType, progress, total);
 
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$SyncStatus_DownloadingImplCopyWith<_$SyncStatus_DownloadingImpl>
@@ -23014,10 +22327,7 @@ abstract class SyncStatus_Downloading extends SyncStatus {
 
   BigInt get progress;
   BigInt get total;
-
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$SyncStatus_DownloadingImplCopyWith<_$SyncStatus_DownloadingImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -23039,8 +22349,6 @@ class __$$SyncStatus_UploadingImplCopyWithImpl<$Res>
       $Res Function(_$SyncStatus_UploadingImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -23090,9 +22398,7 @@ class _$SyncStatus_UploadingImpl extends SyncStatus_Uploading {
   @override
   int get hashCode => Object.hash(runtimeType, progress, total);
 
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$SyncStatus_UploadingImplCopyWith<_$SyncStatus_UploadingImpl>
@@ -23183,10 +22489,7 @@ abstract class SyncStatus_Uploading extends SyncStatus {
 
   BigInt get progress;
   BigInt get total;
-
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$SyncStatus_UploadingImplCopyWith<_$SyncStatus_UploadingImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -23205,9 +22508,6 @@ class __$$SyncStatus_SyncingImplCopyWithImpl<$Res>
   __$$SyncStatus_SyncingImplCopyWithImpl(_$SyncStatus_SyncingImpl _value,
       $Res Function(_$SyncStatus_SyncingImpl) _then)
       : super(_value, _then);
-
-  /// Create a copy of SyncStatus
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -23368,9 +22668,6 @@ class _$TextFormatCopyWithImpl<$Res, $Val extends TextFormat>
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
-
-  /// Create a copy of TextFormat
-  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -23390,8 +22687,6 @@ class __$$TextFormat_FlagsImplCopyWithImpl<$Res>
       $Res Function(_$TextFormat_FlagsImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of TextFormat
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -23430,9 +22725,7 @@ class _$TextFormat_FlagsImpl extends TextFormat_Flags {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of TextFormat
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$TextFormat_FlagsImplCopyWith<_$TextFormat_FlagsImpl> get copyWith =>
@@ -23509,10 +22802,7 @@ abstract class TextFormat_Flags extends TextFormat {
 
   @override
   TextFlags get field0;
-
-  /// Create a copy of TextFormat
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$TextFormat_FlagsImplCopyWith<_$TextFormat_FlagsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -23534,8 +22824,6 @@ class __$$TextFormat_EffectImplCopyWithImpl<$Res>
       $Res Function(_$TextFormat_EffectImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of TextFormat
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -23574,9 +22862,7 @@ class _$TextFormat_EffectImpl extends TextFormat_Effect {
   @override
   int get hashCode => Object.hash(runtimeType, field0);
 
-  /// Create a copy of TextFormat
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$TextFormat_EffectImplCopyWith<_$TextFormat_EffectImpl> get copyWith =>
@@ -23653,10 +22939,7 @@ abstract class TextFormat_Effect extends TextFormat {
 
   @override
   TextEffect get field0;
-
-  /// Create a copy of TextFormat
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$TextFormat_EffectImplCopyWith<_$TextFormat_EffectImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -23754,9 +23037,7 @@ mixin _$UIColor {
   }) =>
       throw _privateConstructorUsedError;
 
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $UIColorCopyWith<UIColor> get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -23778,8 +23059,6 @@ class _$UIColorCopyWithImpl<$Res, $Val extends UIColor>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -23842,8 +23121,6 @@ class __$$UIColor_RGBAColorSpaceImplCopyWithImpl<$Res>
       $Res Function(_$UIColor_RGBAColorSpaceImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -24000,9 +23277,7 @@ class _$UIColor_RGBAColorSpaceImpl extends UIColor_RGBAColorSpace {
       colorSpace,
       class_);
 
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$UIColor_RGBAColorSpaceImplCopyWith<_$UIColor_RGBAColorSpaceImpl>
@@ -24155,11 +23430,8 @@ abstract class UIColor_RGBAColorSpace extends UIColor {
   int get colorSpace;
   @override
   String get class_;
-
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$UIColor_RGBAColorSpaceImplCopyWith<_$UIColor_RGBAColorSpaceImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -24191,8 +23463,6 @@ class __$$UIColor_GrayscaleAlphaColorSpaceImplCopyWithImpl<$Res>
       $Res Function(_$UIColor_GrayscaleAlphaColorSpaceImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -24282,9 +23552,7 @@ class _$UIColor_GrayscaleAlphaColorSpaceImpl
   int get hashCode => Object.hash(runtimeType, colorComponents, white, alpha,
       const DeepCollectionEquality().hash(bin), colorSpace, class_);
 
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$UIColor_GrayscaleAlphaColorSpaceImplCopyWith<
@@ -24426,11 +23694,8 @@ abstract class UIColor_GrayscaleAlphaColorSpace extends UIColor {
   int get colorSpace;
   @override
   String get class_;
-
-  /// Create a copy of UIColor
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$UIColor_GrayscaleAlphaColorSpaceImplCopyWith<
           _$UIColor_GrayscaleAlphaColorSpaceImpl>
       get copyWith => throw _privateConstructorUsedError;

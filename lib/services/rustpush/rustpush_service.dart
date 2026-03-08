@@ -2459,9 +2459,13 @@ class RustPushService extends GetxService {
     currentState = 0;
     while (currentState != 3) {
       var (token2, items2, state2) = await api.syncMessages(cloudMessagesClient: pushService.state!.icloudServices!.cloudMessagesClient!,
-        continuationToken: ss.prefs.getString("messageSyncToken") != null ? base64Decode(ss.prefs.getString("messageSyncToken")!) : null,
-        cutoffNs: cutoffNs);
+        continuationToken: ss.prefs.getString("messageSyncToken") != null ? base64Decode(ss.prefs.getString("messageSyncToken")!) : null);
       currentState = state2;
+
+      // Caller-side cutoff: if any message in this batch is older than the sync window, stop after processing
+      if (cutoffNs != null && items2.values.any((v) => v != null && v.time < cutoffNs)) {
+        currentState = 3;
+      }
 
       List<String> dupDeleteMessages = [];
       Logger.info("Syncing group of ${items2.length} messages, total $totalMessages");
