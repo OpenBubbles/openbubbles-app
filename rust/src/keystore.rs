@@ -148,6 +148,17 @@ pub fn supports_import(keystore: &NativeKeystoreHolder) -> Result<bool, Keystore
     keystore.destroy_key("test:ec")?;
     keystore.destroy_key("test:import")?;
 
+    // Test AES 256 wrapped key import (fails on some MediaTek TEEs)
+    keystore.destroy_key("test:aes")?;
+    let aes_key: [u8; 32] = rand::random();
+    keystore.import_key("test:aes", KeyType::Aes(256), &aes_key, KeystoreAccessRules {
+        block_modes: vec![EncryptMode::Gcm],
+        can_encrypt: true,
+        can_decrypt: true,
+        ..Default::default()
+    })?;
+    keystore.destroy_key("test:aes")?;
+
     Ok(true)
 }
 
