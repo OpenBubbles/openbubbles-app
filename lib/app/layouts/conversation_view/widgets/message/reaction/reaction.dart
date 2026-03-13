@@ -8,10 +8,12 @@ import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/services.dart';
+import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:defer_pointer/defer_pointer.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:universal_io/io.dart';
@@ -89,20 +91,44 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
   }
 
   Future<void> checkImage(Attachment attachment) async {
-    final pathName = attachment.path;
-    // Check via the image package to make sure this is a valid, render-able image
-    // final image = await compute(decodeIsolate, PlatformFile(
-    //     path: pathName,
-    //     name: attachment.transferName!,
-    //     bytes: attachment.bytes,
-    //     size: attachment.totalBytes ?? 0,
-    //   ),
-    // );
-    final bytes = await File(pathName).readAsBytes();
-    controller!.stickerData[reaction.guid!] = {
-      attachment.guid!: (bytes, null)
-    };
-    setState(() {});
+    try {
+      String pathName = attachment.path;
+
+      // Check for HEIC and use converted PNG if available, or convert
+      if (attachment.mimeType?.contains('image/hei') == true) {
+        final pngPath = "$pathName.png";
+        if (await File(pngPath).exists()) {
+          pathName = pngPath;
+        } else if (!kIsDesktop) {
+          final file = await FlutterImageCompress.compressAndGetFile(
+            pathName,
+            pngPath,
+            format: CompressFormat.png,
+            keepExif: true,
+            quality: 100,
+          );
+          if (file != null) {
+            pathName = pngPath;
+          }
+        }
+      }
+
+      // Check via the image package to make sure this is a valid, render-able image
+      // final image = await compute(decodeIsolate, PlatformFile(
+      //     path: pathName,
+      //     name: attachment.transferName!,
+      //     bytes: attachment.bytes,
+      //     size: attachment.totalBytes ?? 0,
+      //   ),
+      // );
+      final bytes = await File(pathName).readAsBytes();
+      controller!.stickerData[reaction.guid!] = {
+        attachment.guid!: (bytes, null)
+      };
+      setState(() {});
+    } catch (e, stack) {
+      Logger.error("Failed to load reaction sticker image", error: e, trace: stack);
+    }
   }
 
   void updateReaction() async {
@@ -208,6 +234,9 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
                         gaplessPlayback: true,
                         cacheHeight: 200,
                         filterQuality: FilterQuality.none,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const SizedBox.shrink();
+                        },
                       ),
                     ) : const SizedBox.shrink();
                   }
@@ -273,6 +302,9 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
                           gaplessPlayback: true,
                           cacheHeight: 200,
                           filterQuality: FilterQuality.none,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const SizedBox.shrink();
+                          },
                         ),
                       ) : const SizedBox.shrink();
                     }
