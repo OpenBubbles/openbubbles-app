@@ -22,6 +22,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:universal_io/io.dart';
 import 'package:bluebubbles/src/rust/api/api.dart' as api;
+import 'package:collection/collection.dart';
+import 'package:bluebubbles/utils/logger/logger.dart';
 
 class CupertinoHeader extends StatelessWidget implements PreferredSizeWidget {
   const CupertinoHeader({Key? key, required this.controller});
@@ -456,6 +458,14 @@ class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, Conver
 
   late StreamSubscription sub2;
 
+  // --- FIND MY FRIENDS CITY/STATE ---
+  String? shortAddress;
+  bool isLoadingFindMy = false;
+
+  static final Map<String, (String?, DateTime)> _findMyCache = {};
+  static const _findMyCacheTtl = Duration(minutes: 5);
+
+
   @override
   void initState() {
     super.initState();
@@ -476,6 +486,9 @@ class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, Conver
     cachedParticipants = controller.chat.handles;
     title = controller.chat.getTitle();
     cachedGuid = controller.chat.guid;
+
+    // --- FindMy integration ---
+    fetchShortAddress();
 
     // run query after render has completed
     if (!kIsWeb) {
@@ -519,6 +532,66 @@ class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, Conver
           cachedParticipants = chat.participants;
         }
       });
+    }
+  }
+
+  Future<void> fetchShortAddress() async {
+    // Only fetch for 1-on-1 chats
+    if (controller.chat.isGroup) return;
+    if (pushService.state == null) return;
+    if (pushService.state!.icloudServices == null) return;
+
+    final handle = controller.chat.participants.firstOrNull?.address;
+    if (handle == null) return;
+
+    final cached = _findMyCache[handle];
+
+    if (cached != null && DateTime.now().difference(cached.$2) < _findMyCacheTtl) {
+      setState(() {
+        shortAddress = cached.$1;
+        isLoadingFindMy = false;
+      });
+      return;
+    }    
+
+    setState(() => isLoadingFindMy = true);
+
+    try {
+      // Create a Find My Friends client using the current push state
+      final fmfClient = await api.makeFindMyFriends(
+        path: pushService.statePath,
+        config: pushService.state!.osConfig,
+        aps: pushService.state!.conn,
+        anisette: pushService.state!.anisette,
+        provider: pushService.state!.icloudServices!.tokenProvider,
+      );
+
+      // Fetch the current following/friends list
+      final following = await api.getFollowing(client: fmfClient);
+
+      // Try to match on any known handle for the friend
+      final friend = following.firstWhereOrNull(
+        (f) => f.invitationAcceptedHandles.any((h) => h.toLowerCase() == handle.toLowerCase()),
+      );
+
+      String? cityState;
+      if (friend != null && friend.lastLocation?.address != null) {
+        final addr = friend.lastLocation!.address!;
+        // E.g. "San Francisco, CA" or fallback to "Country" if stateCode is missing
+        if (addr.locality != null && (addr.stateCode != null || addr.countryCode != null)) {
+          cityState = "${addr.locality}, ${addr.stateCode ?? addr.countryCode}";
+        }
+      }
+
+      _findMyCache[handle] = (cityState, DateTime.now());
+
+      setState(() {
+        shortAddress = cityState;
+        isLoadingFindMy = false;
+      });
+    } catch (e) {
+      Logger.error("Failed to fetch FindMy location in convo view", error: e);
+      setState(() => isLoadingFindMy = false);
     }
   }
 
@@ -569,6 +642,23 @@ class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, Conver
           color: context.theme.colorScheme.outline,
         ),
       ]),
+      if (isLoadingFindMy)
+        Padding(
+          padding: const EdgeInsets.only(top: 2.0, left: 6.0),
+          child: SizedBox(
+            height: 12,
+            width: 12,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        )
+      else if (shortAddress != null && shortAddress!.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 2.0, left: 6.0),
+          child: Text(
+            shortAddress!,
+            style: context.theme.textTheme.bodySmall?.copyWith(color: context.theme.colorScheme.outline),
+          ),
+        ),
     ];
 
     if (context.orientation == Orientation.landscape && Platform.isAndroid) {
