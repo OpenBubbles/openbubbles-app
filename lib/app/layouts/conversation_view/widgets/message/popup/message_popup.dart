@@ -672,6 +672,28 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
     }
   }
 
+  Future<void> saveAsSticker() async {
+    try {
+      dynamic content;
+      if (isEmbeddedMedia) {
+        content = PlatformFile(
+          name: basename(message.interactiveMediaPath!),
+          path: message.interactiveMediaPath,
+          size: 0,
+        );
+      } else {
+        content = as.getContent(part.attachments.first);
+      }
+      if (content is PlatformFile) {
+        popDetails();
+        await as.saveAsSticker(content);
+      }
+    } catch (ex, trace) {
+      Logger.error("Error saving sticker: ${ex.toString()}", error: ex, trace: trace);
+      showSnackbar("Save Error", ex.toString());
+    }
+  }
+
   void openLink() {
     String? url = part.url;
     mcs.invokeMethod("open-browser", {"link": url ?? part.text});
@@ -1203,6 +1225,11 @@ class _MessagePopupState extends OptimizedState<MessagePopup> with SingleTickerP
           DetailsMenuActionWidget(
             onTap: download,
             action: DetailsMenuAction.Save,
+          ),
+        if (showDownload && !kIsWeb && part.attachments.isNotEmpty && part.attachments.first.mimeStart == "image")
+          DetailsMenuActionWidget(
+            onTap: saveAsSticker,
+            action: DetailsMenuAction.SaveAsSticker,
           ),
         if ((part.text?.hasUrl ?? false) && !kIsWeb && !kIsDesktop && !ls.isBubble)
           DetailsMenuActionWidget(

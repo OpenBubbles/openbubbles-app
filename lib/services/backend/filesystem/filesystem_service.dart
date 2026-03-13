@@ -37,6 +37,27 @@ class FilesystemService extends GetxService {
     return filePath;
   }
 
+  /// Returns the path to the stickers directory.
+  /// On Android: /storage/emulated/0/Android/data/<pkg>/files/stickers/
+  /// On other platforms: <appDocDir>/stickers/
+  Future<String> get stickersDirectory async {
+    if (kIsWeb) throw "Cannot get stickers directory on web!";
+
+    String dirPath;
+    if (Platform.isAndroid) {
+      final extDir = await getExternalStorageDirectory();
+      dirPath = join(extDir!.path, 'stickers');
+    } else {
+      dirPath = join(appDocDir.path, 'stickers');
+    }
+
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dirPath;
+  }
+
   Future<void> init({bool headless = false}) async {
     if (!kIsWeb) {
       //ignore: unnecessary_cast, we need this as a workaround

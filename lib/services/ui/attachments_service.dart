@@ -267,6 +267,24 @@ class AttachmentsService extends GetxService {
     }
   }
 
+  Future<void> saveAsSticker(PlatformFile file) async {
+    try {
+      final stickerDir = await fs.stickersDirectory;
+      final destPath = join(stickerDir, file.name);
+      if (file.path != null) {
+        await File(file.path!).copy(destPath);
+      } else if (file.bytes != null) {
+        await File(destPath).writeAsBytes(file.bytes!);
+      } else {
+        return showSnackbar('Error', 'Could not save sticker: no file data available.');
+      }
+      showSnackbar('Success', 'Saved as sticker!');
+    } catch (e) {
+      Logger.error('Failed to save sticker', error: e);
+      showSnackbar('Error', 'Failed to save sticker.');
+    }
+  }
+
   Future<bool> canAutoDownload() async {
     final canSave = (await Permission.storage.request()).isGranted;
     if (!canSave) return false;

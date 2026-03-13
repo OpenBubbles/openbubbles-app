@@ -351,6 +351,7 @@ class ConversationTextFieldState extends CustomState<ConversationTextField, void
       );
     controller.pickedApp.value = null;
     controller.pickedAttachments.clear();
+    controller.isStickerSend = false;
     controller.textController.clear();
     controller.subjectTextController.clear();
     controller.replyToMessage = null;
