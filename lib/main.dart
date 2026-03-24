@@ -72,8 +72,6 @@ Future<Null> initApp(bool bubble, List<String> arguments) async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      await StartupTasks.initStartupServices(isBubble: bubble);
-
       /* ----- RANDOM STUFF INITIALIZATION ----- */
       HttpOverrides.global = BadCertOverride();
       dynamic exception;
@@ -84,30 +82,18 @@ Future<Null> initApp(bool bubble, List<String> arguments) async {
       };
 
       try {
+        await StartupTasks.initStartupServices(isBubble: bubble);
+
         // Once all the services are initialized, we need to perform some
         // startup tasks to ensure that the app has the information it needs.
-        StartupTasks.onStartup().then((_) {
-          Logger.info("Startup tasks completed");
-        }).catchError((e, s) {
-          Logger.error("Failed to complete startup tasks!", error: e, trace: s);
-        });
+        await StartupTasks.onStartup();
+        Logger.info("Startup tasks completed");
 
         /* ----- DATE FORMATTING INITIALIZATION ----- */
         await initializeDateFormatting();
 
         /* ----- MEDIAKIT INITIALIZATION ----- */
         MediaKit.ensureInitialized();
-
-        /* ----- SPLASH SCREEN INITIALIZATION ----- */
-        if (!ss.settings.finishedSetup.value && !kIsWeb && !kIsDesktop) {
-          runApp(MaterialApp(
-              home: SplashScreen(shouldNavigate: false),
-              theme: ThemeData(
-                colorScheme: ColorScheme.fromSwatch(
-                    backgroundColor:
-                        PlatformDispatcher.instance.platformBrightness == Brightness.dark ? Colors.black : Colors.white),
-              )));
-        }
 
         /* ----- ANDROID SPECIFIC INITIALIZATION ----- */
         if (!kIsWeb && !kIsDesktop) {
@@ -167,7 +153,11 @@ Future<Null> initApp(bool bubble, List<String> arguments) async {
               await windowManager.show();
             }
             if (!(ss.canAuthenticate && ss.settings.shouldSecure.value)) {
-              chats.init();
+              try {
+                await chats.init();
+              } catch (e, s) {
+                Logger.error("Failed to initialize chats on desktop", error: e, trace: s);
+              }
               socket;
             }
           });
@@ -203,6 +193,13 @@ Future<Null> initApp(bool bubble, List<String> arguments) async {
     },
     (dynamic error, StackTrace stackTrace) {
       Logger.error("Unhandled Exception", trace: stackTrace, error: error);
+      // If an unhandled error occurs before runApp() has been called,
+      // the user would see a blank screen. Attempt to show error UI.
+      try {
+        runApp(FailureToStart(e: error, s: stackTrace));
+      } catch (_) {
+        // runApp may itself fail if binding isn't initialized
+      }
     }
   );
 }
@@ -324,7 +321,7 @@ class Main extends StatelessWidget {
           child: SecureApplication(
             child: Builder(
               builder: (context) {
-                if (ss.canAuthenticate && (!ls.isAlive || !StartupTasks.uiReady.isCompleted)) {
+                if (ss.canAuthenticate && !ls.isAlive) {
                   if (ss.settings.shouldSecure.value) {
                     SecureApplicationProvider.of(context, listen: false)!.lock();
                     if (ss.settings.securityLevel.value == SecurityLevel.locked_and_secured) {
@@ -349,8 +346,12 @@ class Main extends StatelessWidget {
                           if (result) {
                             SecureApplicationProvider.of(context, listen: false)!.authSuccess(unlock: true);
                             if (kIsDesktop) {
-                              Future.delayed(Duration.zero, () {
-                                chats.init();
+                              Future.delayed(Duration.zero, () async {
+                                try {
+                                  await chats.init();
+                                } catch (e, s) {
+                                  Logger.error("Failed to initialize chats after auth", error: e, trace: s);
+                                }
                                 socket;
                               });
                             }
@@ -388,8 +389,12 @@ class Main extends StatelessWidget {
                                       if (didAuthenticate) {
                                         controller!.authSuccess(unlock: true);
                                         if (kIsDesktop) {
-                                          Future.delayed(Duration.zero, () {
-                                            chats.init();
+                                          Future.delayed(Duration.zero, () async {
+                                            try {
+                                              await chats.init();
+                                            } catch (e, s) {
+                                              Logger.error("Failed to initialize chats after auth", error: e, trace: s);
+                                            }
                                             socket;
                                           });
                                         }
@@ -427,6 +432,8 @@ class _HomeState extends OptimizedState<Home> with WidgetsBindingObserver, TrayL
   final ReceivePort port = ReceivePort();
   bool serverCompatible = true;
   bool fullyLoaded = false;
+  bool startupTimedOut = false;
+  Timer? _watchdogTimer;
 
   @override
   void initState() {
@@ -434,6 +441,15 @@ class _HomeState extends OptimizedState<Home> with WidgetsBindingObserver, TrayL
 
     // Bind the lifecycle events
     WidgetsBinding.instance.addObserver(this);
+
+    // Watchdog: if startup hasn't completed in 60s, show a warning
+    _watchdogTimer = Timer(const Duration(seconds: 60), () {
+      if (!fullyLoaded && !ss.settings.finishedSetup.value && mounted) {
+        setState(() {
+          startupTimedOut = true;
+        });
+      }
+    });
 
     /* ----- APP REFRESH LISTENER INITIALIZATION ----- */
     eventDispatcher.stream.listen((event) {
@@ -457,11 +473,15 @@ class _HomeState extends OptimizedState<Home> with WidgetsBindingObserver, TrayL
       };
       /* ----- SERVER VERSION CHECK ----- */
       if (kIsWeb && ss.settings.finishedSetup.value) {
-        int version = (await ss.getServerDetails()).item4;
-        if (version < 42) {
-          setState(() {
-            serverCompatible = false;
-          });
+        try {
+          int version = (await ss.getServerDetails().timeout(const Duration(seconds: 10))).item4;
+          if (version < 42) {
+            setState(() {
+              serverCompatible = false;
+            });
+          }
+        } catch (e) {
+          Logger.error("Failed to fetch server details", error: e);
         }
 
         /* ----- CTRL-F OVERRIDE ----- */
@@ -473,55 +493,60 @@ class _HomeState extends OptimizedState<Home> with WidgetsBindingObserver, TrayL
       }
 
       if (kIsDesktop) {
-        if (Platform.isWindows) {
-          /* ----- CONTACT IMAGE CACHE DELETION ----- */
-          Directory temp = Directory(join(fs.appDocDir.path, "temp"));
-          if (await temp.exists()) await temp.delete(recursive: true);
+        try {
+          if (Platform.isWindows) {
+            /* ----- CONTACT IMAGE CACHE DELETION ----- */
+            Directory temp = Directory(join(fs.appDocDir.path, "temp"));
+            if (await temp.exists()) await temp.delete(recursive: true);
 
-          /* ----- BADGE ICON LISTENER ----- */
-          GlobalChatService.unreadCount.listen((count) async {
-            if (count == 0) {
-                await WindowsTaskbar.resetOverlayIcon();
-              } else if (count <= 9) {
-                await WindowsTaskbar.setOverlayIcon(ThumbnailToolbarAssetIcon('assets/badges/badge-$count.ico'));
-              } else {
-                await WindowsTaskbar.setOverlayIcon(ThumbnailToolbarAssetIcon('assets/badges/badge-10.ico'));
-              }
-          });
-
-          /* ----- WINDOW EFFECT INITIALIZATION ----- */
-          eventDispatcher.stream.listen((event) async {
-            if (event.item1 == 'theme-update') {
-              EasyDebounce.debounce('window-effect', const Duration(milliseconds: 500), () async {
-                if (mounted) {
-                  await WindowEffects.setEffect(color: context.theme.colorScheme.background);
+            /* ----- BADGE ICON LISTENER ----- */
+            GlobalChatService.unreadCount.listen((count) async {
+              if (count == 0) {
+                  await WindowsTaskbar.resetOverlayIcon();
+                } else if (count <= 9) {
+                  await WindowsTaskbar.setOverlayIcon(ThumbnailToolbarAssetIcon('assets/badges/badge-$count.ico'));
+                } else {
+                  await WindowsTaskbar.setOverlayIcon(ThumbnailToolbarAssetIcon('assets/badges/badge-10.ico'));
                 }
-              });
-            }
-          });
+            });
 
-          Future(() => eventDispatcher.emit("theme-update", null));
+            /* ----- WINDOW EFFECT INITIALIZATION ----- */
+            eventDispatcher.stream.listen((event) async {
+              if (event.item1 == 'theme-update') {
+                EasyDebounce.debounce('window-effect', const Duration(milliseconds: 500), () async {
+                  if (mounted) {
+                    await WindowEffects.setEffect(color: context.theme.colorScheme.background);
+                  }
+                });
+              }
+            });
+
+            Future(() => eventDispatcher.emit("theme-update", null));
+          }
+
+          /* ----- SYSTEM TRAY INITIALIZATION ----- */
+          await initSystemTray();
+          if (Platform.isWindows) {
+            systemTray.registerSystemTrayEventHandler((eventName) {
+              if (eventName == st.kSystemTrayEventClick) {
+                onTrayIconMouseDown();
+              } else if (eventName == st.kSystemTrayEventRightClick) {
+                onTrayIconRightMouseDown();
+              }
+            });
+          } else {
+            trayManager.addListener(this);
+          }
+
+          /* ----- NOTIFICATIONS INITIALIZATION ----- */
+          await localNotifier.setup(appName: "BlueBubbles");
+        } catch (e) {
+          Logger.error("Failed to initialize desktop features", error: e);
         }
-
-        /* ----- SYSTEM TRAY INITIALIZATION ----- */
-        await initSystemTray();
-        if (Platform.isWindows) {
-          systemTray.registerSystemTrayEventHandler((eventName) {
-            if (eventName == st.kSystemTrayEventClick) {
-              onTrayIconMouseDown();
-            } else if (eventName == st.kSystemTrayEventRightClick) {
-              onTrayIconRightMouseDown();
-            }
-          });
-        } else {
-          trayManager.addListener(this);
-        }
-
-        /* ----- NOTIFICATIONS INITIALIZATION ----- */
-        await localNotifier.setup(appName: "BlueBubbles");
       }
 
       if (!ss.settings.finishedSetup.value) {
+        _watchdogTimer?.cancel();
         setState(() {
           fullyLoaded = true;
         });
@@ -565,6 +590,7 @@ class _HomeState extends OptimizedState<Home> with WidgetsBindingObserver, TrayL
 
   @override
   void dispose() {
+    _watchdogTimer?.cancel();
     // Clean up observer when app is fully closed
     WidgetsBinding.instance.removeObserver(this);
     windowManager.removeListener(DesktopWindowListener.instance);
@@ -636,6 +662,33 @@ class _HomeState extends OptimizedState<Home> with WidgetsBindingObserver, TrayL
                       showUnknownSenders: false,
                     );
                   } else {
+                    if (startupTimedOut && !fullyLoaded && !kIsWeb && !kIsDesktop) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Startup is taking longer than expected.",
+                                style: context.theme.textTheme.titleMedium,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "You can keep waiting or restart the app.",
+                                style: context.theme.textTheme.bodyMedium,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 24),
+                              const CircularProgressIndicator(),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
                     return PopScope(
                       canPop: false,
                       child: TitleBarWrapper(

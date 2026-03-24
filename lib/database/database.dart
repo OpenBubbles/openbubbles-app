@@ -93,30 +93,102 @@ class Database {
     await initComplete.future;
   }
 
-  static Future<void> _initDatabaseMobile({bool? storeOpenStatus}) async {
+  /// Timeout for database open/attach operations to prevent indefinite blocking.
+  static const Duration _dbOpenTimeout = Duration(seconds: 10);
+
+  /// Maximum number of retry attempts for database initialization.
+  static const int _maxRetries = 3;
+
+  static bool _isDbLockError(String errorMsg) {
+    final lower = errorMsg.toLowerCase();
+    return lower.contains("another store is still open using the same path") ||
+        lower.contains("lock") ||
+        lower.contains("already in use") ||
+        lower.contains("busy");
+  }
+
+  static bool _isDbCorruptionError(String errorMsg) {
+    final lower = errorMsg.toLowerCase();
+    return lower.contains("corrupt") ||
+        lower.contains("invalid database") ||
+        lower.contains("schema version mismatch") ||
+        lower.contains("storageexception");
+  }
+
+  static Future<void> _initDatabaseMobile({bool? storeOpenStatus, int retryCount = 0}) async {
+    final Stopwatch sw = Stopwatch()..start();
     Directory objectBoxDirectory = Directory(join(fs.appDocDir.path, 'objectbox'));
     final isStoreOpen = storeOpenStatus ?? Store.isOpen(objectBoxDirectory.path);
 
     try {
       if (isStoreOpen) {
-        Logger.info("Attempting to attach to an existing ObjectBox store...");
-        store = Store.attach(getObjectBoxModel(), objectBoxDirectory.path);
-        Logger.info("Successfully attached to an existing ObjectBox store");
+        Logger.info("Attempting to attach to an existing ObjectBox store (attempt ${retryCount + 1})...", tag: "DB-Init");
+        store = await Future(() => Store.attach(getObjectBoxModel(), objectBoxDirectory.path))
+            .timeout(_dbOpenTimeout, onTimeout: () {
+          throw TimeoutException("Store.attach() timed out after ${_dbOpenTimeout.inSeconds}s — another process may hold the lock");
+        });
+        Logger.info("Successfully attached to an existing ObjectBox store in ${sw.elapsedMilliseconds}ms", tag: "DB-Init");
       } else {
-        Logger.info("Opening new ObjectBox store from path: ${objectBoxDirectory.path}");
-        store = await openStore(directory: objectBoxDirectory.path, maxDBSizeInKB: 5 * 1024 * 1024);
+        Logger.info("Opening new ObjectBox store from path: ${objectBoxDirectory.path}", tag: "DB-Init");
+        store = await openStore(directory: objectBoxDirectory.path, maxDBSizeInKB: 5 * 1024 * 1024)
+            .timeout(_dbOpenTimeout, onTimeout: () {
+          throw TimeoutException("openStore() timed out after ${_dbOpenTimeout.inSeconds}s — database may be locked");
+        });
+        Logger.info("Opened ObjectBox store in ${sw.elapsedMilliseconds}ms", tag: "DB-Init");
+      }
+    } on TimeoutException catch (e) {
+      sw.stop();
+      Logger.error("Database open timed out after ${sw.elapsedMilliseconds}ms", error: e, tag: "DB-Init");
+      if (retryCount < _maxRetries) {
+        Logger.info("Retrying database init (attempt ${retryCount + 2}/${_maxRetries + 1})...", tag: "DB-Init");
+        await Future.delayed(Duration(milliseconds: 500 * (retryCount + 1)));
+        await _initDatabaseMobile(storeOpenStatus: storeOpenStatus, retryCount: retryCount + 1);
+      } else {
+        Logger.error("All database open attempts exhausted. The database may be locked by another process.", tag: "DB-Init");
+        rethrow;
       }
     } catch (e, s) {
-      Logger.error("Failed to open ObjectBox store!", error: e, trace: s);
+      sw.stop();
+      Logger.error("Failed to open ObjectBox store after ${sw.elapsedMilliseconds}ms!", error: e, trace: s, tag: "DB-Init");
+      final errorMsg = e.toString();
 
-      if (e.toString().contains("another store is still open using the same path")) {
-        Logger.info("Retrying to attach to an existing ObjectBox store");
-        await _initDatabaseMobile(storeOpenStatus: true);
+      if (_isDbCorruptionError(errorMsg)) {
+        Logger.error("Database appears corrupted. Backing up and recreating...", tag: "DB-Init");
+        try {
+          if (objectBoxDirectory.existsSync()) {
+            final backupDir = Directory("${objectBoxDirectory.path}.backup");
+            if (backupDir.existsSync()) {
+              backupDir.deleteSync(recursive: true);
+            }
+            objectBoxDirectory.renameSync(backupDir.path);
+            Logger.info("Corrupted database backed up to ${backupDir.path}", tag: "DB-Init");
+          }
+          objectBoxDirectory.createSync(recursive: true);
+          store = await openStore(directory: objectBoxDirectory.path, maxDBSizeInKB: 5 * 1024 * 1024)
+              .timeout(_dbOpenTimeout, onTimeout: () {
+            throw TimeoutException("openStore() timed out during corruption recovery");
+          });
+          Logger.info("Successfully recreated ObjectBox store after corruption recovery. Old data backed up.", tag: "DB-Init");
+          return;
+        } catch (recoveryError, recoveryTrace) {
+          Logger.error("Database corruption recovery failed!", error: recoveryError, trace: recoveryTrace, tag: "DB-Init");
+          rethrow;
+        }
+      }
+
+      if (_isDbLockError(errorMsg) && retryCount < _maxRetries) {
+        Logger.info("Database locked. Retrying with attach (attempt ${retryCount + 2}/${_maxRetries + 1})...", tag: "DB-Init");
+        await Future.delayed(Duration(milliseconds: 500 * (retryCount + 1)));
+        await _initDatabaseMobile(storeOpenStatus: true, retryCount: retryCount + 1);
+      } else if (retryCount >= _maxRetries) {
+        Logger.error("All database open attempts exhausted.", tag: "DB-Init");
+        rethrow;
       }
     }
   }
 
   static Future<void> _initDatabaseDesktop() async {
+    final Stopwatch sw = Stopwatch()..start();
     Directory objectBoxDirectory = Directory(join(fs.appDocDir.path, 'objectbox'));
 
     try {
@@ -124,24 +196,54 @@ class Database {
       if (ss.prefs.getBool('use-custom-path') == true && ss.prefs.getString('custom-path') != null) {
         Directory oldCustom = Directory(join(ss.prefs.getString('custom-path')!, 'objectbox'));
         if (oldCustom.existsSync()) {
-          Logger.info("Detected prior use of custom path option. Migrating...");
+          Logger.info("Detected prior use of custom path option. Migrating...", tag: "DB-Init");
           fs.copyDirectory(oldCustom, objectBoxDirectory);
         }
         await ss.prefs.remove('use-custom-path');
         await ss.prefs.remove('custom-path');
       }
 
-      Logger.info("Opening ObjectBox store from path: ${objectBoxDirectory.path}");
-      store = await openStore(directory: objectBoxDirectory.path);
+      Logger.info("Opening ObjectBox store from path: ${objectBoxDirectory.path}", tag: "DB-Init");
+      store = await openStore(directory: objectBoxDirectory.path)
+          .timeout(_dbOpenTimeout, onTimeout: () {
+        throw TimeoutException("Desktop openStore() timed out after ${_dbOpenTimeout.inSeconds}s");
+      });
+      Logger.info("Opened desktop ObjectBox store in ${sw.elapsedMilliseconds}ms", tag: "DB-Init");
     } catch (e, s) {
-      if (Platform.isLinux) {
-        Logger.debug("Another instance is probably running. Sending foreground signal");
+      sw.stop();
+      final errorMsg = e.toString();
+
+      if (Platform.isLinux && _isDbLockError(errorMsg)) {
+        Logger.debug("Another instance is probably running. Sending foreground signal", tag: "DB-Init");
         final instanceFile = File(join(fs.appDocDir.path, '.instance'));
         instanceFile.openSync(mode: FileMode.write).closeSync();
         exit(0);
       }
 
-      Logger.error("Failed to initialize desktop database!", error: e, trace: s);
+      if (_isDbCorruptionError(errorMsg)) {
+        Logger.error("Desktop database appears corrupted. Backing up and recreating...", error: e, trace: s, tag: "DB-Init");
+        try {
+          if (objectBoxDirectory.existsSync()) {
+            final backupDir = Directory("${objectBoxDirectory.path}.backup");
+            if (backupDir.existsSync()) {
+              backupDir.deleteSync(recursive: true);
+            }
+            objectBoxDirectory.renameSync(backupDir.path);
+            Logger.info("Corrupted database backed up to ${backupDir.path}", tag: "DB-Init");
+          }
+          objectBoxDirectory.createSync(recursive: true);
+          store = await openStore(directory: objectBoxDirectory.path)
+              .timeout(_dbOpenTimeout, onTimeout: () {
+            throw TimeoutException("Desktop openStore() timed out during corruption recovery");
+          });
+          Logger.info("Successfully recreated desktop ObjectBox store after corruption recovery. Old data backed up.", tag: "DB-Init");
+          return;
+        } catch (recoveryError, recoveryTrace) {
+          Logger.error("Desktop database corruption recovery failed!", error: recoveryError, trace: recoveryTrace, tag: "DB-Init");
+        }
+      }
+
+      Logger.error("Failed to initialize desktop database after ${sw.elapsedMilliseconds}ms!", error: e, trace: s, tag: "DB-Init");
     }
   }
 

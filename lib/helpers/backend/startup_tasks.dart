@@ -27,8 +27,12 @@ class StartupTasks {
   static Future<void> initStartupServices({bool isBubble = false}) async {
     debugPrint("Initializing startup services...");
 
-    await RustLib.init();
-    
+    try {
+      await RustLib.init().timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw Exception("RustLib.init() timed out after 30 seconds. The Rust bridge failed to load.");
+    }
+
     // First, initialize the filesystem service as it's used by other necessary services
     await fs.init();
 
@@ -45,7 +49,11 @@ class StartupTasks {
 
     // The next thing we need to do is initialize the database.
     // If the database is not initialized, we cannot do anything.
-    await Database.init();
+    try {
+      await Database.init().timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw Exception("Database.init() timed out after 30 seconds. The database may be locked or corrupted.");
+    }
 
     // Load FCM data into settings from the database
     // We only need to do this for the main startup
@@ -71,14 +79,22 @@ class StartupTasks {
   }
 
   static Future<void> initIsolateServices() async {
-    await RustLib.init();
+    try {
+      await RustLib.init().timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw Exception("RustLib.init() timed out after 30 seconds. The Rust bridge failed to load.");
+    }
 
     debugPrint("Initializing isolate services...");
     await fs.init(headless: true);
     await Logger.init();
     Logger.debug("Initializing isolate services...");
     await ss.init(headless: true);
-    await Database.init();
+    try {
+      await Database.init().timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw Exception("Database.init() timed out after 30 seconds. The database may be locked or corrupted.");
+    }
     await mcs.init(headless: true);
     await ls.init(headless: true);
   }
@@ -89,7 +105,11 @@ class StartupTasks {
     await Logger.init();
     Logger.debug("Initializing incremental sync services...");
     await ss.init();
-    await Database.init();
+    try {
+      await Database.init().timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw Exception("Database.init() timed out after 30 seconds. The database may be locked or corrupted.");
+    }
   }
 
   static Future<void> onStartup() async {
