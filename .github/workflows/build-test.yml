@@ -1,0 +1,76 @@
+on:
+  workflow_dispatch:
+
+name: Build Test APK (Real Certs)
+jobs:
+  build:
+    name: OpenBubbles Test APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.24.0
+
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: amyu/setup-android@v5
+
+      - name: Install Protobuf compiler
+        run: sudo apt-get install -y protobuf-compiler
+
+      - name: Set up FairPlay keys from secrets
+        run: |
+          mkdir -p rustpush/certs/fairplay
+
+          cert_names=(
+            "4056631661436364584235346952193"
+            "4056631661436364584235346952194"
+            "4056631661436364584235346952195"
+            "4056631661436364584235346952196"
+            "4056631661436364584235346952197"
+            "4056631661436364584235346952198"
+            "4056631661436364584235346952199"
+            "4056631661436364584235346952200"
+            "4056631661436364584235346952201"
+            "4056631661436364584235346952208"
+          )
+
+          for name in "${cert_names[@]}"; do
+              echo "${{ secrets.FAIRPLAY_CERT }}" | base64 -d > rustpush/certs/fairplay/$name.crt
+              echo "${{ secrets.FAIRPLAY_KEY }}" | base64 -d > rustpush/certs/fairplay/$name.pem
+          done
+
+      - name: Run Build Script
+        run: |
+          flutter build apk --flavor alpha --debug --target-platform android-arm64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Alpha Test APK
+          path: build/app/outputs/flutter-apk/app-alpha-debug.apk
