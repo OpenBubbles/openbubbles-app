@@ -165,7 +165,8 @@ class Settings {
   final RxDouble windowEffectCustomOpacityDark = 0.5.obs;
 
   // Troubleshooting settings
-  final Rx<Level> logLevel = Level.info.obs;
+  // Default to warning on desktop to avoid logging every keystroke at INFO level
+  final Rx<Level> logLevel = (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? Level.warning.obs : Level.info.obs;
 
   // Notification actions
   final RxList<int> selectedActionIndices = Platform.isWindows ? [0, 1, 2, 3, 4].obs : [0, 1, 2].obs;
@@ -596,7 +597,9 @@ class Settings {
     ss.settings.windowEffectCustomOpacityDark.value = map['windowEffectCustomOpacityDark']?.toDouble() ?? 0.5;
     ss.settings.useWindowsAccent.value = map['useWindowsAccent'] ?? false;
     ss.settings.firstFcmRegisterDate.value = map['firstFcmRegisterDate'] ?? 0;
-    ss.settings.logLevel.value = map['logLevel'] != null ? Level.values[map['logLevel']] : Level.info;
+    ss.settings.logLevel.value = map['logLevel'] != null
+        ? Level.values[map['logLevel']]
+        : (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? Level.warning : Level.info;
     ss.settings.hideNamesForReactions.value = map['hideNamesForReactions'] ?? false;
     ss.settings.replaceEmoticonsWithEmoji.value = map['replaceEmoticonsWithEmoji'] ?? false;
     ss.settings.defaultHandle.value = map['defaultHandle'] ?? "";
@@ -771,7 +774,9 @@ class Settings {
     s.windowEffectCustomOpacityDark.value = map['windowEffectCustomOpacityDark']?.toDouble() ?? 0.5;
     s.useWindowsAccent.value = map['useWindowsAccent'] ?? false;
     s.firstFcmRegisterDate.value = map['firstFcmRegisterDate'] ?? 0;
-    s.logLevel.value = map['logLevel'] != null ? Level.values[map['logLevel']] : Level.info;
+    s.logLevel.value = map['logLevel'] != null
+        ? Level.values[map['logLevel']]
+        : (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? Level.warning : Level.info;
     s.hideNamesForReactions.value = map['hideNamesForReactions'] ?? false;
     s.replaceEmoticonsWithEmoji.value = map['replaceEmoticonsWithEmoji'] ?? false;
     s.lastReviewRequestTimestamp.value = map['lastReviewRequestTimestamp'] ?? 0;
