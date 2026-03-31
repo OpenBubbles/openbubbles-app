@@ -44,6 +44,10 @@ jobs:
       - name: Install Protobuf compiler
         run: sudo apt-get install -y protobuf-compiler
 
+      - name: Set up stable debug keystore
+        run: |
+          echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > /home/runner/.android/debug.keystore
+
       - name: Set up FairPlay keys from secrets
         run: |
           mkdir -p rustpush/certs/fairplay

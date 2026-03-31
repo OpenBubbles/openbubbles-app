@@ -1,6 +1,7 @@
 import 'package:animated_size_and_fade/animated_size_and_fade.dart';
 import 'package:audio_waveforms/audio_waveforms.dart' as aw;
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/reaction/reaction.dart';
+import 'package:bluebubbles/app/layouts/settings/pages/message_view/attachment_picker_order_panel.dart';
 import 'package:bluebubbles/app/layouts/settings/pages/message_view/message_options_order_panel.dart';
 import 'package:bluebubbles/app/layouts/settings/widgets/content/next_button.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
@@ -138,6 +139,20 @@ class _ConversationPanelState extends OptimizedState<ConversationPanel> {
                         ns.pushSettings(
                           context,
                           MessageOptionsOrderPanel(),
+                        );
+                      },
+                      trailing: const NextButton(),
+                    ),
+                  if (!kIsWeb)
+                    const SettingsDivider(padding: EdgeInsets.only(left: 16.0)),
+                  if (!kIsWeb)
+                    SettingsTile(
+                      title: "Attachment Picker Order",
+                      subtitle: "Set the order of items in the attachment picker wheel",
+                      onTap: () {
+                        ns.pushSettings(
+                          context,
+                          AttachmentPickerOrderPanel(),
                         );
                       },
                       trailing: const NextButton(),

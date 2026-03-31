@@ -290,6 +290,14 @@ class AttachmentPickerState extends OptimizedState<AttachmentPicker> {
       },
     ];
 
+    // Sort static items by user's saved order
+    final order = ss.settings.attachmentPickerOrder;
+    iconsList.sort((a, b) {
+      final aIndex = order.indexOf(a["text"] as String);
+      final bIndex = order.indexOf(b["text"] as String);
+      return (aIndex == -1 ? 999 : aIndex).compareTo(bIndex == -1 ? 999 : bIndex);
+    });
+
     if(!controller.chat.isIMessage) return;
     for (var app in es.cachedStatus) {
       if (app.available == null) return;
