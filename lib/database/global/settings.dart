@@ -91,6 +91,7 @@ class Settings {
   final RxnString userAvatarPath = RxnString();
   final RxnString userPosterPath = RxnString();
   final RxBool hideNamesForReactions = false.obs;
+  final RxBool showLocationInChat = false.obs;
   final RxBool replaceEmoticonsWithEmoji = true.obs;
   final RxnString lastLocation = RxnString();
 
@@ -419,6 +420,7 @@ class Settings {
       'useWindowsAccent': useWindowsAccent.value,
       'logLevel': logLevel.value.index,
       'hideNamesForReactions': hideNamesForReactions.value,
+      'showLocationInChat': showLocationInChat.value,
       'replaceEmoticonsWithEmoji': replaceEmoticonsWithEmoji.value,
       'lastReviewRequestTimestamp': lastReviewRequestTimestamp.value,
       'defaultHandle': defaultHandle.value,
@@ -598,6 +600,7 @@ class Settings {
     ss.settings.firstFcmRegisterDate.value = map['firstFcmRegisterDate'] ?? 0;
     ss.settings.logLevel.value = map['logLevel'] != null ? Level.values[map['logLevel']] : Level.info;
     ss.settings.hideNamesForReactions.value = map['hideNamesForReactions'] ?? false;
+    ss.settings.showLocationInChat.value = map['showLocationInChat'] ?? false;
     ss.settings.replaceEmoticonsWithEmoji.value = map['replaceEmoticonsWithEmoji'] ?? false;
     ss.settings.defaultHandle.value = map['defaultHandle'] ?? "";
     ss.settings.cardDavServer.value = map['cardDavServer'] ?? "";
@@ -773,6 +776,7 @@ class Settings {
     s.firstFcmRegisterDate.value = map['firstFcmRegisterDate'] ?? 0;
     s.logLevel.value = map['logLevel'] != null ? Level.values[map['logLevel']] : Level.info;
     s.hideNamesForReactions.value = map['hideNamesForReactions'] ?? false;
+    s.showLocationInChat.value = map['showLocationInChat'] ?? false;
     s.replaceEmoticonsWithEmoji.value = map['replaceEmoticonsWithEmoji'] ?? false;
     s.lastReviewRequestTimestamp.value = map['lastReviewRequestTimestamp'] ?? 0;
     s.defaultHandle.value = map['defaultHandle'] ?? "";

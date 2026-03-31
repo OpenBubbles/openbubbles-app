@@ -488,7 +488,9 @@ class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, Conver
     cachedGuid = controller.chat.guid;
 
     // --- FindMy integration ---
-    fetchShortAddress();
+    if (ss.settings.showLocationInChat.value) {
+      fetchShortAddress();
+    }
 
     // run query after render has completed
     if (!kIsWeb) {
@@ -609,15 +611,16 @@ class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, Conver
     if (hideInfo) {
       _title = controller.chat.participants.length > 1 ? "Group Chat" : controller.chat.participants[0].fakeName;
     }
+    final hasLocationRow = isLoadingFindMy || (shortAddress != null && shortAddress!.isNotEmpty);
     final children = [
       IgnorePointer(
         ignoring: true,
         child: ContactAvatarGroupWidget(
           chat: controller.chat,
-          size: 54,
+          size: hasLocationRow ? 40 : 54,
         ),
       ),
-      const SizedBox(height: 5, width: 5),
+      SizedBox(height: hasLocationRow ? 2 : 5, width: 5),
       Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
         ConstrainedBox(
           constraints: BoxConstraints(

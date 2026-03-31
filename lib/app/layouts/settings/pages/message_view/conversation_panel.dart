@@ -197,6 +197,18 @@ class _ConversationPanelState extends OptimizedState<ConversationPanel> {
                       subtitle: "Enable this to hide names under participant avatars when you view a message's reactions",
                       backgroundColor: tileColor,
                     )),
+                  const SettingsDivider(padding: EdgeInsets.only(left: 16.0)),
+                  Obx(() => SettingsSwitch(
+                      onChanged: (bool val) {
+                        ss.settings.showLocationInChat.value = val;
+                        saveSettings();
+                      },
+                      initialVal: ss.settings.showLocationInChat.value,
+                      title: "Show Location in iOS Chat (BETA)",
+                      subtitle: "Displays the contact's city and state in the chat header using Find My Friends",
+                      backgroundColor: tileColor,
+                      isThreeLine: true,
+                    )),
                 ],
               ),
               if (!kIsWeb)
