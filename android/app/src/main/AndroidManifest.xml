@@ -449,7 +449,7 @@
         </activity>
         <meta-data
             android:name="android.telephony.PROPERTY_SATELLITE_DATA_OPTIMIZED"
-            android:value="com.bluebubbles.messaging" />
+            android:value="com.openbubbles.messaging" />
         <!--
  Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java
