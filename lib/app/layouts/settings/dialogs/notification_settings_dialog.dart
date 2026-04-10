@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/services/backend_ui_interop/event_dispatcher.dart';
+import 'package:bluebubbles/services/services.dart';
 import 'package:bluebubbles/database/models.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -185,6 +188,36 @@ class NotificationSettingsDialog extends StatelessWidget {
                 eventDispatcher.emit("refresh", null);
               },
             ),
+            if (!kIsWeb && Platform.isAndroid)
+              ListTile(
+                mouseCursor: MouseCursor.defer,
+                title: Text("Notification Settings", style: context.theme.textTheme.bodyLarge),
+                subtitle: Text(
+                  "Customize sound, vibration, and importance",
+                  style: context.theme.textTheme.bodySmall!.copyWith(color: context.theme.colorScheme.properOnSurface),),
+                onTap: () async {
+                  Get.back();
+                  await mcs.invokeMethod("open-conversation-notification-settings", {
+                    "channel_id": "com.bluebubbles.new_messages.${chat.guid}",
+                    "display_name": chat.getTitle(),
+                  });
+                },
+              ),
+            if (!kIsWeb && Platform.isAndroid)
+              ListTile(
+                mouseCursor: MouseCursor.defer,
+                title: Text("Notify Anyway Settings", style: context.theme.textTheme.bodyLarge),
+                subtitle: Text(
+                  "Customize notifications that bypass Do Not Disturb",
+                  style: context.theme.textTheme.bodySmall!.copyWith(color: context.theme.colorScheme.properOnSurface),),
+                onTap: () async {
+                  Get.back();
+                  await mcs.invokeMethod("open-conversation-notification-settings", {
+                    "channel_id": "com.bluebubbles.new_messages.${chat.guid}.notify_anyways",
+                    "display_name": "Notify Anyway: ${chat.getTitle()}",
+                  });
+                },
+              ),
             ListTile(
               mouseCursor: MouseCursor.defer,
               title: Text("Reset chat-specific settings",
