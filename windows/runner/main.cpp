@@ -1,6 +1,7 @@
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
+#include <memoryapi.h>
 
 #include "flutter_window.h"
 #include "utils.h"
@@ -34,6 +35,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
+
+  // Prevent Windows from trimming our working set when the app loses focus.
+  // Without this, the ~400-500MB working set gets paged out and causes
+  // 10-15 seconds of input lag when the window regains focus.
+  SIZE_T minWorkingSet = 256 * 1024 * 1024;   // 256 MB hard minimum
+  SIZE_T maxWorkingSet = 1536 * 1024 * 1024;  // 1.5 GB maximum
+  SetProcessWorkingSetSizeEx(
+      GetCurrentProcess(), minWorkingSet, maxWorkingSet,
+      QUOTA_LIMITS_HARDWS_MIN_ENABLE);
+
+  // Raise process priority to reduce scheduling latency for UI thread
+  SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 
   ::MSG msg;
   while (::GetMessage(&msg, nullptr, 0, 0)) {
