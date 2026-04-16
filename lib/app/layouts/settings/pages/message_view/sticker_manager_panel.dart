@@ -167,6 +167,7 @@ class _StickerManagerPanelState extends OptimizedState<StickerManagerPanel> {
                     itemCount: _stickers.length,
                     itemBuilder: (context, index) {
                       return _StickerManagerTile(
+                        key: ValueKey(_stickers[index].path),
                         file: _stickers[index],
                         onDelete: () => deleteSticker(_stickers[index]),
                       );
