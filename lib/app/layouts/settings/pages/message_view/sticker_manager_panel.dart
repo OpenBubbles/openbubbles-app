@@ -180,6 +180,7 @@ class _StickerManagerPanelState extends OptimizedState<StickerManagerPanel> {
 
 class _StickerManagerTile extends StatefulWidget {
   const _StickerManagerTile({
+    super.key,
     required this.file,
     required this.onDelete,
   });
