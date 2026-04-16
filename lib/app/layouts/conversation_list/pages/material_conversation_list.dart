@@ -97,7 +97,7 @@ class _MaterialConversationListState extends OptimizedState<MaterialConversation
                                       ? "You have no messages from unknown senders :)"
                                       : showDeleted 
                                                   ? "You have no deleted chats" 
-                                                  : "You have no chats :(",
+                                                  : "Future chats will show here",
                           style: context.theme.textTheme.labelLarge,
                           textAlign: TextAlign.center,
                         ),
@@ -131,6 +131,7 @@ class _MaterialConversationListState extends OptimizedState<MaterialConversation
                             chat: chat,
                             controller: controller,
                             showDeleted: showDeleted,
+                            autofocus: index == 0,
                             update: () {
                               setState(() {});
                             }

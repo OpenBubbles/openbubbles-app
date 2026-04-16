@@ -19,11 +19,22 @@ import 'package:universal_io/io.dart';
 class BackButton extends StatelessWidget {
   final bool Function()? onPressed;
   final Color? color;
+  final FocusNode? focusNode;
 
-  const BackButton({this.color, this.onPressed});
+  const BackButton({this.color, this.onPressed, this.focusNode});
 
   @override
   Widget build(BuildContext context) {
+    void goBack() {
+      final result = onPressed?.call() ?? false;
+      if (!result) {
+        if (Get.isSnackbarOpen) {
+          Get.closeAllSnackbars();
+        }
+        Navigator.of(context).pop();
+      }
+    }
+
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -31,30 +42,26 @@ class BackButton extends StatelessWidget {
         child: XGestureDetector(
           supportTouch: true,
           onTap: !kIsDesktop ? null : (details) {
-            final result = onPressed?.call() ?? false;
-            if (!result) {
-              if (Get.isSnackbarOpen) {
-                Get.closeAllSnackbars();
-              }
-              Navigator.of(context).pop();
-            }
+            goBack();
           },
-          child: IconButton(
-            icon: Obx(() => Icon(
-              ss.settings.skin.value != Skins.Material ? CupertinoIcons.back : Icons.arrow_back,
-              color: color ?? context.theme.colorScheme.primary,
-            )),
-            iconSize: ss.settings.skin.value != Skins.Material ? 30 : 24,
-            onPressed: () {
-              if (kIsDesktop) return;
-              final result = onPressed?.call() ?? false;
-              if (!result) {
-                if (Get.isSnackbarOpen) {
-                  Get.closeAllSnackbars();
-                }
-                Navigator.of(context).pop();
-              }
+          child: CallbackShortcuts(
+            bindings: {
+              const SingleActivator(LogicalKeyboardKey.enter): goBack,
+              const SingleActivator(LogicalKeyboardKey.select): goBack,
+              const SingleActivator(LogicalKeyboardKey.space): goBack,
             },
+            child: IconButton(
+              focusNode: focusNode,
+              icon: Obx(() => Icon(
+                ss.settings.skin.value != Skins.Material ? CupertinoIcons.back : Icons.arrow_back,
+                color: color ?? context.theme.colorScheme.primary,
+              )),
+              iconSize: ss.settings.skin.value != Skins.Material ? 30 : 24,
+              onPressed: () {
+                if (kIsDesktop) return;
+                goBack();
+              },
+            ),
           ),
         ),
       ),

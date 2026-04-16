@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class ConversationListFAB extends CustomStateful<ConversationListController> {
@@ -17,6 +18,18 @@ class ConversationListFAB extends CustomStateful<ConversationListController> {
 }
 
 class _ConversationListFABState extends CustomState<ConversationListFAB, void, ConversationListController> {
+  void _focusBackToList() {
+    if (!FocusScope.of(context).focusInDirection(TraversalDirection.left)) {
+      FocusScope.of(context).previousFocus();
+    }
+  }
+
+  Map<ShortcutActivator, VoidCallback> get _newMessageShortcuts => {
+    const SingleActivator(LogicalKeyboardKey.arrowLeft): _focusBackToList,
+    const SingleActivator(LogicalKeyboardKey.enter): () => controller.openNewChatCreator(context),
+    const SingleActivator(LogicalKeyboardKey.select): () => controller.openNewChatCreator(context),
+    const SingleActivator(LogicalKeyboardKey.space): () => controller.openNewChatCreator(context),
+  };
 
   @override
   void initState() {
@@ -84,14 +97,18 @@ class _ConversationListFABState extends CustomState<ConversationListFAB, void, C
             InkWell(
               onLongPress: iOS || !ss.settings.cameraFAB.value || kIsWeb || kIsDesktop
                 ? null : () => controller.openCamera(context),
-              child: FloatingActionButton(
-                backgroundColor: context.theme.colorScheme.primary,
-                child: Icon(
-                  iOS ? CupertinoIcons.pencil : Icons.message,
-                  color: context.theme.colorScheme.onPrimary,
-                  size: 25
+              child: CallbackShortcuts(
+                bindings: _newMessageShortcuts,
+                child: FloatingActionButton(
+                  focusNode: controller.newMessageFocusNode,
+                  backgroundColor: context.theme.colorScheme.primary,
+                  child: Icon(
+                    iOS ? CupertinoIcons.pencil : Icons.message,
+                    color: context.theme.colorScheme.onPrimary,
+                    size: 25
+                  ),
+                  onPressed: () => controller.openNewChatCreator(context)
                 ),
-                onPressed: () => controller.openNewChatCreator(context)
               ),
             ),
           ],
@@ -140,18 +157,22 @@ class _ConversationListFABState extends CustomState<ConversationListFAB, void, C
                   child: Container(
                     height: 65,
                     padding: const EdgeInsets.only(right: 4.5, bottom: 9),
-                    child: FloatingActionButton(
-                      backgroundColor: context.theme.colorScheme.primaryContainer,
-                      shape: const CircleBorder(),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 5.0, right: 5.0, top: 2),
-                        child: Icon(
-                          CupertinoIcons.bubble_left,
-                          color: context.theme.colorScheme.onPrimaryContainer,
-                          size: 24,
+                    child: CallbackShortcuts(
+                      bindings: _newMessageShortcuts,
+                      child: FloatingActionButton(
+                        focusNode: controller.newMessageFocusNode,
+                        backgroundColor: context.theme.colorScheme.primaryContainer,
+                        shape: const CircleBorder(),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 5.0, right: 5.0, top: 2),
+                          child: Icon(
+                            CupertinoIcons.bubble_left,
+                            color: context.theme.colorScheme.onPrimaryContainer,
+                            size: 24,
+                          ),
                         ),
+                        onPressed: () => controller.openNewChatCreator(context),
                       ),
-                      onPressed: () => controller.openNewChatCreator(context),
                     ),
                   ),
                 ),

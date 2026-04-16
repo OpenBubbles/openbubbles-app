@@ -36,6 +36,7 @@ class ConversationListController extends StatefulController {
   final ScrollController iosScrollController = ScrollController();
   final ScrollController materialScrollController = ScrollController();
   final ScrollController samsungScrollController = ScrollController();
+  final FocusNode newMessageFocusNode = FocusNode(skipTraversal: true);
   final List<Chat> selectedChats = [];
   bool showMaterialFABText = true;
   double materialScrollStartPosition = 0;
@@ -69,6 +70,7 @@ class ConversationListController extends StatefulController {
   @override
   void dispose() {
     if (!kIsWeb) sub?.cancel();
+    newMessageFocusNode.dispose();
     super.dispose();
   }
 

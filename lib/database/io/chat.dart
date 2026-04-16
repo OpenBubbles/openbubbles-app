@@ -1571,15 +1571,19 @@ class Chat {
     final results = query.find();
     query.close();
 
+    Logger.warn("Found ${results.length} candidates");
+
     var result = results.firstWhereOrNull((element) {
       var participantsCopy = [...dartParticipants];
       for (var handle in element.handles) {
         var included = participantsCopy.contains(handle);
         if (!included) {
+          Logger.warn("Bailing on candidate because ${handle.address} ${handle.id} is not ${participantsCopy.map((i) => "${i.address} ${i.id}").join(", ")} .. ${element.handles.map((i) => "${i.address} ${i.id}").join(", ")}");
           return false;
         }
         participantsCopy.remove(handle);
       }
+      Logger.warn("Bailing on candidate left ${participantsCopy.map((i) => "${i.address} ${i.id}").join(", ")} .. ${element.handles.map((i) => "${i.address} ${i.id}").join(", ")}");
       return participantsCopy.isEmpty;
     });
     if (result == null && !soft) {

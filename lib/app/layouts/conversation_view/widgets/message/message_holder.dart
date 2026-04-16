@@ -751,7 +751,7 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                   if (errorCode == 22) {
                     errorText = "The recipient is not registered with iMessage!";
                   } else if (message.guid!.startsWith("error-")) {
-                    errorText = message.guid!.split('-')[1];
+                    errorText = message.guid!.substring(message.guid!.indexOf('-') + 1);
                   }
 
                   return IconButton(

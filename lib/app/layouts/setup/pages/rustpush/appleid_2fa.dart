@@ -24,12 +24,35 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
   final TextEditingController codeController = TextEditingController();
   final controller = Get.find<SetupViewController>();
   final FocusNode focusNode = FocusNode();
+  final FocusNode resendFocusNode = FocusNode();
+  final FocusNode backFocusNode = FocusNode();
+  final FocusNode signInFocusNode = FocusNode();
   String currentCode = "";
   String submittedCode = "";
 
   bool obscureText = true;
   bool loading = false;
   bool appleHelping = false;
+
+  Color focusOutlineColor(BuildContext context) => context.theme.brightness == Brightness.dark ? Colors.white : Colors.black;
+
+  void handleSignIn() {
+    if (loading) return;
+    ss.settings.customHeaders.value = {};
+    http.onInit();
+    connect(codeController.text);
+  }
+
+  bool isActivateKey(LogicalKeyboardKey key) => key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.space;
+
+  void scrollFocusIntoView(FocusNode node) {
+    if (!node.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = node.context;
+      if (context == null) return;
+      Scrollable.ensureVisible(context, duration: const Duration(milliseconds: 200), alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+    });
+  }
 
   @override
   void initState() {
@@ -45,6 +68,24 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
         connect(codeController.text);
       }
     });
+    focusNode.addListener(() {
+      setState(() { });
+    });
+    resendFocusNode.addListener(() {
+      setState(() { });
+    });
+    backFocusNode.addListener(() {
+      setState(() { });
+    });
+    signInFocusNode.addListener(() {
+      setState(() { });
+      scrollFocusIntoView(signInFocusNode);
+    });
+    if (controller.goingTo2fa) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        focusNode.requestFocus();
+      });
+    }
   }
 
   @override
@@ -68,16 +109,9 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
                         const SizedBox(height: 20),
                         Container(
                           width: context.width * 2 / 3,
-                          child: Focus(
-                            focusNode: focusNode,
-                            onKey: (node, event) {
-                              if (event is RawKeyDownEvent &&
-                                  !event.data.isShiftPressed &&
-                                  event.logicalKey == LogicalKeyboardKey.tab) {
-                                node.nextFocus();
-                                return KeyEventResult.handled;
-                              }
-                              return KeyEventResult.ignored;
+                          child: CallbackShortcuts(
+                            bindings: {
+                              const SingleActivator(LogicalKeyboardKey.arrowDown): () => resendFocusNode.requestFocus(),
                             },
                             child: Stack(
                               children: [
@@ -118,6 +152,7 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
                                     cursorColor: context.theme.colorScheme.primary,
                                     autocorrect: false,
                                     autofocus: controller.goingTo2fa, // if we're not going don't pop up the keyboard for a transitive state
+                                    focusNode: focusNode,
                                     controller: codeController,
                                     textInputAction: TextInputAction.next,
                                     keyboardType: TextInputType.number,
@@ -127,22 +162,74 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        TextButton(
-                          onPressed: appleHelping ? null : () async {
-                            appleHelp();
+                        Focus(
+                          focusNode: resendFocusNode,
+                          onKey: (node, event) {
+                            if (event is! RawKeyDownEvent) return KeyEventResult.ignored;
+                            if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                              focusNode.requestFocus();
+                              return KeyEventResult.handled;
+                            }
+                            if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                              signInFocusNode.requestFocus();
+                              return KeyEventResult.handled;
+                            }
+                            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                              backFocusNode.requestFocus();
+                              return KeyEventResult.handled;
+                            }
+                            if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                              signInFocusNode.requestFocus();
+                              return KeyEventResult.handled;
+                            }
+                            if (isActivateKey(event.logicalKey) && !appleHelping) {
+                              appleHelp();
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
                           },
-                          child: Text(
-                            controller.isSms.value ? "Resend code" : "Resend to Phone #",
-                            style: context.theme.textTheme.bodyLarge!.apply(fontSizeFactor: 1.1, color: appleHelping ? HexColor('777777') : HexColor('2772C3'))
-                          )
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: resendFocusNode.hasFocus ? Border.all(color: focusOutlineColor(context), width: 2) : null,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: TextButton(
+                              onPressed: appleHelping ? null : () async {
+                                appleHelp();
+                              },
+                              child: Text(
+                                controller.isSms.value ? "Resend code" : "Resend to Phone #",
+                                style: context.theme.textTheme.bodyLarge!.apply(fontSizeFactor: 1.1, color: appleHelping ? HexColor('777777') : HexColor('2772C3'))
+                              )
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
+                            Focus(
+                              focusNode: backFocusNode,
+                              onKey: (node, event) {
+                                if (event is! RawKeyDownEvent) return KeyEventResult.ignored;
+                                if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                                  resendFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                                  signInFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (isActivateKey(event.logicalKey)) {
+                                  goBack();
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(25),
+                                border: backFocusNode.hasFocus ? Border.all(color: focusOutlineColor(context), width: 2) : null,
                                 gradient: LinearGradient(
                                   begin: AlignmentDirectional.topStart,
                                   colors: [HexColor('2772C3'), HexColor('5CA7F8').darkenPercent(5)],
@@ -176,16 +263,37 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
                                   ],
                                 ),
                               ),
+                              ),
                             ),
-                            Container(
+                            Focus(
+                              focusNode: signInFocusNode,
+                              onKey: (node, event) {
+                                if (event is! RawKeyDownEvent) return KeyEventResult.ignored;
+                                if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                                  resendFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                                  backFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (isActivateKey(event.logicalKey)) {
+                                  handleSignIn();
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(25),
+                                border: signInFocusNode.hasFocus ? Border.all(color: focusOutlineColor(context), width: 2) : null,
                                 gradient: LinearGradient(
                                   begin: AlignmentDirectional.topStart,
                                   colors: loading ? [HexColor('777777'), HexColor('777777')] : [HexColor('2772C3'), HexColor('5CA7F8').darkenPercent(5)],
                                 ),
                               ),
                               height: 40,
+                              padding: const EdgeInsets.all(2),
                               child: ElevatedButton(
                                 style: ButtonStyle(
                                   shape: MaterialStateProperty.all<RoundedRectangleBorder>(
@@ -198,11 +306,7 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
                                   maximumSize: MaterialStateProperty.all(const Size(200, 36)),
                                   minimumSize: MaterialStateProperty.all(const Size(30, 30)),
                                 ),
-                                onPressed: loading ? null : () async {
-                                  ss.settings.customHeaders.value = {};
-                                  http.onInit();
-                                  connect(codeController.text);
-                                },
+                                onPressed: loading ? null : handleSignIn,
                                 onLongPress: () async {
                                   await showCustomHeadersDialog(context);
                                   connect(codeController.text);
@@ -224,6 +328,7 @@ class _AppleId2FAState extends OptimizedState<AppleId2FA> {
                                     buildProgressIndicator(context, brightness: Brightness.dark),
                                   ],
                                 )
+                              ),
                               ),
                             ),
                           ],

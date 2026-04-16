@@ -204,6 +204,7 @@ class Settings {
   final RxBool warnedTextChats = false.obs;
   final RxBool nonIMessageWarning = false.obs;
   final RxBool isTester = false.obs;
+  final RxBool isDumb = false.obs; // dumbphone
 
   final RxBool enableShareZen = false.obs;
   final RxBool zenModeAware = false.obs;
@@ -440,6 +441,7 @@ class Settings {
       'nonIMessageWarning': nonIMessageWarning.value,
       'zenModeAware': zenModeAware.value,
       'isTester': isTester.value,
+      'isDumb': isDumb.value,
       'cloudSyncingEnabled': cloudSyncingEnabled.value,
       'attachmentSyncEnabled': attachmentSyncEnabled.value,
       'syncHistoryTime': syncHistoryTime.value,
@@ -621,6 +623,7 @@ class Settings {
     ss.settings.developerMode.value = (map['developerMode']?.runtimeType == String ? jsonDecode(map['developerMode']) as List : []).cast<String>();
     ss.settings.lastLocation.value = map['lastLocation'];
     ss.settings.isTester.value = map['isTester'] ?? false;
+    ss.settings.isDumb.value = map['isDumb'] ?? false;
     ss.settings.cloudSyncingEnabled.value = map['cloudSyncingEnabled'] ?? false;
     ss.settings.attachmentSyncEnabled.value = map['attachmentSyncEnabled'] ?? false;
     ss.settings.syncHistoryTime.value = map['syncHistoryTime'] ?? 0;
@@ -797,6 +800,7 @@ class Settings {
     s.developerMode.value = (map['developerMode']?.runtimeType == String ? jsonDecode(map['developerMode']) as List : []).cast<String>();
     s.lastLocation.value = map['lastLocation'];
     s.isTester.value = map['isTester'] ?? false;
+    s.isDumb.value = map['isDumb'] ?? false;
     s.cloudSyncingEnabled.value = map['cloudSyncingEnabled'] ?? false;
     s.attachmentSyncEnabled.value = map['attachmentSyncEnabled'] ?? false;
     s.syncHistoryTime.value = map['syncHistoryTime'] ?? 0;

@@ -9,6 +9,7 @@ import 'package:bluebubbles/services/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class CupertinoHeader extends StatelessWidget {
@@ -79,17 +80,30 @@ class CupertinoHeader extends StatelessWidget {
                         ClipOval(
                           child: Material(
                             color: context.theme.colorScheme.properSurface, // button color
-                            child: InkWell(
-                              child: SizedBox(
-                                width: 30,
-                                height: 30,
-                                child: Icon(
-                                  CupertinoIcons.pencil,
-                                  color: context.theme.colorScheme.properOnSurface,
-                                  size: 20,
+                            child: CallbackShortcuts(
+                              bindings: {
+                                const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
+                                  if (!FocusScope.of(context).focusInDirection(TraversalDirection.left)) {
+                                    FocusScope.of(context).previousFocus();
+                                  }
+                                },
+                                const SingleActivator(LogicalKeyboardKey.enter): () => controller.openNewChatCreator(context),
+                                const SingleActivator(LogicalKeyboardKey.select): () => controller.openNewChatCreator(context),
+                                const SingleActivator(LogicalKeyboardKey.space): () => controller.openNewChatCreator(context),
+                              },
+                              child: InkWell(
+                                focusNode: controller.newMessageFocusNode,
+                                child: SizedBox(
+                                  width: 30,
+                                  height: 30,
+                                  child: Icon(
+                                    CupertinoIcons.pencil,
+                                    color: context.theme.colorScheme.properOnSurface,
+                                    size: 20,
+                                  ),
                                 ),
+                                onTap: () => controller.openNewChatCreator(context),
                               ),
-                              onTap: () => controller.openNewChatCreator(context),
                             ),
                           ),
                         ),

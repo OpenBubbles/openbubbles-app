@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:audio_waveforms/audio_waveforms.dart' as audio;
 import 'package:bluebubbles/app/components/avatars/contact_avatar_group_widget.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/message_holder.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/typing/typing_indicator.dart';
@@ -21,6 +22,7 @@ import 'package:defer_pointer/defer_pointer.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_ml_kit/google_ml_kit.dart' hide Message;
 import 'package:scroll_to_index/scroll_to_index.dart';
@@ -58,6 +60,7 @@ class MessagesViewState extends OptimizedState<MessagesView> {
   final RxInt numFiles = 0.obs;
   final RxBool latestMessageDeliveredState = false.obs;
   final RxBool jumpingToOldestUnread = false.obs;
+  final Map<String, FocusNode> messageFocusNodes = {};
 
   ConversationViewController get controller => widget.controller;
 
@@ -66,6 +69,67 @@ class MessagesViewState extends OptimizedState<MessagesView> {
   bool get showSmartReplies => ss.settings.smartReply.value && !kIsWeb && !kIsDesktop;
 
   Chat get chat => controller.chat;
+
+  FocusNode _messageFocusNode(Message message) => messageFocusNodes.putIfAbsent(message.guid!, () => FocusNode());
+
+  void _syncBottomMessageFocusNode() {
+    controller.bottomMessageFocusNode = _messages.isEmpty ? null : _messageFocusNode(_messages.first);
+  }
+
+  void _focusMessageAt(int index) {
+    if (index < 0) {
+      controller.lastFocusedNode.requestFocus();
+      return;
+    }
+    if (index >= _messages.length) {
+      if (!noMoreMessages && !fetching) {
+        unawaited(loadNextChunk().then((_) {
+          if (mounted && index < _messages.length) {
+            _focusMessageAt(index);
+          }
+        }));
+      }
+      return;
+    }
+    _messageFocusNode(_messages[index]).requestFocus();
+    unawaited(scrollController.scrollToIndex(index, preferPosition: AutoScrollPosition.middle));
+  }
+
+  Future<bool> _toggleAudioMessage(Message message) async {
+    final attachment = message.attachments.firstWhereOrNull((e) =>
+        e != null && (e.mimeStart == "audio" || e.uti == "com.apple.coreaudio-format"));
+    if (attachment == null || attachment.guid == null) return false;
+
+    final mobilePlayer = controller.audioPlayers[attachment.guid];
+    if (mobilePlayer != null) {
+      if (mobilePlayer.playerState == audio.PlayerState.playing) {
+        await mobilePlayer.pausePlayer();
+      } else {
+        mobilePlayer.setFinishMode(finishMode: FinishMode.pause);
+        await mobilePlayer.startPlayer();
+      }
+      return true;
+    }
+
+    final desktopPlayer = controller.audioPlayersDesktop[attachment.guid];
+    if (desktopPlayer != null) {
+      if (desktopPlayer.state.playing) {
+        await desktopPlayer.pause();
+      } else {
+        await desktopPlayer.play();
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  bool _canToggleAudioMessage(Message message) {
+    final attachment = message.attachments.firstWhereOrNull((e) =>
+        e != null && (e.mimeStart == "audio" || e.uti == "com.apple.coreaudio-format"));
+    if (attachment?.guid == null) return false;
+    return controller.audioPlayers.containsKey(attachment!.guid) || controller.audioPlayersDesktop.containsKey(attachment.guid);
+  }
 
   @override
   void initState() {
@@ -109,6 +173,7 @@ class MessagesViewState extends OptimizedState<MessagesView> {
         c.cvController = controller;
         listKey.currentState!.insertItem(i, duration: const Duration(milliseconds: 0));
       });
+      _syncBottomMessageFocusNode();
       // scroll to message if needed
       if (searchMessage != null) {
         final index = _messages.indexWhere((element) => element.guid == searchMessage.guid);
@@ -139,6 +204,12 @@ class MessagesViewState extends OptimizedState<MessagesView> {
     chat.lastReadMessageGuid = _messages.first.guid;
     chat.save(updateLastReadMessageGuid: true);
     messageService.close(force: widget.customService != null);
+    if (controller.bottomMessageFocusNode != null && messageFocusNodes.containsValue(controller.bottomMessageFocusNode)) {
+      controller.bottomMessageFocusNode = null;
+    }
+    for (FocusNode node in messageFocusNodes.values) {
+      node.dispose();
+    }
     for (Message m in _messages) {
       getActiveMwc(m.guid!)?.close();
     }
@@ -235,6 +306,7 @@ class MessagesViewState extends OptimizedState<MessagesView> {
       c.cvController = controller;
       listKey.currentState!.insertItem(i, duration: const Duration(milliseconds: 0));
     });
+    _syncBottomMessageFocusNode();
     // should only happen when a reaction is the most recent message
     if (oldLength == 0) {
       setState(() {});
@@ -245,6 +317,7 @@ class MessagesViewState extends OptimizedState<MessagesView> {
     _messages.add(message);
     _messages.sort(Message.sort);
     final insertIndex = _messages.indexOf(message);
+    _syncBottomMessageFocusNode();
 
     if (listKey.currentState != null) {
       listKey.currentState!.insertItem(
@@ -282,7 +355,15 @@ class MessagesViewState extends OptimizedState<MessagesView> {
   void handleUpdatedMessage(Message message, {String? oldGuid}) {
     final index = _messages.indexWhere((e) => e.guid == (oldGuid ?? message.guid));
     if (index != -1) {
+      if (oldGuid != null && oldGuid != message.guid) {
+        final node = messageFocusNodes.remove(oldGuid);
+        if (node != null) {
+          messageFocusNodes[message.guid!] = node;
+        }
+      }
       _messages[index] = message;
+      _messages.sort(Message.sort);
+      _syncBottomMessageFocusNode();
     }
     if (message.wasDeliveredQuietly != latestMessageDeliveredState.value) {
       latestMessageDeliveredState.value = message.wasDeliveredQuietly;
@@ -293,6 +374,8 @@ class MessagesViewState extends OptimizedState<MessagesView> {
     final index = _messages.indexWhere((e) => e.guid == message.guid);
     if (index != -1) {
       _messages.removeAt(index);
+      messageFocusNodes.remove(message.guid)?.dispose();
+      _syncBottomMessageFocusNode();
       listKey.currentState!.removeItem(index, (context, animation) => const SizedBox.shrink());
     }
   }
@@ -464,14 +547,48 @@ class MessagesViewState extends OptimizedState<MessagesView> {
                                 }
 
                                 final message = _messages[index];
+                                final messageFocusNode = _messageFocusNode(message);
+                                if (index == 0) {
+                                  controller.bottomMessageFocusNode = messageFocusNode;
+                                }
 
                                 final messageWidget = Padding(
                                   padding: const EdgeInsets.only(left: 5.0, right: 5.0),
-                                  child: MessageHolder(
-                                    cvController: controller,
-                                    message: message,
-                                    oldMessageGuid: olderMessage?.guid,
-                                    newMessageGuid: newerMessage?.guid,
+                                  child: Focus(
+                                    focusNode: messageFocusNode,
+                                    onKeyEvent: (node, ev) {
+                                      if (ev is! KeyDownEvent) return KeyEventResult.ignored;
+                                      if (ev.logicalKey == LogicalKeyboardKey.arrowUp) {
+                                        _focusMessageAt(index + 1);
+                                        return KeyEventResult.handled;
+                                      }
+                                      if (ev.logicalKey == LogicalKeyboardKey.arrowDown) {
+                                        _focusMessageAt(index - 1);
+                                        return KeyEventResult.handled;
+                                      }
+                                      if ((ev.logicalKey == LogicalKeyboardKey.enter ||
+                                              ev.logicalKey == LogicalKeyboardKey.select ||
+                                              ev.logicalKey == LogicalKeyboardKey.space) &&
+                                          !HardwareKeyboard.instance.isAltPressed &&
+                                          !HardwareKeyboard.instance.isControlPressed &&
+                                          !HardwareKeyboard.instance.isMetaPressed &&
+                                          _canToggleAudioMessage(message)) {
+                                        unawaited(_toggleAudioMessage(message));
+                                        return KeyEventResult.handled;
+                                      }
+                                      return KeyEventResult.ignored;
+                                    },
+                                    child: Builder(
+                                      builder: (context) => Container(
+                                        color: Focus.of(context).hasFocus ? Colors.grey.withOpacity(0.2) : Colors.transparent,
+                                        child: MessageHolder(
+                                          cvController: controller,
+                                          message: message,
+                                          oldMessageGuid: olderMessage?.guid,
+                                          newMessageGuid: newerMessage?.guid,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 );
 

@@ -73,6 +73,9 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
   ConversationViewController? oldController;
   Timer? _debounce;
   Completer<void>? createCompleter;
+  int selectedSuggestionIndex = -1;
+  int previousSuggestionIndex = -1;
+  final Map<int, GlobalKey> suggestionKeys = {};
 
   bool canCreateGroupChats = backend.canCreateGroupChats();
 
@@ -133,6 +136,12 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
           filteredChats = List<Chat>.from(tuple.item2);
           if (addressController.text.isNotEmpty) {
             filteredChats.sort((a, b) => a.participants.length.compareTo(b.participants.length));
+          }
+          final totalSuggestions = _totalSuggestions;
+          if (addressController.text.isEmpty || totalSuggestions == 0) {
+            selectedSuggestionIndex = -1;
+          } else if (selectedSuggestionIndex < 0 || selectedSuggestionIndex >= totalSuggestions) {
+            selectedSuggestionIndex = 0;
           }
         });
       });
@@ -214,6 +223,69 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
   void removeSelected(SelectedContact c) {
     selectedContacts.remove(c);
     findExistingChat();
+  }
+
+  GlobalKey _suggestionKey(int index) => suggestionKeys.putIfAbsent(index, () => GlobalKey());
+
+  void _scrollSelectedSuggestionIntoView() {
+    if (selectedSuggestionIndex < 0) return;
+    final movingUp = previousSuggestionIndex >= 0 && selectedSuggestionIndex < previousSuggestionIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final context = _suggestionKey(selectedSuggestionIndex).currentContext;
+      if (context == null) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 150),
+        alignment: movingUp ? 0 : 1,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      );
+    });
+  }
+
+  int get _totalSuggestions {
+    int contactSuggestions = 0;
+    for (final contact in filteredContacts) {
+      contactSuggestions += getUniqueNumbers(contact.phones).length + getUniqueEmails(contact.emails).length;
+    }
+    return filteredChats.length + contactSuggestions;
+  }
+
+  Future<bool> _selectSuggestionAt(int index) async {
+    if (index < 0) return false;
+    if (index < filteredChats.length) {
+      addSelectedList(filteredChats[index].participants
+          .where((e) => selectedContacts.firstWhereOrNull((c) => c.address == e.address) == null)
+          .map((e) => SelectedContact(
+                displayName: e.displayName,
+                address: e.address,
+                isIMessage: filteredChats[index].isIMessage,
+              )));
+      return true;
+    }
+
+    int contactIndex = index - filteredChats.length;
+    for (final contact in filteredContacts) {
+      final phones = getUniqueNumbers(contact.phones);
+      if (contactIndex < phones.length) {
+        final address = phones[contactIndex];
+        if (selectedContacts.firstWhereOrNull((c) => c.address == address) != null) return true;
+        await addSelected(SelectedContact(displayName: contact.displayName, address: address));
+        return true;
+      }
+      contactIndex -= phones.length;
+
+      final emails = getUniqueEmails(contact.emails);
+      if (contactIndex < emails.length) {
+        final address = emails[contactIndex];
+        if (selectedContacts.firstWhereOrNull((c) => c.address == address) != null) return true;
+        await addSelected(SelectedContact(displayName: contact.displayName, address: address));
+        return true;
+      }
+      contactIndex -= emails.length;
+    }
+
+    return false;
   }
 
   Future<Chat?> findExistingChat({bool checkDeleted = false, bool update = true}) async {
@@ -318,6 +390,9 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
   }
 
   Future<void> addressOnSubmitted() async {
+    if (selectedSuggestionIndex >= 0 && await _selectSuggestionAt(selectedSuggestionIndex)) {
+      return;
+    }
     final text = addressController.text;
     if (text.isEmail || text.isPhoneNumber) {
       await addSelected(SelectedContact(
@@ -500,6 +575,32 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
                                         event.logicalKey == LogicalKeyboardKey.tab) {
                                       messageNode.requestFocus();
                                       return KeyEventResult.handled;
+                                    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown && _totalSuggestions > 0) {
+                                      if (selectedSuggestionIndex >= _totalSuggestions - 1) {
+                                        messageNode.requestFocus();
+                                        return KeyEventResult.handled;
+                                      }
+                                      setState(() {
+                                        previousSuggestionIndex = selectedSuggestionIndex;
+                                        selectedSuggestionIndex = min(
+                                          selectedSuggestionIndex < 0 ? 0 : selectedSuggestionIndex + 1,
+                                          _totalSuggestions - 1,
+                                        );
+                                      });
+                                      _scrollSelectedSuggestionIntoView();
+                                      return KeyEventResult.handled;
+                                    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp && _totalSuggestions > 0) {
+                                      setState(() {
+                                        previousSuggestionIndex = selectedSuggestionIndex;
+                                        selectedSuggestionIndex = max(selectedSuggestionIndex - 1, 0);
+                                      });
+                                      _scrollSelectedSuggestionIntoView();
+                                      return KeyEventResult.handled;
+                                    } else if ((event.logicalKey == LogicalKeyboardKey.enter ||
+                                            event.logicalKey == LogicalKeyboardKey.select) &&
+                                        !HardwareKeyboard.instance.isShiftPressed) {
+                                      addressOnSubmitted();
+                                      return KeyEventResult.handled;
                                     }
                                   }
                                   return KeyEventResult.ignored;
@@ -643,8 +744,10 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
                                       _title =
                                           chat.participants.length > 1 ? "Group Chat" : chat.participants[0].fakeName;
                                     }
+                                    final isSelectedSuggestion = selectedSuggestionIndex == index;
                                     return Material(
-                                      color: Colors.transparent,
+                                      key: _suggestionKey(index),
+                                      color: isSelectedSuggestion ? context.theme.colorScheme.outline.withOpacity(0.2) : Colors.transparent,
                                       child: InkWell(
                                         onTap: () {
                                           addSelectedList(chat.participants
@@ -678,44 +781,56 @@ class ChatCreatorState extends OptimizedState<ChatCreator> {
                                 SliverList(
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
-                                      final contact = filteredContacts[index];
-                                      contact.phones = getUniqueNumbers(contact.phones);
-                                      contact.emails = getUniqueEmails(contact.emails);
-                                      final hideInfo =
-                                          ss.settings.redactedMode.value && ss.settings.hideContactInfo.value;
-                                      return Column(
-                                        key: ValueKey(contact.id),
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          ...contact.phones.map((e) => Material(
-                                                color: Colors.transparent,
+                                    final contact = filteredContacts[index];
+                                    final phones = getUniqueNumbers(contact.phones);
+                                    final emails = getUniqueEmails(contact.emails);
+                                    contact.phones = phones;
+                                    contact.emails = emails;
+                                    final hideInfo =
+                                        ss.settings.redactedMode.value && ss.settings.hideContactInfo.value;
+                                    int suggestionOffset = filteredChats.length;
+                                    for (int i = 0; i < index; i++) {
+                                      suggestionOffset += getUniqueNumbers(filteredContacts[i].phones).length + getUniqueEmails(filteredContacts[i].emails).length;
+                                    }
+                                    return Column(
+                                      key: ValueKey(contact.id),
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                          ...phones.asMap().entries.map((entry) => Material(
+                                                key: _suggestionKey(suggestionOffset + entry.key),
+                                                color: selectedSuggestionIndex == suggestionOffset + entry.key
+                                                    ? context.theme.colorScheme.outline.withOpacity(0.2)
+                                                    : Colors.transparent,
                                                 child: InkWell(
                                                   onTap: () {
-                                                    if (selectedContacts.firstWhereOrNull((c) => c.address == e) !=
+                                                    if (selectedContacts.firstWhereOrNull((c) => c.address == entry.value) !=
                                                         null) return;
                                                     addSelected(
-                                                        SelectedContact(displayName: contact.displayName, address: e));
+                                                        SelectedContact(displayName: contact.displayName, address: entry.value));
                                                   },
                                                   child: ChatCreatorTile(
                                                     title: hideInfo ? "Contact" : contact.displayName,
-                                                    subtitle: hideInfo ? "" : e,
+                                                    subtitle: hideInfo ? "" : entry.value,
                                                     contact: contact,
                                                     format: true,
                                                   ),
                                                 ),
                                               )),
-                                          ...contact.emails.map((e) => Material(
-                                                color: Colors.transparent,
+                                          ...emails.asMap().entries.map((entry) => Material(
+                                                key: _suggestionKey(suggestionOffset + phones.length + entry.key),
+                                                color: selectedSuggestionIndex == suggestionOffset + phones.length + entry.key
+                                                    ? context.theme.colorScheme.outline.withOpacity(0.2)
+                                                    : Colors.transparent,
                                                 child: InkWell(
                                                   onTap: () {
-                                                    if (selectedContacts.firstWhereOrNull((c) => c.address == e) !=
+                                                    if (selectedContacts.firstWhereOrNull((c) => c.address == entry.value) !=
                                                         null) return;
                                                     addSelected(
-                                                        SelectedContact(displayName: contact.displayName, address: e));
+                                                        SelectedContact(displayName: contact.displayName, address: entry.value));
                                                   },
                                                   child: ChatCreatorTile(
                                                     title: hideInfo ? "Contact" : contact.displayName,
-                                                    subtitle: hideInfo ? "" : e,
+                                                    subtitle: hideInfo ? "" : entry.value,
                                                     contact: contact,
                                                   ),
                                                 ),

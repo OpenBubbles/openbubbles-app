@@ -49,8 +49,10 @@ import 'package:universal_html/html.dart' as html;
 import 'package:universal_io/io.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:windows_taskbar/windows_taskbar.dart';
+import 'package:dpad/dpad.dart';
+import 'package:path_provider/path_provider.dart';
 
-const usingRustPush = true;
+var usingRustPush = true;
 bool isAuthing = false;
 final systemTray = st.SystemTray();
 
@@ -182,10 +184,13 @@ Future<Null> initApp(bool bubble, List<String> arguments) async {
         light = tuple.item1;
         dark = tuple.item2;
 
-        runApp(Main(
-          lightTheme: light,
-          darkTheme: dark,
-        ));
+        runApp(Obx(() => DpadNavigator(
+          enabled: ss.settings.isDumb.value,
+          child: Main(
+            lightTheme: light,
+            darkTheme: dark,
+          ),
+        )));
       } else {
         runApp(FailureToStart(e: exception, s: stacktrace));
         throw Exception("$exception $stacktrace");

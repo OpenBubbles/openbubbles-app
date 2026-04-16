@@ -117,7 +117,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
                                                 ? "You have no messages from unknown senders :)"
                                                 : showDeleted 
                                                   ? "You have no deleted chats" 
-                                                  : "You have no chats :(",
+                                                  : "Future chats will show here",
                                     style: context.theme.textTheme.labelLarge,
                                     textAlign: TextAlign.center,
                                   ),
@@ -142,6 +142,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
                                   chat: chat,
                                   controller: controller,
                                   showDeleted: showDeleted,
+                                  autofocus: index == 0,
                                   update: () {
                                     setState(() {});
                                   });
@@ -163,6 +164,7 @@ class _SamsungConversationListState extends OptimizedState<SamsungConversationLi
                                   chat: chat,
                                   controller: controller,
                                   showDeleted: showDeleted,
+                                  autofocus: _chats.bigPinHelper(true).isEmpty && index == 0,
                                   update: () {
                                     setState(() {});
                                   });

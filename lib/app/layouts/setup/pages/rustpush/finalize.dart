@@ -32,9 +32,19 @@ class FinalizePage extends StatefulWidget {
 
 class _FinalizePageState extends OptimizedState<FinalizePage> {
   final controller = Get.find<SetupViewController>();
+  final FocusNode doneFocusNode = FocusNode();
 
   List<String> handles = [];
   Rxn<GoogleSignInCredentials> googleCreds = Rxn(null);
+
+  void scrollFocusIntoView(FocusNode node) {
+    if (!node.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = node.context;
+      if (context == null) return;
+      Scrollable.ensureVisible(context, duration: const Duration(milliseconds: 200), alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+    });
+  }
 
   @override
   void initState() {
@@ -49,7 +59,16 @@ class _FinalizePageState extends OptimizedState<FinalizePage> {
         googleCreds.value = state;
       });
     }
+    doneFocusNode.addListener(() {
+      scrollFocusIntoView(doneFocusNode);
+      if (mounted) setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      doneFocusNode.requestFocus();
+    });
   }
+
+  bool isActivateKey(LogicalKeyboardKey key) => key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.space;
 
   @override
   Widget build(BuildContext context) {
@@ -190,9 +209,24 @@ class _FinalizePageState extends OptimizedState<FinalizePage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Container(
+                            Focus(
+                              focusNode: doneFocusNode,
+                              onKey: (node, event) {
+                                if (event is RawKeyDownEvent && isActivateKey(event.logicalKey)) {
+                                  connect();
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(25),
+                                border: ss.settings.isDumb.value && doneFocusNode.hasFocus
+                                    ? Border.all(
+                                        color: context.theme.brightness == Brightness.dark ? Colors.white : Colors.black,
+                                        width: 2,
+                                      )
+                                    : null,
                                 gradient: LinearGradient(
                                   begin: AlignmentDirectional.topStart,
                                   colors: [HexColor('2772C3'), HexColor('5CA7F8').darkenPercent(5)],
@@ -224,6 +258,7 @@ class _FinalizePageState extends OptimizedState<FinalizePage> {
                                     const Icon(Icons.check, color: Colors.white, size: 20),
                                   ],
                                 ),
+                              ),
                               ),
                             ),
                           ],

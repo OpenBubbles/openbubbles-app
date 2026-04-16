@@ -617,6 +617,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
+  dpad:
+    dependency: "direct main"
+    description:
+      name: dpad
+      sha256: b9b9e3fc5846e84691eff6a5cb57f215cbee5b8ff874e6be48ac97e6fc5240e7
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.2"
   dynamic_color:
     dependency: "direct main"
     description:

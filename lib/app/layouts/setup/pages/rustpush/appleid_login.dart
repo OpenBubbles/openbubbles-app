@@ -10,7 +10,9 @@ import 'package:bluebubbles/src/rust/api/api.dart' as api;
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/services/rustpush/rustpush_service.dart';
 import 'package:bluebubbles/services/services.dart';
+import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get/get.dart' hide Response;
@@ -27,11 +29,51 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
   final controller = Get.find<SetupViewController>();
   final FocusNode focusNode = FocusNode();
   final FocusNode pwFocusNode = FocusNode();
+  final FocusNode backFocusNode = FocusNode();
+  final FocusNode signInFocusNode = FocusNode();
   bool loading = false;
 
   bool obscureText = true;
 
   String? availableUser;
+
+  bool get showSignInButton => ((appleIdController.text != "" && passwordController.text != "") || controller.currentPhoneUsers.isEmpty) && availableUser == null;
+
+  Color focusOutlineColor(BuildContext context) => context.theme.brightness == Brightness.dark ? Colors.white : Colors.black;
+
+  void focusPrimaryButton() {
+    if (showSignInButton) {
+      signInFocusNode.requestFocus();
+    } else {
+      backFocusNode.requestFocus();
+    }
+  }
+
+  void handleBack() {
+    if (loading) return;
+    controller.pageController.previousPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void handleSignIn() {
+    if (loading) return;
+    ss.settings.customHeaders.value = {};
+    http.onInit();
+    connect(appleIdController.text, passwordController.text);
+  }
+
+  bool isActivateKey(LogicalKeyboardKey key) => key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.space;
+
+  void scrollFocusIntoView(FocusNode node) {
+    if (!node.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = node.context;
+      if (context == null) return;
+      Scrollable.ensureVisible(context, duration: const Duration(milliseconds: 200), alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+    });
+  }
 
   @override
   void initState() {
@@ -47,13 +89,86 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
     passwordController.addListener(() {
       setState(() { });
     });
+    backFocusNode.addListener(() {
+      setState(() { });
+    });
+    signInFocusNode.addListener(() {
+      setState(() { });
+      scrollFocusIntoView(signInFocusNode);
+    });
+  }
+
+  void registerPhoneOnly() async {
+    controller.currentAppleUser = null;
+    controller.updateConnectError("");
+    setState(() {
+      loading = true;
+    });
+    try {
+      ss.settings.iCloudAccount.value = "";
+      ss.settings.userName.value = "You";
+      ss.settings.customHeaders.value = {};
+      await ss.settings.saveAsync();
+      http.onInit();
+      await controller.doRegister();
+      if (!controller.success) {
+        return;
+      }
+      controller.goingTo2fa = false;
+      controller.pageController.animateToPage(
+        controller.pageController.page!.toInt() + 2,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } catch (e) {
+      if (e is AnyhowException) {
+        controller.updateConnectError(e.message);
+      }
+      if (e is PanicException) {
+        controller.updateConnectError(e.message);
+      }
+      rethrow;
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return SetupPageTemplate(
       title: "Apple Account",
-      subtitle: "Use OpenBubbles with your Apple Account",
+      subtitle: "",
+      customSubtitle: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: RichText(
+            text: TextSpan(
+              style: context.theme.textTheme.bodyLarge!.apply(
+                fontSizeDelta: 1.5,
+                color: context.theme.colorScheme.outline,
+              ).copyWith(height: 2),
+              children: [
+                const TextSpan(
+                  text: "Use OpenBubbles with your Apple Account"
+                ),
+                if (availableUser == null && controller.currentPhoneUsers.isNotEmpty && !loading) ...[
+                  const TextSpan(text: "\nHaving trouble? "),
+                  TextSpan(
+                    text: "Skip Apple Account login.",
+                    style: TextStyle(
+                      color: context.theme.colorScheme.primary,
+                    ),
+                    recognizer: TapGestureRecognizer()..onTap = registerPhoneOnly,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
       customButton: Column(
         children: [
           ErrorText(parentController: controller),
@@ -72,21 +187,15 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                         if (availableUser == null)
                         Container(
                           width: context.width * 2 / 3,
-                          child: Focus(
-                            focusNode: focusNode,
-                            onKey: (node, event) {
-                              if (event is RawKeyDownEvent &&
-                                  !event.data.isShiftPressed &&
-                                  event.logicalKey == LogicalKeyboardKey.tab) {
-                                node.nextFocus();
-                                return KeyEventResult.handled;
-                              }
-                              return KeyEventResult.ignored;
+                          child: CallbackShortcuts(
+                            bindings: {
+                              const SingleActivator(LogicalKeyboardKey.arrowDown): () => pwFocusNode.requestFocus(),
                             },
                             child: TextField(
                               cursorColor: context.theme.colorScheme.primary,
                               autocorrect: false,
                               autofocus: true,
+                              focusNode: focusNode,
                               controller: appleIdController,
                               textInputAction: TextInputAction.next,
                               onEditingComplete: () {
@@ -102,32 +211,28 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                                 labelText: "Email or Phone Number",
                               ),
                             ),
-                          ),
+                          )
                         ),
                         if (availableUser == null)
                         const SizedBox(height: 20),
                         if (availableUser == null)
                         Container(
                           width: context.width * 2 / 3,
-                          child: Focus(
-                            onKey: (node, event) {
-                              if (event is RawKeyDownEvent &&
-                                  event.data.isShiftPressed &&
-                                  event.logicalKey == LogicalKeyboardKey.tab) {
-                                node.previousFocus();
-                                node.previousFocus(); // This is intentional. Should probably figure out why it's needed
-                                return KeyEventResult.handled;
-                              }
-                              return KeyEventResult.ignored;
+                          child: CallbackShortcuts(
+                            bindings: {
+                              const SingleActivator(LogicalKeyboardKey.arrowUp): () => focusNode.requestFocus(),
+                              const SingleActivator(LogicalKeyboardKey.arrowDown): focusPrimaryButton,
+                              const SingleActivator(LogicalKeyboardKey.arrowRight): focusPrimaryButton,
+                              const SingleActivator(LogicalKeyboardKey.arrowLeft): () => backFocusNode.requestFocus(),
                             },
                             child: TextField(
                               cursorColor: context.theme.colorScheme.primary,
                               autocorrect: false,
                               autofocus: false,
+                              focusNode: pwFocusNode,
                               controller: passwordController,
                               textInputAction: TextInputAction.done,
                               onSubmitted: (pass) => connect(appleIdController.text, pass),
-                              focusNode: pwFocusNode,
                               decoration: InputDecoration(
                                 enabledBorder: OutlineInputBorder(
                                     borderSide: BorderSide(color: context.theme.colorScheme.outline),
@@ -175,7 +280,7 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                                         Align(
                                           alignment: Alignment.center,
                                           child: Text(
-                                            "Warning: Do not contact Apple support for help with OpenBubbles. For assistance, join our Discord from our website.\n\n${RustPushBBUtils.modelToUser(devInfo.name)}\nS/N: ${devInfo.serial}\nmacOS ${devInfo.osVersion}",
+                                            "Warning: Do not contact Apple support for help with OpenBubbles. Do not mention OpenBubbles. For assistance, join our Discord from our website.\n\n${RustPushBBUtils.modelToUser(devInfo.name)}\nS/N: ${devInfo.serial}\nmacOS ${devInfo.osVersion}",
                                             textAlign: TextAlign.center,
                                             style: Get.textTheme.bodySmall,
                                           )
@@ -259,9 +364,28 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
+                            Focus(
+                              focusNode: backFocusNode,
+                              onKey: (node, event) {
+                                if (event is! RawKeyDownEvent) return KeyEventResult.ignored;
+                                if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                                  pwFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (event.logicalKey == LogicalKeyboardKey.arrowRight && showSignInButton) {
+                                  signInFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (isActivateKey(event.logicalKey)) {
+                                  handleBack();
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(25),
+                                border: backFocusNode.hasFocus ? Border.all(color: focusOutlineColor(context), width: 2) : null,
                                 gradient: LinearGradient(
                                   begin: AlignmentDirectional.topStart,
                                   colors: [HexColor('2772C3'), HexColor('5CA7F8').darkenPercent(5)],
@@ -281,12 +405,7 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                                   maximumSize: MaterialStateProperty.all(const Size(200, 36)),
                                   minimumSize: MaterialStateProperty.all(const Size(30, 30)),
                                 ),
-                                onPressed: loading ? null : () async {
-                                  controller.pageController.previousPage(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                  );
-                                },
+                                onPressed: loading ? null : handleBack,
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -298,11 +417,31 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                                   ],
                                 ),
                               ),
+                              ),
                             ),
-                            if (((appleIdController.text != "" && passwordController.text != "") || controller.currentPhoneUsers.isEmpty) && availableUser == null)
-                            Container(
+                            if (showSignInButton)
+                            Focus(
+                              focusNode: signInFocusNode,
+                              onKey: (node, event) {
+                                if (event is! RawKeyDownEvent) return KeyEventResult.ignored;
+                                if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                                  pwFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                                  backFocusNode.requestFocus();
+                                  return KeyEventResult.handled;
+                                }
+                                if (isActivateKey(event.logicalKey)) {
+                                  handleSignIn();
+                                  return KeyEventResult.handled;
+                                }
+                                return KeyEventResult.ignored;
+                              },
+                              child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(25),
+                                border: signInFocusNode.hasFocus ? Border.all(color: focusOutlineColor(context), width: 2) : null,
                                 gradient: LinearGradient(
                                   begin: AlignmentDirectional.topStart,
                                   colors: loading ? [HexColor('777777'), HexColor('777777')] : [HexColor('2772C3'), HexColor('5CA7F8').darkenPercent(5)],
@@ -321,11 +460,7 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                                   maximumSize: MaterialStateProperty.all(const Size(200, 36)),
                                   minimumSize: MaterialStateProperty.all(const Size(30, 30)),
                                 ),
-                                onPressed: loading ? null : () async {
-                                  ss.settings.customHeaders.value = {};
-                                  http.onInit();
-                                  connect(appleIdController.text, passwordController.text);
-                                },
+                                onPressed: loading ? null : handleSignIn,
                                 onLongPress: () async {
                                   await showCustomHeadersDialog(context);
                                   connect(appleIdController.text, passwordController.text);
@@ -348,8 +483,9 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                                   ],
                                 )
                               ),
+                              ),
                             ),
-                            if ((!((appleIdController.text != "" && passwordController.text != "") || controller.currentPhoneUsers.isEmpty) || availableUser != null) && !(availableUser != null && loading))
+                            if ((!showSignInButton || availableUser != null) && !(availableUser != null && loading))
                             Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(25),
@@ -379,39 +515,7 @@ class _AppleIdLoginState extends OptimizedState<AppleIdLogin> {
                                     });
                                     return;
                                   }
-                                  controller.updateConnectError("");
-                                  setState(() {
-                                    loading = true;
-                                  });
-                                  try {
-                                    ss.settings.iCloudAccount.value = "";
-                                    ss.settings.userName.value = "You";
-                                    ss.settings.customHeaders.value = {};
-                                    await ss.settings.saveAsync();
-                                    http.onInit();
-                                    await controller.doRegister();
-                                    if (!controller.success) {
-                                      return;
-                                    }
-                                    controller.goingTo2fa = false;
-                                    controller.pageController.animateToPage(
-                                      controller.pageController.page!.toInt() + 2,
-                                      duration: const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                    );
-                                  } catch (e) {
-                                    if (e is AnyhowException) {
-                                      controller.updateConnectError(e.message);
-                                    }
-                                    if (e is PanicException) {
-                                      controller.updateConnectError(e.message);
-                                    }
-                                    rethrow;
-                                  } finally {
-                                    setState(() {
-                                      loading = false;
-                                    });
-                                  }
+                                  registerPhoneOnly();
                                 },
                                 child: Stack(
                                   alignment: Alignment.center,

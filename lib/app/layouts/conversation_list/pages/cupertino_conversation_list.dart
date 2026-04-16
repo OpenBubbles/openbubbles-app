@@ -178,6 +178,7 @@ class CupertinoConversationListState
                                               key: Key(chat.guid),
                                               chat: chat,
                                               controller: controller,
+                                              autofocus: index == 0,
                                             ),
                                           );
                                         },
@@ -305,7 +306,7 @@ class CupertinoConversationListState
                                                       ? "You have no messages from unknown senders :)"
                                                       : showDeleted
                                                           ? "You have no deleted chats"
-                                                          : "You have no chats :(",
+                                                          : "Future chats will show here",
                                           style: context.textTheme.labelLarge,
                                           textAlign: TextAlign.center,
                                         ),
@@ -333,6 +334,7 @@ class CupertinoConversationListState
                                   chat: chat,
                                   deletedMode: showDeleted,
                                   controller: controller,
+                                  autofocus: index == 0,
                                 );
                                 final separator =
                                     Obx(() => !ss.settings.hideDividers.value
@@ -366,7 +368,7 @@ class CupertinoConversationListState
               ),
               if (!showArchived && !showUnknown && !showDeleted)
                 CupertinoMiniHeader(controller: controller),
-              if (chats.chats.isEmpty && chats.loadedChatBatch.value)
+              if (chats.chats.isEmpty && chats.loadedChatBatch.value && !ss.settings.isDumb.value)
                 Positioned(
                   child: Container(
                           decoration: const BoxDecoration(

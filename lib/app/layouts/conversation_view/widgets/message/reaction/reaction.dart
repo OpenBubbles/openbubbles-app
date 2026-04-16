@@ -306,7 +306,7 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
               if (errorCode == 22) {
                 errorText = "The recipient is not registered with iMessage!";
               } else if (reaction.guid!.startsWith("error-")) {
-                errorText = reaction.guid!.split('-')[1];
+                errorText = reaction.guid!.substring(reaction.guid!.indexOf('-') + 1);
               }
 
               return DeferPointer(

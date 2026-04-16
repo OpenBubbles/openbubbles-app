@@ -216,7 +216,7 @@ class SetupViewController extends StatefulController {
     var (data, finalI) = await api.updateAccountHeaders(account: currentAppleAccount!, config: config!);
     var request = URLRequest(url: WebUri("https://inappwebview.dev/"));
     
-    double height = 400;
+    double height = min(400, MediaQuery.sizeOf(Get.context!).height - 200);
     showDialog(
       context: Get.context!,
       builder: (context) => StatefulBuilder(
@@ -277,7 +277,7 @@ class SetupViewController extends StatefulController {
                   updateSucceeded(finish, finalI);
                   Get.back();
                 },
-                child: const Text('Accept Terms'),
+                child: const Text('Accept Terms', style: TextStyle(color: Colors.white)),
               ),
             ],
           ));
@@ -459,7 +459,7 @@ class SetupViewController extends StatefulController {
                     Align(
                       alignment: Alignment.center,
                       child: Text(
-                        "The above message is from Apple.\nWarning: Do not contact Apple support for help with OpenBubbles. For assistance, join our Discord from our website. If you can't login on this Apple Device, call Apple support. When clicking the contact button below, choose 'Get Started,' not 'Chat,' and then choose 'Apple Device.' Do not mention you are using OpenBubbles.\n${RustPushBBUtils.modelToUser(devInfo.name)}\nS/N: ${devInfo.serial}\nmacOS ${devInfo.osVersion}",
+                        "The above message is from Apple.\nWarning: Do not contact Apple support for help with OpenBubbles. Do not mention OpenBubbles. For assistance, join our Discord from our website. If you can't login on this Apple Device, call Apple support. When clicking the contact button below, choose 'Get Started,' not 'Chat,' and then choose 'Apple Device.' Do not mention you are using OpenBubbles.\n${RustPushBBUtils.modelToUser(devInfo.name)}\nS/N: ${devInfo.serial}\nmacOS ${devInfo.osVersion}",
                         textAlign: TextAlign.center,
                         style: Get.textTheme.bodySmall,
                       )
@@ -674,7 +674,7 @@ class SetupViewController extends StatefulController {
   }
 
   Future<void> setupConnection() async {
-    var data = await api.setupPush(config: config!, identity: identity!, statePath: pushService.statePath, state: cachedState!);
+    var data = await api.setupPush(config: config!, identity: identity!, statePath: pushService.statePath, state: cachedState);
     connection = data.$1;
     anisette = await api.makeAnisette(path: pushService.statePath, config: config!, conn: connection!);
   }
@@ -820,6 +820,23 @@ class _SetupViewState extends OptimizedState<SetupView> {
         controller.config = restored.osConfig;
         controller.cachedState = restored.push;
         await controller.setupConnection();
+      }
+
+      var dumb = File("${pushService.statePath}/dumb");
+      if (restored == null && dumb.existsSync()) {
+        ss.settings.isDumb.value = true;
+        ss.settings.macIsMine.value = false;
+        await ss.saveSettings();
+        try {
+          var list = base64Decode(dumb.readAsStringSync()).toList();
+          list.removeRange(0, 5);
+          var imported = await api.configFromEncoded(encoded: list);
+          controller.config = imported;
+          controller.identity = api.newNgmIdentity();
+          await controller.setupConnection();
+        } catch (e, s) {
+          Logger.error("Failed to setup dumb", error: e, trace: s);
+        }
       }
 
       var list = ss.settings.cachedCodes.entries.toList();
@@ -1028,7 +1045,7 @@ class SetupPages extends StatelessWidget {
       child: Obx(() => PageView(
         onPageChanged: (page) {
           // skip pages if the things required are already complete
-          if (!kIsWeb && !kIsDesktop && page == 1 && controller.currentPage == 1) {
+          if (!kIsWeb && !kIsDesktop && page == 1 && controller.currentPage == 1 && !ss.settings.isDumb.value) {
             Permission.contacts.status.then((status) {
               if (status.isGranted) {
                 controller.pageController.nextPage(
@@ -1038,7 +1055,7 @@ class SetupPages extends StatelessWidget {
               }
             });
           }
-          if (!kIsWeb && !kIsDesktop && page == 2 && controller.currentPage == 2) {
+          if (!kIsWeb && !kIsDesktop && page == 2 && controller.currentPage == 2 && !ss.settings.isDumb.value) {
             DisableBatteryOptimization.isAllBatteryOptimizationDisabled.then((isDisabled) {
               if (isDisabled ?? false) {
                 controller.pageController.nextPage(
@@ -1048,7 +1065,7 @@ class SetupPages extends StatelessWidget {
               }
             });
           }
-          if (!kIsWeb && !kIsDesktop && page == 3 && controller.currentPage == 3) {
+          if (!kIsWeb && !kIsDesktop && page == 3 && controller.currentPage == 3 && !ss.settings.isDumb.value) {
             mcs.invokeMethod("enable-bt").then((isEnabled) {
               if (isEnabled ?? false) {
                 controller.pageController.nextPage(
@@ -1063,10 +1080,11 @@ class SetupPages extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         controller: controller.pageController,
         children: <Widget>[
+          if (!ss.settings.isDumb.value)
           WelcomePage(),
-          if (!kIsWeb && !kIsDesktop) RequestContacts(),
-          if (!kIsWeb && !kIsDesktop) BatteryOptimizationCheck(),
-          if (!kIsWeb && !kIsDesktop) RequestBluetooth(),
+          if (!kIsWeb && !kIsDesktop && !ss.settings.isDumb.value) RequestContacts(),
+          if (!kIsWeb && !kIsDesktop && !ss.settings.isDumb.value) BatteryOptimizationCheck(),
+          if (!kIsWeb && !kIsDesktop && !ss.settings.isDumb.value) RequestBluetooth(),
           if (!usingRustPush)
             MacSetupCheck(),
           if (!usingRustPush)
@@ -1075,7 +1093,7 @@ class SetupPages extends StatelessWidget {
             SyncSettings(),
           if (!usingRustPush)
             SyncProgress(),
-          if (usingRustPush)
+          if (usingRustPush && !ss.settings.isDumb.value)
             HwInp(key: controller._childKey),
           if (usingRustPush && controller.supportsPhoneReg.value && !kIsDesktop)
             const PhoneNumber(),

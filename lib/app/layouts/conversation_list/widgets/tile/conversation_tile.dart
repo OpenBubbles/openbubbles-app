@@ -16,6 +16,7 @@ import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
+import 'package:dpad/dpad.dart';
 import 'package:faker/faker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -197,6 +198,7 @@ class ConversationTile extends CustomStateful<ConversationTileController> {
     Function(bool)? onSelect,
     bool inSelectMode = false,
     this.deletedMode = false,
+    this.autofocus = false,
     Widget? subtitle,
   }) : super(parentController: !inSelectMode && Get.isRegistered<ConversationTileController>(tag: chat.guid)
       ? Get.find<ConversationTileController>(tag: chat.guid)
@@ -210,6 +212,7 @@ class ConversationTile extends CustomStateful<ConversationTileController> {
   );
 
   bool deletedMode;
+  final bool autofocus;
 
   @override
   State<ConversationTile> createState() => _ConversationTileState();
@@ -248,22 +251,55 @@ class _ConversationTileState extends CustomState<ConversationTile, void, Convers
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return MouseRegion(
-      onEnter: (event) => controller.hoverHighlight.value = true,
-      onExit: (event) => controller.hoverHighlight.value = false,
-      cursor: SystemMouseCursors.click,
-      child: ThemeSwitcher(
-        iOSSkin: CupertinoConversationTile(
-          parentController: controller,
-          deletedMode: widget.deletedMode,
-        ),
-        materialSkin: MaterialConversationTile(
-          parentController: controller,
-          deletedMode: widget.deletedMode,
-        ),
-        samsungSkin: SamsungConversationTile(
-          parentController: controller,
-          deletedMode: widget.deletedMode,
+    return Focus(
+      canRequestFocus: false,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.arrowRight &&
+            !listController.showArchivedChats &&
+            !listController.showUnknownSenders &&
+            !listController.showDeletedMessages) {
+          listController.newMessageFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp && widget.autofocus /*autofocus to detect first one*/) {
+          final scrollController = ss.settings.skin.value == Skins.iOS
+              ? listController.iosScrollController
+              : ss.settings.skin.value == Skins.Samsung
+                  ? listController.samsungScrollController
+                  : listController.materialScrollController;
+          if (scrollController.hasClients && scrollController.offset > 0) {
+            unawaited(scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+            ));
+            return KeyEventResult.ignored;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: DpadFocusable(
+        onSelect: () => controller.onTap(context, false),
+        autofocus: widget.autofocus && ss.settings.isDumb.value,
+        child: MouseRegion(
+          onEnter: (event) => controller.hoverHighlight.value = true,
+          onExit: (event) => controller.hoverHighlight.value = false,
+          cursor: SystemMouseCursors.click,
+          child: ThemeSwitcher(
+            iOSSkin: CupertinoConversationTile(
+              parentController: controller,
+              deletedMode: widget.deletedMode,
+            ),
+            materialSkin: MaterialConversationTile(
+              parentController: controller,
+              deletedMode: widget.deletedMode,
+            ),
+            samsungSkin: SamsungConversationTile(
+              parentController: controller,
+              deletedMode: widget.deletedMode,
+            ),
+          ),
         ),
       ),
     );

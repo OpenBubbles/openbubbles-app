@@ -91,11 +91,16 @@ class ConversationTextFieldState extends CustomState<ConversationTextField, void
     // Save state
     oldTextFieldSelection = controller.textController.selection;
 
-    if (controller.fromChatCreator) {
-      controller.focusNode.requestFocus();
-    } else if (ss.settings.autoOpenKeyboard.value) {
-      updateObx(() {
-        controller.focusNode.requestFocus();
+    if (controller.fromChatCreator || ss.settings.autoOpenKeyboard.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (controller.fromChatCreator) {
+          controller.focusNode.requestFocus();
+        } else {
+          updateObx(() {
+            controller.focusNode.requestFocus();
+          });
+        }
       });
     }
 
@@ -1053,6 +1058,37 @@ class TextFieldComponentState extends State<TextFieldComponent> {
       return KeyEventResult.ignored;
     }
 
+    final activeTextField = controller != null
+        ? (controller!.subjectFocusNode.hasPrimaryFocus ? controller!.subjectTextController : controller!.textController)
+        : ((subjectTextController != null && (subjectTextController!.focusNode?.hasPrimaryFocus ?? false))
+            ? subjectTextController!
+            : textController);
+
+    if (ev.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      final selection = activeTextField.selection;
+      final isCursorAtStart = selection.isValid && selection.isCollapsed && selection.extentOffset <= 0;
+
+      if (isCursorAtStart) {
+        if (controller != null) {
+          controller!.headerBackFocusNode.requestFocus();
+        } else if (FocusScope.of(context).focusInDirection(TraversalDirection.left)) {
+          return KeyEventResult.handled;
+        }
+        if (controller != null) {
+          return KeyEventResult.handled;
+        }
+      }
+    }
+
+    if (ev.logicalKey == LogicalKeyboardKey.arrowRight) {
+      final selection = activeTextField.selection;
+      final isCursorAtEnd = selection.isValid && selection.isCollapsed && selection.extentOffset >= activeTextField.text.length;
+
+      if (isCursorAtEnd && FocusScope.of(context).focusInDirection(TraversalDirection.right)) {
+        return KeyEventResult.handled;
+      }
+    }
+
     if (isChatCreator) {
       if (ev.logicalKey == LogicalKeyboardKey.enter && !HardwareKeyboard.instance.isShiftPressed) {
         sendMessage();
@@ -1089,6 +1125,14 @@ class TextFieldComponentState extends State<TextFieldComponent> {
 
     // Up arrow
     if (ev.logicalKey == LogicalKeyboardKey.arrowUp) {
+      final textField = controller!.subjectFocusNode.hasPrimaryFocus
+          ? controller!.subjectTextController
+          : controller!.textController;
+      final selection = textField.selection;
+      if (selection.isValid && selection.isCollapsed && selection.extentOffset == 0 && controller!.bottomMessageFocusNode != null) {
+        controller!.bottomMessageFocusNode!.requestFocus();
+        return KeyEventResult.handled;
+      }
       if (chat != null &&
           controller!.lastFocusedTextController.text.isEmpty &&
           ss.settings.editLastSentMessageOnUpArrow.value &&

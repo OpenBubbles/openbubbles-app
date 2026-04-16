@@ -6,6 +6,7 @@ import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/models.dart' hide PlayerState;
 import 'package:bluebubbles/services/services.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class AudioPlayer extends StatefulWidget {
@@ -20,9 +21,13 @@ class AudioPlayer extends StatefulWidget {
     required this.attachment,
     this.transcript,
     this.controller,
+    this.playButtonFocusNode,
+    this.nextFocusNode,
   });
 
   final ConversationViewController? controller;
+  final FocusNode? playButtonFocusNode;
+  final FocusNode? nextFocusNode;
 
   @override
   OptimizedState createState() =>
@@ -96,25 +101,72 @@ class _AudioPlayerState extends OptimizedState<AudioPlayer>
           children: [
           Row(
             children: [
-              IconButton(
-                onPressed: () async {
-                  if (controller == null) return;
-                  if (controller!.playerState == PlayerState.playing) {
-                    animController.reverse();
-                    await controller!.pausePlayer();
-                  } else {
-                    animController.forward();
-                    controller!.setFinishMode(finishMode: FinishMode.pause);
-                    await controller!.startPlayer();
-                  }
-                  setState(() {});
+              CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.arrowRight): () => widget.nextFocusNode?.requestFocus(),
+                  const SingleActivator(LogicalKeyboardKey.arrowDown): () => widget.nextFocusNode?.requestFocus(),
+                  const SingleActivator(LogicalKeyboardKey.enter): () async {
+                    if (controller == null) return;
+                    if (controller!.playerState == PlayerState.playing) {
+                      animController.reverse();
+                      await controller!.pausePlayer();
+                    } else {
+                      animController.forward();
+                      controller!.setFinishMode(finishMode: FinishMode.pause);
+                      await controller!.startPlayer();
+                    }
+                    setState(() {});
+                  },
+                  const SingleActivator(LogicalKeyboardKey.select): () async {
+                    if (controller == null) return;
+                    if (controller!.playerState == PlayerState.playing) {
+                      animController.reverse();
+                      await controller!.pausePlayer();
+                    } else {
+                      animController.forward();
+                      controller!.setFinishMode(finishMode: FinishMode.pause);
+                      await controller!.startPlayer();
+                    }
+                    setState(() {});
+                  },
+                  const SingleActivator(LogicalKeyboardKey.space): () async {
+                    if (controller == null) return;
+                    if (controller!.playerState == PlayerState.playing) {
+                      animController.reverse();
+                      await controller!.pausePlayer();
+                    } else {
+                      animController.forward();
+                      controller!.setFinishMode(finishMode: FinishMode.pause);
+                      await controller!.startPlayer();
+                    }
+                    setState(() {});
+                  },
                 },
-                icon: AnimatedIcon(
-                  icon: AnimatedIcons.play_pause,
-                  progress: animController,
+                child: IconButton(
+                  focusNode: widget.playButtonFocusNode,
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.resolveWith((states) =>
+                        states.contains(WidgetState.focused) ? context.theme.colorScheme.outline.withOpacity(0.2) : null),
+                  ),
+                  onPressed: () async {
+                    if (controller == null) return;
+                    if (controller!.playerState == PlayerState.playing) {
+                      animController.reverse();
+                      await controller!.pausePlayer();
+                    } else {
+                      animController.forward();
+                      controller!.setFinishMode(finishMode: FinishMode.pause);
+                      await controller!.startPlayer();
+                    }
+                    setState(() {});
+                  },
+                  icon: AnimatedIcon(
+                    icon: AnimatedIcons.play_pause,
+                    progress: animController,
+                  ),
+                  color: context.theme.colorScheme.properOnSurface,
+                  visualDensity: VisualDensity.compact,
                 ),
-                color: context.theme.colorScheme.properOnSurface,
-                visualDensity: VisualDensity.compact,
               ),
               (controller?.maxDuration ?? 0) == 0
                   ? SizedBox(width: ns.width(context) * 0.25)
@@ -223,24 +275,68 @@ class _DesktopAudioPlayerState extends OptimizedState<AudioPlayer>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              onPressed: () async {
-                if (controller == null) return;
-                if (controller!.state.playing) {
-                  animController.reverse();
-                  await controller!.pause();
-                } else {
-                  animController.forward();
-                  await controller!.play();
-                }
-                setState(() {});
+            CallbackShortcuts(
+              bindings: {
+                const SingleActivator(LogicalKeyboardKey.arrowRight): () => widget.nextFocusNode?.requestFocus(),
+                const SingleActivator(LogicalKeyboardKey.arrowDown): () => widget.nextFocusNode?.requestFocus(),
+                const SingleActivator(LogicalKeyboardKey.enter): () async {
+                  if (controller == null) return;
+                  if (controller!.state.playing) {
+                    animController.reverse();
+                    await controller!.pause();
+                  } else {
+                    animController.forward();
+                    await controller!.play();
+                  }
+                  setState(() {});
+                },
+                const SingleActivator(LogicalKeyboardKey.select): () async {
+                  if (controller == null) return;
+                  if (controller!.state.playing) {
+                    animController.reverse();
+                    await controller!.pause();
+                  } else {
+                    animController.forward();
+                    await controller!.play();
+                  }
+                  setState(() {});
+                },
+                const SingleActivator(LogicalKeyboardKey.space): () async {
+                  if (controller == null) return;
+                  if (controller!.state.playing) {
+                    animController.reverse();
+                    await controller!.pause();
+                  } else {
+                    animController.forward();
+                    await controller!.play();
+                  }
+                  setState(() {});
+                },
               },
-              icon: AnimatedIcon(
-                icon: AnimatedIcons.play_pause,
-                progress: animController,
+              child: IconButton(
+                focusNode: widget.playButtonFocusNode,
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) =>
+                      states.contains(WidgetState.focused) ? context.theme.colorScheme.outline.withOpacity(0.2) : null),
+                ),
+                onPressed: () async {
+                  if (controller == null) return;
+                  if (controller!.state.playing) {
+                    animController.reverse();
+                    await controller!.pause();
+                  } else {
+                    animController.forward();
+                    await controller!.play();
+                  }
+                  setState(() {});
+                },
+                icon: AnimatedIcon(
+                  icon: AnimatedIcons.play_pause,
+                  progress: animController,
+                ),
+                color: context.theme.colorScheme.properOnSurface,
+                visualDensity: VisualDensity.compact,
               ),
-              color: context.theme.colorScheme.properOnSurface,
-              visualDensity: VisualDensity.compact,
             ),
             if (controller != null)
               SizedBox(

@@ -45,6 +45,23 @@ class CupertinoHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    void goBack() {
+      if (controller.inSelectMode.value) {
+        controller.inSelectMode.value = false;
+        controller.selected.clear();
+        return;
+      }
+      if (ls.isBubble) {
+        SystemNavigator.pop();
+        return;
+      }
+      controller.close();
+      if (Get.isSnackbarOpen) {
+        Get.closeAllSnackbars();
+      }
+      Navigator.of(context).pop();
+    }
+
     return ClipRect(
       child: BackdropFilter(
           filter: ImageFilter.compose(
@@ -80,43 +97,25 @@ class CupertinoHeader extends StatelessWidget implements PreferredSizeWidget {
                               onTap: !kIsDesktop
                                   ? null
                                   : (details) {
-                                      if (controller.inSelectMode.value) {
-                                        controller.inSelectMode.value = false;
-                                        controller.selected.clear();
-                                        return;
-                                      }
-                                      if (ls.isBubble) {
-                                        SystemNavigator.pop();
-                                        return;
-                                      }
-                                      controller.close();
-                                      if (Get.isSnackbarOpen) {
-                                        Get.closeAllSnackbars();
-                                      }
-                                      Navigator.of(context).pop();
+                                      goBack();
                                     },
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () {
-                                  if (kIsDesktop) return;
-                                  if (controller.inSelectMode.value) {
-                                    controller.inSelectMode.value = false;
-                                    controller.selected.clear();
-                                    return;
-                                  }
-                                  if (ls.isBubble) {
-                                    SystemNavigator.pop();
-                                    return;
-                                  }
-                                  controller.close();
-                                  if (Get.isSnackbarOpen) {
-                                    Get.closeAllSnackbars();
-                                  }
-                                  Navigator.of(context).pop();
+                              child: CallbackShortcuts(
+                                bindings: {
+                                  const SingleActivator(LogicalKeyboardKey.enter): goBack,
+                                  const SingleActivator(LogicalKeyboardKey.select): goBack,
+                                  const SingleActivator(LogicalKeyboardKey.space): goBack,
                                 },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(3.0),
-                                  child: _UnreadIcon(controller: controller),
+                                child: InkWell(
+                                  focusNode: controller.headerBackFocusNode,
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () {
+                                    if (kIsDesktop) return;
+                                    goBack();
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(3.0),
+                                    child: _UnreadIcon(controller: controller),
+                                  ),
                                 ),
                               ),
                             ),

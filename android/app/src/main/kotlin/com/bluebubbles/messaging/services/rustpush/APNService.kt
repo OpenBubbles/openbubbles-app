@@ -46,21 +46,46 @@ class APNService : Service(), MsgReceiver {
     var pushState: NativePushState? = null
     private var started = false
     private val binder = APNBinder()
-    private var ready = false;
-    private var waitingHandleCb = ArrayList<(handle: ULong) -> Unit>();
-
+    private var ready = false
+    private val waitingHandleCb = ArrayList<(handle: ULong) -> Unit>()
+    private val waitingStartedCb = ArrayList<() -> Unit>()
     private val job = SupervisorJob()
     val scope = CoroutineScope(Dispatchers.IO + job)
-
 
     fun ready() {
         Log.i("launching agent", "ready")
         synchronized(waitingHandleCb) {
-            ready = true;
+            ready = true
             for (cb in waitingHandleCb) {
                 cb(pushState?.getState() ?: 0UL)
             }
+            waitingHandleCb.clear()
         }
+    }
+
+    fun whenStarted(cb: () -> Unit) {
+        var runNow = false
+        synchronized(waitingStartedCb) {
+            if (started) {
+                runNow = true
+            } else {
+                waitingStartedCb.add(cb)
+            }
+        }
+        if (runNow) {
+            cb()
+        }
+    }
+
+    private fun markStarted() {
+        val callbacks = ArrayList<() -> Unit>()
+        synchronized(waitingStartedCb) {
+            if (started) return
+            started = true
+            callbacks.addAll(waitingStartedCb)
+            waitingStartedCb.clear()
+        }
+        callbacks.forEach { it() }
     }
 
     override fun twofaEvent(success: Boolean) {
@@ -258,7 +283,7 @@ class APNService : Service(), MsgReceiver {
                 notifyForeground()
             }
             launchAgent()
-            started = true
+            markStarted()
         }
         return super.onStartCommand(intent, flags, startId)
     }
@@ -271,9 +296,6 @@ class APNService : Service(), MsgReceiver {
 
     override fun onBind(intent: Intent): IBinder {
         Log.i("trybindsfsf", "bound")
-        if (!started) {
-            throw Exception("APNService not started!")
-        }
         return binder
     }
 
@@ -285,6 +307,7 @@ class APNService : Service(), MsgReceiver {
 class APNClient(val context: Context) {
     private lateinit var mService: APNService
     private var mBound: Boolean = false
+    private var mBinding: Boolean = false
     private var mCallback: ((service: APNService) -> Unit)? = null
 
     private val connection = object : ServiceConnection {
@@ -292,12 +315,17 @@ class APNClient(val context: Context) {
             // We've bound to LocalService, cast the IBinder and get LocalService instance.
             val binder = service as APNService.APNBinder
             mService = binder.getService()
-            mBound = true
-            mCallback?.let { it(mService) }
+            mService.whenStarted {
+                if (mBound) return@whenStarted
+                mBound = true
+                mBinding = false
+                mCallback?.let { it(mService) }
+            }
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             mBound = false
+            mBinding = false
         }
     }
 
@@ -307,15 +335,37 @@ class APNClient(val context: Context) {
 
     fun bind(cb: (service: APNService) -> Unit) {
         mCallback = cb
+        if (mBound) {
+            mService.whenStarted {
+                mCallback?.let { it(mService) }
+            }
+            return
+        }
+        if (mBinding) return
+
+        val serviceIntent = Intent(context, APNService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
+
         Intent(context, APNService::class.java).also { intent ->
             Log.i("trybindsfsf", "trying to bind")
+            mBinding = true
             val result = context.bindService(intent, connection, 0)
-            Log.i("trybindresult", result.toString());
+            if (!result) {
+                mBinding = false
+            }
+            Log.i("trybindresult", result.toString())
         }
     }
 
     fun destroy() {
-        context.unbindService(connection)
+        if (mBound || mBinding) {
+            context.unbindService(connection)
+        }
         mBound = false
+        mBinding = false
     }
 }

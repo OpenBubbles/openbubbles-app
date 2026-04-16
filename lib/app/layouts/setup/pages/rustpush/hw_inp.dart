@@ -79,7 +79,7 @@ class HwInpState extends OptimizedState<HwInp> {
           builder: (BuildContext context) {
             return QRCodeScanner();
           },
-        ),
+      ),
       );
       if (response == null) {
         return;

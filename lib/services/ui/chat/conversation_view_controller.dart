@@ -70,6 +70,8 @@ class ConversationViewController extends StatefulController with GetSingleTicker
   final RxList<PlatformFile> pickedAttachments = <PlatformFile>[].obs;
   final focusNode = FocusNode();
   final subjectFocusNode = FocusNode();
+  final headerBackFocusNode = FocusNode();
+  FocusNode? bottomMessageFocusNode;
   late final textController = MentionTextEditingController(focusNode: focusNode, supportsFormatting: chat.isIMessage);
   late final subjectTextController = SpellCheckTextEditingController(focusNode: subjectFocusNode);
   final Rx<(PlatformFile?, PayloadData)?> pickedApp = Rx<(PlatformFile?, PayloadData)?>(null);
@@ -225,6 +227,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
       a.player.dispose();
     }
     scrollController.dispose();
+    headerBackFocusNode.dispose();
     shareSubscription?.cancel();
     super.onClose();
   }

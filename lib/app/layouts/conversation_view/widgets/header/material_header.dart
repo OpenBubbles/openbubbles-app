@@ -47,6 +47,7 @@ class MaterialHeader extends StatelessWidget implements PreferredSizeWidget {
         padding: EdgeInsets.only(left: 5.0, top: kIsDesktop ? 20 : 0),
         child: BackButton(
           color: context.theme.colorScheme.onBackground,
+          focusNode: controller.headerBackFocusNode,
           onPressed: () {
             if (controller.inSelectMode.value) {
               controller.inSelectMode.value = false;

@@ -11,10 +11,11 @@ class ListItem extends StatelessWidget {
   final Chat chat;
   final ConversationListController controller;
   final VoidCallback update;
+  final bool autofocus;
 
   final bool showDeleted;
 
-  ListItem({required this.chat, required this.controller, required this.update, required this.showDeleted});
+  ListItem({required this.chat, required this.controller, required this.update, required this.showDeleted, this.autofocus = false});
 
   MaterialSwipeAction get leftAction => ss.settings.materialLeftAction.value;
   MaterialSwipeAction get rightAction => ss.settings.materialRightAction.value;
@@ -90,6 +91,7 @@ class ListItem extends StatelessWidget {
         chat: chat,
         controller: controller,
         deletedMode: showDeleted,
+        autofocus: autofocus,
         onSelect: (bool isSelected) {
           if (isSelected) {
             controller.selectedChats.add(chat);
