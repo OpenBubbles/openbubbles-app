@@ -14,6 +14,7 @@ import "package:flutter/material.dart";
 import 'package:flutter/services.dart';
 import 'package:gesture_x_detector/gesture_x_detector.dart';
 import 'package:get/get.dart';
+import 'package:universal_io/io.dart';
 
 class FullscreenMediaHolder extends StatefulWidget {
   FullscreenMediaHolder({
@@ -71,6 +72,26 @@ class FullscreenMediaHolderState extends OptimizedState<FullscreenMediaHolder> {
     super.dispose();
   }
 
+  /// Whether the currently-viewed attachment is an image (not a video).
+  /// The Create Sticker action is only meaningful for images.
+  bool _currentIsImage() {
+    if (currentIndex < 0 || currentIndex >= attachments.length) return false;
+    return attachments[currentIndex].mimeStart == "image";
+  }
+
+  /// Resolve the PlatformFile for the currently-viewed attachment and run
+  /// subject segmentation on it to save a transparent-background sticker.
+  Future<void> _createStickerFromCurrent() async {
+    if (!_currentIsImage()) return;
+    final current = attachments[currentIndex];
+    final content = as.getContent(current, path: current.guid == null ? current.sourcePath : null);
+    if (content is! PlatformFile) {
+      showSnackbar('Error', 'Could not read the image yet. Try again in a moment.');
+      return;
+    }
+    await as.createSubjectSticker(content);
+  }
+
   @override
   Widget build(BuildContext context) {
     return TitleBarWrapper(
@@ -123,6 +144,15 @@ class FullscreenMediaHolderState extends OptimizedState<FullscreenMediaHolder> {
                     systemOverlayStyle: context.theme.colorScheme.brightness == Brightness.dark
                         ? SystemUiOverlayStyle.light
                         : SystemUiOverlayStyle.dark,
+                    actions: [
+                      if (!kIsWeb && Platform.isAndroid && widget.showInteractions && _currentIsImage())
+                        TextButton(
+                          child: Text("Create Sticker",
+                              style: context.theme.textTheme.bodyLarge!
+                                  .copyWith(color: context.theme.colorScheme.primary)),
+                          onPressed: _createStickerFromCurrent,
+                        ),
+                    ],
                   ),
             backgroundColor: Colors.black,
             body: FocusScope(
