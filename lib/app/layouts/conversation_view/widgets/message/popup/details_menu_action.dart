@@ -34,6 +34,7 @@ enum DetailsMenuAction {
   Bookmark,
   SelectMultiple,
   MessageInfo,
+  SaveAsSticker,
 }
 
 class PlatformSupport {
@@ -70,6 +71,7 @@ const Map<DetailsMenuAction, PlatformSupport> _actionPlatformSupport = {
   DetailsMenuAction.Bookmark: PlatformSupport(true, true, true, true),
   DetailsMenuAction.SelectMultiple: PlatformSupport(true, true, true, true),
   DetailsMenuAction.MessageInfo: PlatformSupport(true, true, true, true),
+  DetailsMenuAction.SaveAsSticker: PlatformSupport(true, true, true, false),
 };
 
 const Map<DetailsMenuAction, (IconData, IconData)> _actionToIcon = {
@@ -97,6 +99,7 @@ const Map<DetailsMenuAction, (IconData, IconData)> _actionToIcon = {
   DetailsMenuAction.Bookmark: (CupertinoIcons.bookmark, Icons.bookmark_outlined),
   DetailsMenuAction.SelectMultiple: (CupertinoIcons.checkmark_square, Icons.check_box_outlined),
   DetailsMenuAction.MessageInfo: (CupertinoIcons.info, Icons.info),
+  DetailsMenuAction.SaveAsSticker: (CupertinoIcons.smiley, Icons.emoji_emotions_outlined),
 };
 
 const Map<DetailsMenuAction, String> _actionToText = {
@@ -124,6 +127,7 @@ const Map<DetailsMenuAction, String> _actionToText = {
   DetailsMenuAction.Bookmark: "Add/Remove Bookmark",
   DetailsMenuAction.SelectMultiple: "Select Multiple",
   DetailsMenuAction.MessageInfo: "Message Info",
+  DetailsMenuAction.SaveAsSticker: "Save as Sticker",
 };
 
 class _DetailsMenuActionUtils {

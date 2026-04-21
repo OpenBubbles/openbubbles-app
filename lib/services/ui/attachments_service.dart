@@ -10,6 +10,7 @@ import 'package:exif/exif.dart';
 import 'package:file_picker/file_picker.dart' hide PlatformFile;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get/get.dart';
 import 'package:image_size_getter/file_input.dart';
@@ -263,6 +264,84 @@ class AttachmentsService extends GetxService {
             });
           }
         }
+      }
+    }
+  }
+
+  Future<void> saveAsSticker(PlatformFile file) async {
+    try {
+      final stickerDir = await fs.stickersDirectory;
+      final destPath = join(stickerDir, file.name);
+      if (file.path != null) {
+        await File(file.path!).copy(destPath);
+      } else if (file.bytes != null) {
+        await File(destPath).writeAsBytes(file.bytes!);
+      } else {
+        return showSnackbar('Error', 'Could not save sticker: no file data available.');
+      }
+      showSnackbar('Success', 'Saved as sticker!');
+    } catch (e) {
+      Logger.error('Failed to save sticker', error: e);
+      showSnackbar('Error', 'Failed to save sticker.');
+    }
+  }
+
+  /// Extract the foreground subject from an image and save it as a
+  /// transparent-background PNG sticker. Android-only (uses ML Kit Subject
+  /// Segmentation). Mirrors iOS "Visual Look Up" sticker creation.
+  Future<bool> createSubjectSticker(PlatformFile file) async {
+    if (kIsWeb || !Platform.isAndroid) {
+      showSnackbar('Error', 'This feature is only available on Android.');
+      return false;
+    }
+
+    // We need a real file path on disk for the native side to read.
+    String? inputPath = file.path;
+    File? tempInput;
+    try {
+      if (inputPath == null) {
+        if (file.bytes == null) {
+          showSnackbar('Error', 'Could not create sticker: no file data available.');
+          return false;
+        }
+        final tmpDir = await getTemporaryDirectory();
+        tempInput = File(join(tmpDir.path, 'subj_in_${DateTime.now().millisecondsSinceEpoch}_${file.name}'));
+        await tempInput.writeAsBytes(file.bytes!);
+        inputPath = tempInput.path;
+      }
+
+      final stickerDir = await fs.stickersDirectory;
+      // Output is always PNG (transparent background), even if the source was HEIC/JPEG.
+      final baseName = basenameWithoutExtension(file.name);
+      final outputPath = join(stickerDir, '${baseName}_sticker.png');
+
+      showSnackbar('Creating sticker', 'Extracting subject…');
+
+      await mcs.invokeMethod('create-subject-sticker', {
+        'file': inputPath,
+        'output': outputPath,
+      });
+
+      showSnackbar('Success', 'Sticker created!');
+      return true;
+    } on PlatformException catch (e) {
+      final message = switch (e.code) {
+        'no_subject' => 'No subject could be detected in this image.',
+        'model_unavailable' => 'Sticker model is still downloading. Try again in a moment.',
+        'decode_failed' => 'Could not read the image.',
+        'write_failed' => 'Could not save the sticker.',
+        _ => e.message ?? 'Failed to create sticker.',
+      };
+      showSnackbar('Error', message);
+      Logger.error('createSubjectSticker failed: ${e.code} ${e.message}', error: e);
+      return false;
+    } catch (e) {
+      Logger.error('createSubjectSticker failed', error: e);
+      showSnackbar('Error', 'Failed to create sticker.');
+      return false;
+    } finally {
+      if (tempInput != null && await tempInput.exists()) {
+        try { await tempInput.delete(); } catch (_) {}
       }
     }
   }

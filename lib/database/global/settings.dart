@@ -91,6 +91,7 @@ class Settings {
   final RxnString userAvatarPath = RxnString();
   final RxnString userPosterPath = RxnString();
   final RxBool hideNamesForReactions = false.obs;
+  final RxBool showLocationInChat = false.obs;
   final RxBool replaceEmoticonsWithEmoji = true.obs;
   final RxnString lastLocation = RxnString();
 
@@ -184,6 +185,12 @@ class Settings {
 
   /// Use [setDetailsMenuActions] to set this value
   List<DetailsMenuAction> get detailsMenuActions => _detailsMenuActions;
+
+  // Attachment picker order
+  static const List<String> defaultAttachmentPickerOrder = [
+    "Polls", "Files", "Location", "Send Later", "Handwritten", "Stickers"
+  ];
+  final RxList<String> attachmentPickerOrder = RxList.from(defaultAttachmentPickerOrder);
 
   // Linux settings
   final RxBool useCustomTitleBar = RxBool(true);
@@ -357,6 +364,7 @@ class Settings {
       'selectedActionIndices': selectedActionIndices,
       'actionList': actionList,
       'detailsMenuActions': detailsMenuActions.map((action) => action.name).toList(),
+      'attachmentPickerOrder': attachmentPickerOrder.toList(),
       'askWhereToSave': askWhereToSave.value,
       'indicatorsOnPinnedChats': statusIndicatorsOnChats.value,
       'apiTimeout': apiTimeout.value,
@@ -420,6 +428,7 @@ class Settings {
       'useWindowsAccent': useWindowsAccent.value,
       'logLevel': logLevel.value.index,
       'hideNamesForReactions': hideNamesForReactions.value,
+      'showLocationInChat': showLocationInChat.value,
       'replaceEmoticonsWithEmoji': replaceEmoticonsWithEmoji.value,
       'lastReviewRequestTimestamp': lastReviewRequestTimestamp.value,
       'defaultHandle': defaultHandle.value,
@@ -590,6 +599,7 @@ class Settings {
     ss.settings.selectedActionIndices.value = _processSelectedActionIndices(map['selectedActionIndices']);
     ss.settings.actionList.value = _processActionList(map['actionList']);
     ss.settings._detailsMenuActions.value = _processDetailsMenuActions(map['detailsMenuActions'], ss.settings.detailsMenuActions);
+    ss.settings.attachmentPickerOrder.value = _processAttachmentPickerOrder(map['attachmentPickerOrder']);
 
     ss.settings.windowEffect.value = kIsDesktop && Platform.isWindows
         ? WindowEffect.values.firstWhereOrNull((e) => e.name == map['windowEffect']) ?? WindowEffect.disabled
@@ -600,6 +610,7 @@ class Settings {
     ss.settings.firstFcmRegisterDate.value = map['firstFcmRegisterDate'] ?? 0;
     ss.settings.logLevel.value = map['logLevel'] != null ? Level.values[map['logLevel']] : Level.info;
     ss.settings.hideNamesForReactions.value = map['hideNamesForReactions'] ?? false;
+    ss.settings.showLocationInChat.value = map['showLocationInChat'] ?? false;
     ss.settings.replaceEmoticonsWithEmoji.value = map['replaceEmoticonsWithEmoji'] ?? false;
     ss.settings.defaultHandle.value = map['defaultHandle'] ?? "";
     ss.settings.cardDavServer.value = map['cardDavServer'] ?? "";
@@ -766,6 +777,7 @@ class Settings {
     s.selectedActionIndices.value = _processSelectedActionIndices(map['selectedActionIndices']);
     s.actionList.value = _processActionList(map['actionList']);
     s._detailsMenuActions.value = _processDetailsMenuActions(map['detailsMenuActions'], DetailsMenuAction.values);
+    s.attachmentPickerOrder.value = _processAttachmentPickerOrder(map['attachmentPickerOrder']);
 
     s.windowEffect.value = (kIsDesktop && Platform.isWindows)
         ? WindowEffect.values.firstWhereOrNull((e) => e.name == map['windowEffect']) ?? WindowEffect.disabled
@@ -776,6 +788,7 @@ class Settings {
     s.firstFcmRegisterDate.value = map['firstFcmRegisterDate'] ?? 0;
     s.logLevel.value = map['logLevel'] != null ? Level.values[map['logLevel']] : Level.info;
     s.hideNamesForReactions.value = map['hideNamesForReactions'] ?? false;
+    s.showLocationInChat.value = map['showLocationInChat'] ?? false;
     s.replaceEmoticonsWithEmoji.value = map['replaceEmoticonsWithEmoji'] ?? false;
     s.lastReviewRequestTimestamp.value = map['lastReviewRequestTimestamp'] ?? 0;
     s.defaultHandle.value = map['defaultHandle'] ?? "";
@@ -880,4 +893,20 @@ List<DetailsMenuAction> _filterDetailsMenuActions(List<DetailsMenuAction> action
   }
 
   return actions;
+}
+
+List<String> _processAttachmentPickerOrder(dynamic rawJson) {
+  try {
+    final saved = (rawJson is List ? rawJson : jsonDecode(rawJson) as List).cast<String>();
+    final defaults = Settings.defaultAttachmentPickerOrder;
+    // Start with saved order, then append any new items not in the saved list
+    final result = <String>[...saved.where((s) => defaults.contains(s))];
+    for (final item in defaults) {
+      if (!result.contains(item)) result.add(item);
+    }
+    return result;
+  } catch (e) {
+    debugPrint("Using default attachmentPickerOrder");
+    return List.from(Settings.defaultAttachmentPickerOrder);
+  }
 }

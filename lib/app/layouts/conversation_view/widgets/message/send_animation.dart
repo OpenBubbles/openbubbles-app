@@ -77,6 +77,11 @@ class _SendAnimationState
       String data = await DefaultAssetBundle.of(Get.context!).loadString("assets/rustpush/uti-map.json");
       final utiMap = jsonDecode(data);
 
+      final isSticker = controller.isStickerSend;
+      final stickerBundleId = isSticker
+          ? "com.apple.Stickers.UserGenerated.MessagesExtension"
+          : null;
+
       final message = Message(
         text: "",
         dateCreated: DateTime.now(),
@@ -99,8 +104,8 @@ class _SendAnimationState
         threadOriginatorPart: i == 0 ? replyRun : null,
         expressiveSendStyleId: effectId,
         payloadData: payload,
-        balloonBundleId: payload?.bundleId,
-        stagingGuid: payload != null ? uuid.v4().toUpperCase() : null,
+        balloonBundleId: stickerBundleId ?? payload?.bundleId,
+        stagingGuid: (payload != null || isSticker) ? uuid.v4().toUpperCase() : null,
       );
       message.generateTempGuid();
       message.attachments.first!.guid = message.guid;

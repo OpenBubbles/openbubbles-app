@@ -39,6 +39,48 @@ class _BackupRestorePanelState extends OptimizedState<BackupRestorePanel> {
   List<Map<String, dynamic>> themes = [];
   bool? fetching = true;
 
+  /// Reads all sticker files and returns them as a list of {filename, data} maps.
+  Future<List<Map<String, String>>> _exportStickers() async {
+    if (kIsWeb) return [];
+    try {
+      final stickerDir = Directory(await fs.stickersDirectory);
+      if (!await stickerDir.exists()) return [];
+      final stickers = <Map<String, String>>[];
+      await for (final entity in stickerDir.list()) {
+        if (entity is File) {
+          final bytes = await entity.readAsBytes();
+          stickers.add({
+            'filename': basename(entity.path),
+            'data': base64Encode(bytes),
+          });
+        }
+      }
+      return stickers;
+    } catch (e) {
+      Logger.warn('Failed to export stickers: $e');
+      return [];
+    }
+  }
+
+  /// Restores stickers from a backup map's "stickers" key.
+  Future<void> _restoreStickers(Map<String, dynamic> map) async {
+    if (kIsWeb) return;
+    final stickersData = map['stickers'];
+    if (stickersData == null || stickersData is! List) return;
+    try {
+      final stickerDir = await fs.stickersDirectory;
+      for (final item in stickersData) {
+        if (item is Map && item['filename'] != null && item['data'] != null) {
+          final file = File(join(stickerDir, item['filename']));
+          await file.writeAsBytes(base64Decode(item['data']));
+        }
+      }
+      Logger.info('Restored ${stickersData.length} stickers from backup');
+    } catch (e) {
+      Logger.warn('Failed to restore stickers: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -241,6 +283,7 @@ class _BackupRestorePanelState extends OptimizedState<BackupRestorePanel> {
                                             onNo: () => Navigator.of(_context).pop(),
                                             onYes: () async {
                                               Map<String, dynamic> json = ss.settings.toMap();
+                                              json["stickers"] = await _exportStickers();
                                               json["description"] = item["description"];
                                               json["timestamp"] = DateTime.now().millisecondsSinceEpoch;
                                               Response response = await http.setSettings(item["name"], json);
@@ -289,10 +332,11 @@ class _BackupRestorePanelState extends OptimizedState<BackupRestorePanel> {
                                       title: "Restore Backup?",
                                       content: const Text("Are you sure you want to restore this backup, overwriting your current Settings?"),
                                       onNo: () => Navigator.of(context).pop(),
-                                      onYes: () {
+                                      onYes: () async {
                                         Navigator.of(context).pop();
                                         try {
                                           Settings.updateFromMap(item);
+                                          await _restoreStickers(item);
                                           showSnackbar("Success", "Settings restored successfully");
                                         } catch (e, s) {
                                           Logger.error("Failed to restore settings backup!", error: e, trace: s);
@@ -400,6 +444,7 @@ class _BackupRestorePanelState extends OptimizedState<BackupRestorePanel> {
                               Navigator.of(_context).pop();
                             }
                             Map<String, dynamic> json = ss.settings.toMap();
+                            json["stickers"] = await _exportStickers();
                             if (desc.isNotEmpty) {
                               json["description"] = desc;
                             }
@@ -594,12 +639,13 @@ class _BackupRestorePanelState extends OptimizedState<BackupRestorePanel> {
                                 title: "Restore Settings?",
                                 content: const Text("Are you sure you want to restore this backup, overwriting your current Settings?"),
                                 onNo: () => Navigator.of(context).pop(),
-                                onYes: () {
+                                onYes: () async {
                                   Navigator.of(context).pop();
                                   try {
                                     String jsonString = const Utf8Decoder().convert(res.files.first.bytes!);
                                     Map<String, dynamic> json = jsonDecode(jsonString);
                                     Settings.updateFromMap(json);
+                                    await _restoreStickers(json);
                                     showSnackbar("Success", "Settings restored successfully");
                                   } catch (e, s) {
                                     Logger.error("Failed to restore settings backup!", error: e, trace: s);

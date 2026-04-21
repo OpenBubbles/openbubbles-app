@@ -1,6 +1,7 @@
 import 'package:animated_size_and_fade/animated_size_and_fade.dart';
 import 'package:audio_waveforms/audio_waveforms.dart' as aw;
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/reaction/reaction.dart';
+import 'package:bluebubbles/app/layouts/settings/pages/message_view/attachment_picker_order_panel.dart';
 import 'package:bluebubbles/app/layouts/settings/pages/message_view/message_options_order_panel.dart';
 import 'package:bluebubbles/app/layouts/settings/widgets/content/next_button.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
@@ -142,6 +143,20 @@ class _ConversationPanelState extends OptimizedState<ConversationPanel> {
                       },
                       trailing: const NextButton(),
                     ),
+                  if (!kIsWeb)
+                    const SettingsDivider(padding: EdgeInsets.only(left: 16.0)),
+                  if (!kIsWeb)
+                    SettingsTile(
+                      title: "Attachment Picker Order",
+                      subtitle: "Set the order of items in the attachment picker wheel",
+                      onTap: () {
+                        ns.pushSettings(
+                          context,
+                          AttachmentPickerOrderPanel(),
+                        );
+                      },
+                      trailing: const NextButton(),
+                    ),
                   if (!kIsWeb && backend.getRemoteService() != null)
                     const SettingsDivider(padding: EdgeInsets.only(left: 16.0)),
                   if (!kIsWeb && backend.getRemoteService() != null)
@@ -196,6 +211,18 @@ class _ConversationPanelState extends OptimizedState<ConversationPanel> {
                       title: "Hide Names in Reaction Details",
                       subtitle: "Enable this to hide names under participant avatars when you view a message's reactions",
                       backgroundColor: tileColor,
+                    )),
+                  const SettingsDivider(padding: EdgeInsets.only(left: 16.0)),
+                  Obx(() => SettingsSwitch(
+                      onChanged: (bool val) {
+                        ss.settings.showLocationInChat.value = val;
+                        saveSettings();
+                      },
+                      initialVal: ss.settings.showLocationInChat.value,
+                      title: "Show Location in iOS Chat (BETA)",
+                      subtitle: "Displays the contact's city and state in the chat header using Find My Friends",
+                      backgroundColor: tileColor,
+                      isThreeLine: true,
                     )),
                 ],
               ),

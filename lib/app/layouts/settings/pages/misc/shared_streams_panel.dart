@@ -82,6 +82,44 @@ class _SharedStreamsPanelState extends OptimizedState<SharedStreamsPanel> {
 
   Map<String, bool> loading = {};
 
+  Future<void> _addPhotosToAlbum(api.SharedAlbum album) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.media,
+        allowMultiple: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      // Get the album's synced folder path
+      final dir = await ExternalPath.getExternalStoragePublicDirectory(ExternalPath.DIRECTORY_PICTURES);
+      final albumFolder = "$dir/${album.name}";
+      await Directory(albumFolder).create(recursive: true);
+
+      int copied = 0;
+      for (final file in result.files) {
+        if (file.path == null) continue;
+        final source = File(file.path!);
+        final dest = File("$albumFolder/${file.name}");
+        if (!await dest.exists()) {
+          await source.copy(dest.path);
+          copied++;
+        }
+      }
+
+      if (copied > 0) {
+        showSnackbar('Uploading', 'Added $copied photo${copied > 1 ? 's' : ''} to ${album.name}. Syncing...');
+        // Trigger sync to upload the new files
+        await api.syncNow(lock: pushService.state!.icloudServices!.sharedstreams!);
+        updateSyncState();
+      } else {
+        showSnackbar('Info', 'No new photos to add.');
+      }
+    } catch (e, stack) {
+      Logger.error('Failed to add photos to shared album', error: e, trace: stack);
+      showSnackbar('Error', 'Failed to add photos: ${e.toString()}');
+    }
+  }
+
   Widget wrapDelete(Widget child, Function(BuildContext) onPressed) {
     return Slidable(
       endActionPane: ActionPane(
@@ -312,6 +350,17 @@ class _SharedStreamsPanelState extends OptimizedState<SharedStreamsPanel> {
           rethrow;
         }
       }));
+      // Add Photos button for synced albums
+      if (syncing && !kIsDesktop) {
+        albums.add(SettingsTile(
+          title: "Add Photos to ${album.name ?? 'Album'}",
+          leading: Icon(
+            iOS ? CupertinoIcons.photo_on_rectangle : Icons.add_photo_alternate_outlined,
+            color: context.theme.colorScheme.primary,
+          ),
+          onTap: () => _addPhotosToAlbum(album),
+        ));
+      }
       if (index != myAlbums.length - 1) albums.add(const SettingsDivider(padding: EdgeInsets.only(left: 16.0)));
     }
 

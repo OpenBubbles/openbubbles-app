@@ -531,6 +531,34 @@ class RustPushBackend implements BackendService {
       }
     }
     Logger.info("uploaded");
+    // Detect sticker sends by balloonBundleId
+    final isStickerSend = m.balloonBundleId == "com.apple.Stickers.UserGenerated.MessagesExtension";
+    api.PartExtension? stickerExt;
+    api.ExtensionApp? stickerApp;
+    if (isStickerSend) {
+      stickerExt = api.PartExtension.sticker(
+        msgWidth: 0.0,
+        rotation: 0.0,
+        sai: BigInt.zero,
+        scale: 1.0,
+        sli: BigInt.zero,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        version: BigInt.one,
+        hash: "",
+        safi: BigInt.zero,
+        effectType: 0,
+        stickerId: uuid.v4().toUpperCase(),
+      );
+      stickerApp = api.ExtensionApp(
+        name: "Stickers",
+        bundleId: "com.apple.Stickers.UserGenerated.MessagesExtension",
+        balloon: api.Balloon(
+          url: "",
+          isLive: false,
+        ),
+      );
+    }
     var msg = await api.newMsg(
         conversation: await chat.getConversationData(),
         sender: await chat.ensureHandle(),
@@ -539,14 +567,17 @@ class RustPushBackend implements BackendService {
               field0: [
                 if (m.payloadData?.appData?.first.ldText != null)
                 api.IndexedMessagePart(part_: api.MessagePart.object(m.payloadData!.appData!.first.ldText!)),
-                api.IndexedMessagePart(part_: api.MessagePart.attachment(attachment!))
+                api.IndexedMessagePart(
+                  part_: api.MessagePart.attachment(attachment!),
+                  ext: stickerExt,
+                )
               ]),
           replyGuid: m.threadOriginatorGuid,
           replyPart: m.threadOriginatorGuid == null ? null : m.threadOriginatorPart,
           effect: m.expressiveSendStyleId,
           service: await getService(chat, forMessage: m),
           subject: m.subject,
-          app: m.payloadData == null ? null : pushService.dataToApp(m.payloadData!),
+          app: stickerApp ?? (m.payloadData == null ? null : pushService.dataToApp(m.payloadData!)),
           voice: isAudioMessage,
           scheduled: m.dateScheduled != null ? api.ScheduleMode(ms: m.dateScheduled!.millisecondsSinceEpoch, schedule: true) : null,
           embeddedProfile: await pushService.getShareProfileMessageFor(chat.participants),

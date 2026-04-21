@@ -1,6 +1,8 @@
 import 'package:bluebubbles/helpers/helpers.dart';
+import 'package:bluebubbles/app/layouts/settings/pages/message_view/sticker_manager_panel.dart';
 import 'package:bluebubbles/app/layouts/settings/widgets/settings_widgets.dart';
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
+import 'package:bluebubbles/app/wrappers/theme_switcher.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -225,6 +227,22 @@ class _AttachmentPanelState extends OptimizedState<AttachmentPanel> {
                             subtitle: "Set the swipe direction to go to previous media items",
                             secondaryColor: headerColor,
                           )),
+                      if (!kIsDesktop)
+                        const SettingsDivider(padding: EdgeInsets.only(left: 16.0)),
+                      if (!kIsDesktop)
+                        SettingsTile(
+                          title: "Manage Stickers (BETA)",
+                          subtitle: "Add, preview, and delete saved stickers",
+                          backgroundColor: tileColor,
+                          trailing: Icon(Icons.chevron_right, color: context.theme.colorScheme.outline),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              ThemeSwitcher.buildPageRoute(
+                                builder: (context) => StickerManagerPanel(),
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
               ],

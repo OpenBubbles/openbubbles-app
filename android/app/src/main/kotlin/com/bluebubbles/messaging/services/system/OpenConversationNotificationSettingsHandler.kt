@@ -35,10 +35,11 @@ class OpenConversationNotificationSettingsHandler: MethodCallHandlerImpl() {
         Log.d(Constants.logTag, "Creating channel...")
         // setup channel with parameters
         val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
-        // set the channel to allow bubbling, bypassing DND, and showing badges
+        // set the channel to allow bubbling and showing badges
         channel.setAllowBubbles(true)
-        channel.setBypassDnd(true)
         channel.setShowBadge(true)
+        // only bypass DND for notify_anyways channels
+        channel.setBypassDnd(channelId.endsWith(".notify_anyways"))
         channel.setConversationId("com.bluebubbles.new_messages", channelId);
         // create the channel
         notificationManager.createNotificationChannel(channel)

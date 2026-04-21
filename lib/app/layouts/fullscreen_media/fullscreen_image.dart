@@ -116,6 +116,20 @@ class _FullscreenImageState extends OptimizedState<FullscreenImage> with Automat
                     await as.saveToDisk(widget.file);
                   },
                 ),
+                if (!kIsWeb)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20.0),
+                    child: FloatingActionButton(
+                      backgroundColor: context.theme.colorScheme.secondary,
+                      child: Icon(
+                        Icons.emoji_emotions_outlined,
+                        color: context.theme.colorScheme.onSecondary,
+                      ),
+                      onPressed: () async {
+                        await as.saveAsSticker(widget.file);
+                      },
+                    ),
+                  ),
                 if (!kIsWeb && !kIsDesktop)
                   Padding(
                     padding: const EdgeInsets.only(left: 20.0),
@@ -160,6 +174,13 @@ class _FullscreenImageState extends OptimizedState<FullscreenImage> with Automat
                         color: samsung ? Colors.white : context.theme.colorScheme.primary,
                       ),
                       label: 'Download'),
+                  if (!kIsWeb)
+                    NavigationDestination(
+                        icon: Icon(
+                          iOS ? CupertinoIcons.smiley : Icons.emoji_emotions_outlined,
+                          color: samsung ? Colors.white : context.theme.colorScheme.primary,
+                        ),
+                        label: 'Save as Sticker'),
                   if (!kIsWeb && !kIsDesktop)
                     NavigationDestination(
                         icon: Icon(
@@ -183,20 +204,35 @@ class _FullscreenImageState extends OptimizedState<FullscreenImage> with Automat
                         label: 'Refresh'),
                 ],
                 onDestinationSelected: (value) async {
-                  if (value == 0) {
-                    await as.saveToDisk(widget.file);
-                  } else if (value == 1) {
-                    if (kIsWeb || kIsDesktop) return showMetadataDialog(widget.attachment, context);
-                    if (widget.file.path == null) return;
-                    Share.file(
-                      "Shared ${widget.attachment.mimeType!.split("/")[0]} from OpenBubbles: ${widget.attachment.transferName}",
-                      widget.file.path!,
-                    );
-                  } else if (value == 2) {
-                    if (kIsWeb || kIsDesktop) return refreshAttachment();
-                    showMetadataDialog(widget.attachment, context);
-                  } else if (value == 3) {
-                    refreshAttachment();
+                  // Build an ordered action list matching the conditionally-included destinations
+                  final actions = <String>[
+                    'download',
+                    if (!kIsWeb) 'sticker',
+                    if (!kIsWeb && !kIsDesktop) 'share',
+                    if (iOS) 'metadata',
+                    if (iOS) 'refresh',
+                  ];
+                  final action = actions[value];
+                  switch (action) {
+                    case 'download':
+                      await as.saveToDisk(widget.file);
+                      break;
+                    case 'share':
+                      if (widget.file.path == null) return;
+                      Share.file(
+                        "Shared ${widget.attachment.mimeType!.split("/")[0]} from OpenBubbles: ${widget.attachment.transferName}",
+                        widget.file.path!,
+                      );
+                      break;
+                    case 'metadata':
+                      showMetadataDialog(widget.attachment, context);
+                      break;
+                    case 'refresh':
+                      refreshAttachment();
+                      break;
+                    case 'sticker':
+                      await as.saveAsSticker(widget.file);
+                      break;
                   }
                 },
               ),

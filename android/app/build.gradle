@@ -162,6 +162,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging-directboot:24.0.0'
     implementation 'com.google.firebase:firebase-iid:21.1.0'
     implementation 'com.google.firebase:firebase-firestore:25.0.0'
+    // ML Kit Subject Segmentation for "Create Sticker" (iOS-style Visual Look Up)
+    implementation 'com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1'
 
     // Kotlin Coroutines (async)
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1"

@@ -160,7 +160,7 @@ class GetMessages extends AsyncTask<List<dynamic>, List<Message>> {
       associatedMessagesQuery.close();
       associatedMessages = MessageHelper.normalizedAssociatedMessages(associatedMessages);
       for (Message m in associatedMessages) {
-        if (m.associatedMessageType != "sticker") continue;
+        if (m.associatedMessageType != "sticker" && m.associatedMessageType != "stickerback") continue;
         m.attachments = List<Attachment>.from(m.dbAttachments);
       }
       for (Message m in messages) {
@@ -235,7 +235,7 @@ class AddMessages extends AsyncTask<List<dynamic>, List<Message>> {
       /// Assign the relevant attachments and associated messages to the original
       /// messages
       for (Message m in associatedMessages) {
-        if (m.associatedMessageType != "sticker") continue;
+        if (m.associatedMessageType != "sticker" && m.associatedMessageType != "stickerback") continue;
         m.attachments = List<Attachment>.from(m.dbAttachments);
       }
       for (Message m in newMessages) {

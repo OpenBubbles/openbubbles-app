@@ -65,6 +65,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
 
   // text field items
   bool showAttachmentPicker = false;
+  bool isStickerSend = false;
   RxBool showEmojiPicker = false.obs;
   final GlobalKey textFieldKey = GlobalKey();
   final RxList<PlatformFile> pickedAttachments = <PlatformFile>[].obs;

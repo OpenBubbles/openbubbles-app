@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/database/models.dart';
+import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:universal_io/io.dart';
 
 class StickerHolder extends StatefulWidget {
@@ -53,23 +56,47 @@ class _StickerHolderState extends OptimizedState<StickerHolder> with AutomaticKe
   }
 
   Future<void> checkImage(Message message, Attachment attachment) async {
-    final pathName = attachment.path;
-    // Check via the image package to make sure this is a valid, render-able image
-    // final image = await compute(decodeIsolate, PlatformFile(
-    //     path: pathName,
-    //     name: attachment.transferName!,
-    //     bytes: attachment.bytes,
-    //     size: attachment.totalBytes ?? 0,
-    //   ),
-    // );
-    final bytes = await File(pathName).readAsBytes();
-    var stickerData = message.attributedBody.firstOrNull?.runs
-      .firstWhere((element) => element.attributes?.attachmentGuid == attachment.guid).attributes?.stickerData;
-    controller.stickerData[message.guid!] = {
-      attachment.guid!: (bytes, stickerData)
-    };
-    Logger.debug("sticker count ${controller.stickerData.length}");
-    setState(() {});
+    try {
+      String pathName = attachment.path;
+
+      // Check for HEIC and use converted PNG if available, or convert
+      if (attachment.mimeType?.contains('image/hei') == true) {
+        final pngPath = "$pathName.png";
+        if (await File(pngPath).exists()) {
+          pathName = pngPath;
+        } else if (!kIsDesktop) {
+          final file = await FlutterImageCompress.compressAndGetFile(
+            pathName,
+            pngPath,
+            format: CompressFormat.png,
+            keepExif: true,
+            quality: 100,
+          );
+          if (file != null) {
+            pathName = pngPath;
+          }
+        }
+      }
+
+      // Check via the image package to make sure this is a valid, render-able image
+      // final image = await compute(decodeIsolate, PlatformFile(
+      //     path: pathName,
+      //     name: attachment.transferName!,
+      //     bytes: attachment.bytes,
+      //     size: attachment.totalBytes ?? 0,
+      //   ),
+      // );
+      final bytes = await File(pathName).readAsBytes();
+      var stickerData = message.attributedBody.firstOrNull?.runs
+        .firstWhereOrNull((element) => element.attributes?.attachmentGuid == attachment.guid)?.attributes?.stickerData;
+      controller.stickerData[message.guid!] = {
+        attachment.guid!: (bytes, stickerData)
+      };
+      Logger.debug("sticker count ${controller.stickerData.length}");
+      setState(() {});
+    } catch (e, stack) {
+      Logger.error("Failed to load sticker image", error: e, trace: stack);
+    }
   }
 
   @override
@@ -110,6 +137,9 @@ class _StickerHolderState extends OptimizedState<StickerHolder> with AutomaticKe
                   gaplessPlayback: true,
                   cacheHeight: 200,
                   filterQuality: FilterQuality.none,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox.shrink();
+                  },
                 ),
                 scale: e.$2?.scale ?? 1,
               ),

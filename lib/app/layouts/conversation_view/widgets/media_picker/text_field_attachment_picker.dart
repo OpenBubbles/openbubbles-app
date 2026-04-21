@@ -27,6 +27,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:collection/collection.dart';
 import 'package:bluebubbles/helpers/types/constants.dart' as constants;
+import 'package:bluebubbles/app/layouts/conversation_view/widgets/media_picker/sticker_picker.dart';
 
 class AttachmentPicker extends StatefulWidget {
   AttachmentPicker({
@@ -47,6 +48,7 @@ class AttachmentPickerState extends OptimizedState<AttachmentPicker> {
   List<Map<String, dynamic>> iconsList = [];
 
   App? currentApp;
+  bool showStickerPicker = false;
 
   void generateIcons() {
     iconsList = [
@@ -277,7 +279,24 @@ class AttachmentPickerState extends OptimizedState<AttachmentPicker> {
           }
         }
       },
+      {
+        "icon": iOS ? CupertinoIcons.smiley : Icons.emoji_emotions_outlined,
+        "text": "Stickers",
+        "handle": () {
+          setState(() {
+            showStickerPicker = true;
+          });
+        }
+      },
     ];
+
+    // Sort static items by user's saved order
+    final order = ss.settings.attachmentPickerOrder;
+    iconsList.sort((a, b) {
+      final aIndex = order.indexOf(a["text"] as String);
+      final bIndex = order.indexOf(b["text"] as String);
+      return (aIndex == -1 ? 999 : aIndex).compareTo(bIndex == -1 ? 999 : bIndex);
+    });
 
     if(!controller.chat.isIMessage) return;
     for (var app in es.cachedStatus) {
@@ -386,6 +405,39 @@ class AttachmentPickerState extends OptimizedState<AttachmentPicker> {
 
   @override
   Widget build(BuildContext context) {
+    if (showStickerPicker) {
+      return Stack(
+        children: [
+          StickerPicker(controller: controller),
+          Positioned(
+            top: 5,
+            left: 5,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  showStickerPicker = false;
+                  // Clear sticker state so regular photos don't send as stickers
+                  controller.isStickerSend = false;
+                  controller.pickedAttachments.clear();
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: context.theme.colorScheme.properSurface.withOpacity(0.8),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  iOS ? CupertinoIcons.back : Icons.arrow_back,
+                  size: 20,
+                  color: context.theme.colorScheme.properOnSurface,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     if (currentApp != null) {
       return SizedBox(
         height: 300,
