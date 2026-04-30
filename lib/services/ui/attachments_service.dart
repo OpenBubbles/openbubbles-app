@@ -10,6 +10,7 @@ import 'package:exif/exif.dart';
 import 'package:file_picker/file_picker.dart' hide PlatformFile;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:get/get.dart';
 import 'package:image_size_getter/file_input.dart';
@@ -26,6 +27,7 @@ import 'package:vcf_dart/vcf_dart.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 AttachmentsService as = Get.isRegistered<AttachmentsService>() ? Get.find<AttachmentsService>() : Get.put(AttachmentsService());
+const MethodChannel _desktopMediaChannel = MethodChannel('com.bluebubbles.messaging');
 
 class AttachmentsService extends GetxService {
 
@@ -346,19 +348,28 @@ class AttachmentsService extends GetxService {
     }
 
     // Handle getting heic and tiff images
-    if (attachment.mimeType!.contains('image/hei') && !kIsDesktop) {
+    if (attachment.mimeType!.contains('image/hei')) {
       if (await File("$filePath.png").exists()) {
         originalFile = File("$filePath.png");
       } else {
         try {
-          if (onlyFetchData) {
+          if (kIsDesktop && Platform.isLinux) {
+            await _desktopMediaChannel.invokeMethod("decode-heif", {
+              "file": filePath,
+              "output": "$filePath.png",
+            });
+            originalFile = File("$filePath.png");
+            if (onlyFetchData) {
+              return await originalFile.readAsBytes();
+            }
+          } else if (!kIsDesktop && onlyFetchData) {
             return await FlutterImageCompress.compressWithFile(
               filePath,
               format: CompressFormat.png,
               keepExif: true,
               quality: isPreview ? 25 : 100,
             );
-          } else {
+          } else if (!kIsDesktop) {
             final file = await FlutterImageCompress.compressAndGetFile(
               filePath,
               "$filePath.png",
@@ -422,7 +433,7 @@ class AttachmentsService extends GetxService {
         }
       } else if (attachment.mimeStart == "image") {
         try {
-          Size size = await getImageSizing(filePath, attachment);
+          Size size = await getImageSizing(originalFile.path, attachment);
           if (size.width != 0 && size.height != 0) {
             attachment.width = size.width.toInt();
             attachment.height = size.height.toInt();
