@@ -346,7 +346,7 @@ class AttachmentsService extends GetxService {
     }
 
     // Handle getting heic and tiff images
-    if (attachment.mimeType!.contains('image/hei') && !kIsDesktop) {
+    if (attachment.mimeType!.contains('image/hei') && !Platform.isWindows) {
       if (await File("$filePath.png").exists()) {
         originalFile = File("$filePath.png");
       } else {

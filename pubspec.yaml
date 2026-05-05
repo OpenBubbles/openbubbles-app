@@ -73,6 +73,7 @@ dependencies:
   flutter_displaymode: ^0.6.0 # android only
   flutter_dotenv: ^5.1.0
   flutter_image_compress: ^2.2.0
+  flutter_image_compress_linux: ^0.1.0
   flutter_improved_scrolling: ^0.0.3
   flutter_isolate: ^2.1.0
   flutter_keyboard_visibility: ^6.0.0 # no desktop support
