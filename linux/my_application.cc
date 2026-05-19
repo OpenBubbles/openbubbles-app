@@ -1,6 +1,8 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <cstring>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -12,9 +14,67 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  FlMethodChannel* channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+static void respond_with_error(FlMethodCall* method_call,
+                               const gchar* code,
+                               const gchar* message) {
+  g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(
+      fl_method_error_response_new(code, message, nullptr));
+  fl_method_call_respond(method_call, response, nullptr);
+}
+
+static void method_call_cb(FlMethodChannel* channel,
+                           FlMethodCall* method_call,
+                           gpointer user_data) {
+  (void)channel;
+  (void)user_data;
+  const gchar* method = fl_method_call_get_name(method_call);
+
+  if (strcmp(method, "decode-heif") != 0) {
+    g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(
+        fl_method_not_implemented_response_new());
+    fl_method_call_respond(method_call, response, nullptr);
+    return;
+  }
+
+  FlValue* args = fl_method_call_get_args(method_call);
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP) {
+    respond_with_error(method_call, "bad-args", "Expected argument map");
+    return;
+  }
+
+  FlValue* file_value = fl_value_lookup_string(args, "file");
+  FlValue* output_value = fl_value_lookup_string(args, "output");
+  if (file_value == nullptr || output_value == nullptr ||
+      fl_value_get_type(file_value) != FL_VALUE_TYPE_STRING ||
+      fl_value_get_type(output_value) != FL_VALUE_TYPE_STRING) {
+    respond_with_error(method_call, "bad-args", "Missing file or output path");
+    return;
+  }
+
+  const gchar* input_path = fl_value_get_string(file_value);
+  const gchar* output_path = fl_value_get_string(output_value);
+
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GdkPixbuf) pixbuf = gdk_pixbuf_new_from_file(input_path, &error);
+  if (pixbuf == nullptr) {
+    respond_with_error(method_call, "decode-failed", error->message);
+    return;
+  }
+
+  if (!gdk_pixbuf_save(pixbuf, output_path, "png", &error, nullptr)) {
+    respond_with_error(method_call, "encode-failed", error->message);
+    return;
+  }
+
+  g_autoptr(FlMethodResponse) response =
+      FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  fl_method_call_respond(method_call, response, nullptr);
+}
 
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
@@ -63,6 +123,14 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  FlEngine* engine = fl_view_get_engine(view);
+  FlBinaryMessenger* messenger = fl_engine_get_binary_messenger(engine);
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->channel = fl_method_channel_new(
+      messenger, "com.bluebubbles.messaging", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->channel, method_call_cb,
+                                            self, nullptr);
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -89,6 +157,7 @@ static gboolean my_application_local_command_line(GApplication* application, gch
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
