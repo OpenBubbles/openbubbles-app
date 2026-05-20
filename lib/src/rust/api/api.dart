@@ -852,6 +852,43 @@ Future<List<Follow>> selectFriend(
     RustLib.instance.api.crateApiApiSelectFriend(
         config: config, client: client, friend: friend);
 
+/// Post the device's current GPS coordinates to Apple's FMF server.
+/// Makes the OB device appear as a trackable location on friends' Find My maps.
+Future<void> postMyLocation(
+        {required JoinedOsConfig config,
+        required FindMyFriendsClientDefaultAnisetteProvider client,
+        required double latitude,
+        required double longitude,
+        required double altitude,
+        required double horizontalAccuracy,
+        required double verticalAccuracy}) =>
+    RustLib.instance.api.crateApiApiPostMyLocation(
+        config: config,
+        client: client,
+        latitude: latitude,
+        longitude: longitude,
+        altitude: altitude,
+        horizontalAccuracy: horizontalAccuracy,
+        verticalAccuracy: verticalAccuracy);
+
+/// Post location via the background daemon client (preferred for location sharing).
+Future<void> postMyLocationBackground(
+        {required JoinedOsConfig config,
+        required ArcFindMyClientDefaultAnisetteProvider fmfd,
+        required double latitude,
+        required double longitude,
+        required double altitude,
+        required double horizontalAccuracy,
+        required double verticalAccuracy}) =>
+    RustLib.instance.api.crateApiApiPostMyLocationBackground(
+        config: config,
+        fmfd: fmfd,
+        latitude: latitude,
+        longitude: longitude,
+        altitude: altitude,
+        horizontalAccuracy: horizontalAccuracy,
+        verticalAccuracy: verticalAccuracy);
+
 Future<List<Follow>> selectBackgroundFriend(
         {required ArcFindMyClientDefaultAnisetteProvider fmfd,
         String? friend}) =>

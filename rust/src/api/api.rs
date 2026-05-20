@@ -2106,10 +2106,54 @@ pub async fn select_friend(config: &JoinedOSConfig, client: &mut FindMyFriendsCl
     Ok(client.following.clone())
 }
 
+/// Post the device's current GPS coordinates to Apple's FMF server.
+/// This makes the OB device appear as a trackable location on friends' Find My maps.
+pub async fn post_my_location(
+    config: &JoinedOSConfig,
+    client: &mut FindMyFriendsClient<DefaultAnisetteProvider>,
+    latitude: f64,
+    longitude: f64,
+    altitude: f64,
+    horizontal_accuracy: f64,
+    vertical_accuracy: f64,
+) -> anyhow::Result<()> {
+    client.post_location(
+        &*config.config(),
+        latitude,
+        longitude,
+        altitude,
+        horizontal_accuracy,
+        vertical_accuracy,
+    ).await?;
+    Ok(())
+}
+
 pub async fn select_background_friend(fmfd: &Arc<FindMyClient<DefaultAnisetteProvider>>, friend: Option<String>) -> anyhow::Result<Vec<Follow>> {
     let mut x = fmfd.daemon.lock().await;
     x.selected_friend = friend;
     Ok(x.following.clone())
+}
+
+/// Post location via the background daemon client (preferred — daemon mode is required for posting).
+pub async fn post_my_location_background(
+    config: &JoinedOSConfig,
+    fmfd: &Arc<FindMyClient<DefaultAnisetteProvider>>,
+    latitude: f64,
+    longitude: f64,
+    altitude: f64,
+    horizontal_accuracy: f64,
+    vertical_accuracy: f64,
+) -> anyhow::Result<()> {
+    let mut daemon = fmfd.daemon.lock().await;
+    daemon.post_location(
+        &*config.config(),
+        latitude,
+        longitude,
+        altitude,
+        horizontal_accuracy,
+        vertical_accuracy,
+    ).await?;
+    Ok(())
 }
 
 pub async fn get_background_following(fmfd: &Arc<FindMyClient<DefaultAnisetteProvider>>) -> Vec<Follow> {
