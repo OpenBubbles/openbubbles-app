@@ -1,27 +1,17 @@
 # OpenBubbles
 
-OpenBubbles is an open-source and cross-platform ecosystem of apps aimed to bring Apple platform services to Android and Windows! With OpenBubbles, you'll be able to send messages, media, and much more to your friends and family.
+OpenBubbles is an open-source and cross-platform ecosystem of apps aimed to bring Apple platform services to Android and Windows! With OpenBubbles, you'll be able to send messages, media, and much more to your friends and family. This repo is where new beta features are worked on.
 
-**Please note that OpenBubbles requires access to a Mac and an Apple ID to function!
+**Please note that OpenBubbles requires access to a Mac/iPhone and an Apple ID to function!
 
-Key Features:
+Key Features added so far:
 
-- Send/receive emoji reactions 
-- Send formatted messages (bold, italic, etc)
-- Edit messages
-- Unsend messages 
-- Call your friends on FaceTime
-- Answer calls from your friends on FaceTime
-- See friends' locations on FindMy
-- Join and Sync iCloud Shared Albums
-- See typing indicators
-- Receive stickers
-- Create and manage group chats
-- Add an icon to personalize your group chat 
-- Send images and videos
-- Forward SMS and MMS to/from connected Macs or other devices with OpenBubbles 
+- Send/receive stickers
+- Show friend locations in chat header, just like iOS
+- Carousel images in chat (WIP)
+- And many more!
 
-If you need help setting up the app, have any issues or feature requests, or just want to come hang out, feel free to join our Discord, linked below! We hope you enjoy using the app!
+If you need help setting up the app, have any issues or feature requests, or just want to come hang out, feel free to join the Discord and message the #development channel, linked below! We hope you enjoy using the app!
 
 ## Useful links
 
