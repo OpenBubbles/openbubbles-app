@@ -5,8 +5,14 @@ name: Linux Flatpak Bundle
 on:
   workflow_dispatch:
   push:
+    branches:
+      - ob-cli-frb-shim
     tags:
       - 'v1.15.0+*'
+
+concurrency:
+  group: linux-flatpak-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write

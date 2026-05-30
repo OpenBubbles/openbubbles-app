@@ -1,12 +1,18 @@
 # Build the prebuilt Linux bundle consumed by Flathub (bluebubbles-linux-x86_64.tar).
-# Trigger on version tags or manually; attach artifacts to a GitHub Release.
+# Runs on branch pushes, version tags, or manually. Release upload is tag-only.
 name: Linux Flatpak Bundle
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - ob-cli-frb-shim
     tags:
       - 'v1.15.0+*'
+
+concurrency:
+  group: linux-flatpak-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
