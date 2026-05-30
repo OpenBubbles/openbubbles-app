@@ -1,13 +1,15 @@
 //! Runtime client for the Flathub `librust_lib_bluebubbles.so` via FRB wire protocol.
 
 use std::collections::HashMap;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use allo_isolate::ffi::{DartCObject, DartCObjectType, DartPostCObjectFnType};
+use allo_isolate::ffi::{
+    DartCObject, DartCObjectType, DartHandleFinalizer, DartPostCObjectFnType, DartTypedDataType,
+};
 use anyhow::{Context, Result, bail};
 use flutter_rust_bridge::for_generated::{
     Dart2RustMessageSse, Rust2DartAction, SseDeserializer, SseSerializer, WireSyncRust2DartSse,
@@ -16,22 +18,36 @@ use flutter_rust_bridge::for_generated::{
 use libloading::os::unix::Symbol;
 use tokio::sync::oneshot;
 
-use crate::frb_generated::SseDecode;
+use crate::flathub_host::func_ids::{FuncIds, func_ids_for_hash};
+use crate::frb_generated::{SseDecode, SseEncode, FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH};
 
 type PdePrimary = unsafe extern "C" fn(i32, i64, *mut u8, i32, i32);
 type PdeSync = unsafe extern "C" fn(i32, *mut u8, i32, i32) -> WireSyncRust2DartSse;
 type StorePost = unsafe extern "C" fn(DartPostCObjectFnType);
 type FreeSyncWire = unsafe extern "C" fn(WireSyncRust2DartSse);
 type RustVecU8New = unsafe extern "C" fn(i32) -> *mut u8;
-type RustVecU8Free = unsafe extern "C" fn(*mut u8, i32);
+type ContentHashFn = unsafe extern "C" fn() -> i32;
 
 const DEFAULT_SO: &str = "/var/lib/flatpak/app/app.openbubbles.OpenBubbles/x86_64/stable/active/files/bluebubbles/lib/librust_lib_bluebubbles.so";
+
+/// FRB codegen hash for the current git checkout (`frb_generated.rs`).
+pub const SOURCE_FRB_CONTENT_HASH: i32 = FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH;
 
 static PORT_WAITERS: OnceLock<Mutex<HashMap<i64, oneshot::Sender<Vec<u8>>>>> = OnceLock::new();
 static NEXT_PORT: AtomicI64 = AtomicI64::new(1);
 
 fn port_waiters() -> &'static Mutex<HashMap<i64, oneshot::Sender<Vec<u8>>>> {
     PORT_WAITERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+unsafe fn copy_typed_data_bytes(ty: DartTypedDataType, values: *mut u8, length: isize) -> Option<Vec<u8>> {
+    if length <= 0 {
+        return Some(Vec::new());
+    }
+    if ty as i32 != DartTypedDataType::Uint8 as i32 {
+        return None;
+    }
+    Some(std::slice::from_raw_parts(values, length as usize).to_vec())
 }
 
 unsafe fn extract_post_bytes(object: *mut DartCObject) -> Option<Vec<u8>> {
@@ -42,11 +58,14 @@ unsafe fn extract_post_bytes(object: *mut DartCObject) -> Option<Vec<u8>> {
     match obj.ty {
         DartCObjectType::DartTypedData => {
             let td = obj.value.as_typed_data;
-            let len = td.length as usize;
-            if td.ty as i32 != allo_isolate::ffi::DartTypedDataType::Uint8 as i32 {
-                return None;
-            }
-            Some(std::slice::from_raw_parts(td.values, len).to_vec())
+            copy_typed_data_bytes(td.ty, td.values, td.length)
+        }
+        DartCObjectType::DartExternalTypedData => {
+            let td = obj.value.as_external_typed_data;
+            let bytes = copy_typed_data_bytes(td.ty, td.data, td.length)?;
+            let callback: DartHandleFinalizer = td.callback;
+            callback(td.data as *mut _, td.peer);
+            Some(bytes)
         }
         DartCObjectType::DartArray => {
             let arr = obj.value.as_array;
@@ -66,7 +85,10 @@ unsafe extern "C" fn host_post_cobject(port: i64, object: *mut DartCObject) -> b
         None => return false,
     };
     if !object.is_null() {
-        allo_isolate::ffi::run_destructors(&mut *object);
+        let ty = (*object).ty;
+        if ty != DartCObjectType::DartExternalTypedData {
+            allo_isolate::ffi::run_destructors(&mut *object);
+        }
     }
     if let Ok(mut map) = port_waiters().lock() {
         if let Some(tx) = map.remove(&port) {
@@ -103,10 +125,19 @@ pub struct FlathubLib {
     pde_sync: PdeSync,
     free_sync: FreeSyncWire,
     rust_vec_new: RustVecU8New,
-    rust_vec_free: RustVecU8Free,
+    content_hash: i32,
+    func_ids: FuncIds,
 }
 
 impl FlathubLib {
+    pub fn content_hash(&self) -> i32 {
+        self.content_hash
+    }
+
+    pub fn func_ids(&self) -> FuncIds {
+        self.func_ids
+    }
+
     pub fn load() -> Result<Self> {
         let path = resolve_library_path()?;
         Self::load_from(&path)
@@ -121,7 +152,7 @@ impl FlathubLib {
             .context("library path contains interior nul")?;
         let handle = unsafe { libc::dlopen(c_path.as_ptr(), RTLD_LAZY | RTLD_DEEPBIND) };
         if handle.is_null() {
-            let err = unsafe { std::ffi::CStr::from_ptr(libc::dlerror()) };
+            let err = unsafe { CStr::from_ptr(libc::dlerror()) };
             bail!("failed to dlopen {}: {err:?}", path.display());
         }
         let lib = unsafe { libloading::os::unix::Library::from_raw(handle) };
@@ -148,10 +179,17 @@ impl FlathubLib {
             lib.get(b"rust_vec_u8_new\0")
                 .context("rust_vec_u8_new not found")?
         };
-        let rust_vec_free = *unsafe {
-            lib.get(b"rust_vec_u8_free\0")
-                .context("rust_vec_u8_free not found")?
+        let content_hash_fn: Symbol<ContentHashFn> = unsafe {
+            lib.get(b"frb_get_rust_content_hash\0")
+                .context("frb_get_rust_content_hash not found")?
         };
+        let content_hash = unsafe { content_hash_fn() };
+        let func_ids = func_ids_for_hash(content_hash)?;
+        if content_hash != SOURCE_FRB_CONTENT_HASH {
+            eprintln!(
+                "note: Flathub library FRB hash ({content_hash}) differs from ob-cli source ({SOURCE_FRB_CONTENT_HASH}); using Flathub funcIds."
+            );
+        }
 
         Ok(Self {
             _lib: lib,
@@ -159,21 +197,21 @@ impl FlathubLib {
             pde_sync: pde_sync_fn,
             free_sync: free_sync_fn,
             rust_vec_new,
-            rust_vec_free,
+            content_hash,
+            func_ids,
         })
     }
 
     fn encode_wire(&self, encode: impl FnOnce(&mut SseSerializer)) -> (i32, i32, *mut u8) {
         let mut serializer = SseSerializer::new();
         encode(&mut serializer);
-        let vec = serializer.cursor.into_inner();
-        let data_len = vec.len() as i32;
+        let bytes = serializer.cursor.into_inner();
+        let data_len = bytes.len() as i32;
         let ptr = unsafe { (self.rust_vec_new)(data_len) };
-        if ptr.is_null() {
-            panic!("rust_vec_u8_new returned null");
-        }
-        unsafe {
-            std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
+        if !bytes.is_empty() {
+            unsafe {
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr, bytes.len());
+            }
         }
         (data_len, data_len, ptr)
     }
@@ -231,6 +269,13 @@ impl FlathubLib {
         Self::decode_response(bytes)
     }
 
+    pub async fn call_async_no_args<T>(&self, func_id: i32) -> Result<T>
+    where
+        T: SseDecode,
+    {
+        self.call_async(func_id, |_| {}).await
+    }
+
     pub fn call_sync<T, F>(&self, func_id: i32, encode: F) -> Result<T>
     where
         T: SseDecode,
@@ -251,7 +296,6 @@ fn decode_error_payload(payload: &[u8]) -> Result<String> {
     let (ptr, rust_vec_len) = {
         let payload = payload.to_vec();
         let data_len = payload.len() as i32;
-        // leak for deserializer; small error strings only
         let mut buf = payload;
         let len = buf.len() as i32;
         let p = buf.as_mut_ptr();
@@ -272,4 +316,41 @@ pub fn shared() -> Result<Arc<FlathubLib>> {
         .get_or_init(|| FlathubLib::load().map(Arc::new).map_err(|e| e.to_string()))
         .clone()
         .map_err(|e| anyhow::anyhow!(e))
+}
+
+/// Smoke-test FRB wire calls against the Flathub library (no APS state required).
+pub async fn frb_probe(verbose: bool) -> Result<()> {
+    let lib = shared()?;
+    let ids = lib.func_ids();
+    let so = resolve_library_path()?;
+    println!("library: {}", so.display());
+    println!("so frb content hash: {}", lib.content_hash());
+    println!("source frb content hash: {SOURCE_FRB_CONTENT_HASH}");
+
+    let udid: String = lib.call_async_no_args(ids.generate_udid).await?;
+    println!("generate_udid: {udid}");
+
+    let hex_empty: String = lib
+        .call_async(ids.encode_hex, |s| {
+            Vec::<u8>::new().sse_encode(s);
+        })
+        .await?;
+    if hex_empty != "" {
+        bail!("encode_hex([]) expected empty string, got {hex_empty:?}");
+    }
+    if verbose {
+        println!("encode_hex([]): ok");
+    }
+
+    let hex_dead: String = lib
+        .call_async(ids.encode_hex, |s| {
+            vec![0xde_u8, 0xad].sse_encode(s);
+        })
+        .await?;
+    if hex_dead != "dead" {
+        bail!("encode_hex([0xde,0xad]) expected \"dead\", got {hex_dead:?}");
+    }
+    println!("encode_hex([0xde,0xad]): {hex_dead}");
+    println!("frb probe ok");
+    Ok(())
 }

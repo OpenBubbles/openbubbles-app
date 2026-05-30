@@ -71,6 +71,12 @@ enum Commands {
         #[command(subcommand)]
         action: ChatsAction,
     },
+    /// Test FRB wire calls against the Flathub library (no APS lock needed)
+    FrbProbe {
+        /// Print per-step detail
+        #[arg(long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -519,6 +525,9 @@ async fn main() -> Result<()> {
             let result = cmd_status(&data_dir, &app).await;
             shutdown_app(app).await;
             result
+        }
+        Commands::FrbProbe { verbose } => {
+            rust_lib_bluebubbles::flathub_host::frb_probe(*verbose).await
         }
         Commands::Send {
             to,

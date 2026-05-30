@@ -1,0 +1,16 @@
+[package]
+name = "ob-frb-probe"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ob-frb-probe"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+allo-isolate = "0.1.26"
+flutter_rust_bridge = "=2.3.0"
+libc = "0.2"
+libloading = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
