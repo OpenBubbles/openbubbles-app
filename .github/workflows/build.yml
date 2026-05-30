@@ -1,5 +1,27 @@
-on: [ push, pull_request ]
-name: Build
+# Android app CI — not used for ob-cli. Run manually or when Android/Dart app files change.
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android/**'
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'assets/**'
+      - 'rust_builder/**'
+      - 'telephony_plus/**'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'assets/**'
+      - 'rust_builder/**'
+      - 'telephony_plus/**'
+
 jobs:
   build:
     name: OpenBubbles APK
@@ -35,7 +57,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      
+
       - name: Setup Android SDK
         uses: amyu/setup-android@v5
 
@@ -45,7 +67,6 @@ jobs:
       - name: Set up fake Fairplay keys
         run: |
           mkdir -p rustpush/certs/fairplay
-
           cert_names=(
             "4056631661436364584235346952193"
             "4056631661436364584235346952194"
@@ -58,17 +79,14 @@ jobs:
             "4056631661436364584235346952201"
             "4056631661436364584235346952208"
           )
-
           for name in "${cert_names[@]}"; do
-              cp rustpush/certs/legacy-fairplay/fairplay.pem rustpush/certs/fairplay/$name.pem
-              cp rustpush/certs/legacy-fairplay/fairplay.crt rustpush/certs/fairplay/$name.crt
+            cp rustpush/certs/legacy-fairplay/fairplay.pem "rustpush/certs/fairplay/$name.pem"
+            cp rustpush/certs/legacy-fairplay/fairplay.crt "rustpush/certs/fairplay/$name.crt"
           done
 
-      # First run is expected to fail until ffmpeg_kit_flutter_new is fixed.
       - name: Run Build Script
-        run: |
-          flutter build apk --flavor alpha --debug --target-platform android-arm64
-      
+        run: flutter build apk --flavor alpha --debug --target-platform android-arm64
+
       - uses: actions/upload-artifact@v4
         with:
           name: Alpha Debug APK

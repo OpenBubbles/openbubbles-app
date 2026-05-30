@@ -1,0 +1,94 @@
+# Build the prebuilt Linux bundle consumed by Flathub (bluebubbles-linux-x86_64.tar).
+# Runs on branch pushes, version tags, or manually. Release upload is tag-only.
+name: Linux Flatpak Bundle
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ob-cli-frb-shim
+    tags:
+      - 'v1.15.0+*'
+
+concurrency:
+  group: linux-flatpak-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: bluebubbles-linux-x86_64.tar
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.24.0
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            jq protobuf-compiler clang cmake ninja-build pkg-config build-essential \
+            libgtk-3-dev libblkid-dev liblzma-dev libmpv-dev libsecret-1-dev \
+            libjsoncpp-dev libcurl4-openssl-dev libssl-dev \
+            libwebkit2gtk-4.1-dev libsoup-3.0-dev libayatana-appindicator3-dev \
+            libnotify-dev libdbus-1-dev libudev-dev libpulse-dev \
+            libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
+
+      - name: Set up fake Fairplay keys
+        run: |
+          mkdir -p rustpush/certs/fairplay
+          cert_names=(
+            "4056631661436364584235346952193"
+            "4056631661436364584235346952194"
+            "4056631661436364584235346952195"
+            "4056631661436364584235346952196"
+            "4056631661436364584235346952197"
+            "4056631661436364584235346952198"
+            "4056631661436364584235346952199"
+            "4056631661436364584235346952200"
+            "4056631661436364584235346952201"
+            "4056631661436364584235346952208"
+          )
+          for name in "${cert_names[@]}"; do
+            cp rustpush/certs/legacy-fairplay/fairplay.pem "rustpush/certs/fairplay/$name.pem"
+            cp rustpush/certs/legacy-fairplay/fairplay.crt "rustpush/certs/fairplay/$name.crt"
+          done
+
+      - name: Build Linux bundle
+        run: bash linux/build.sh
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluebubbles-linux-x86_64
+          path: bluebubbles-linux-x86_64.tar
+
+      - name: Publish GitHub Release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bluebubbles-linux-x86_64.tar
+          generate_release_notes: true

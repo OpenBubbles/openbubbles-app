@@ -1,0 +1,67 @@
+# Build ob-cli and the release cdylib — no Flutter or Android required.
+name: ob-cli
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'rust/**'
+      - 'rustpush/**'
+      - 'ob-frb-probe/**'
+      - '.github/workflows/ob-cli.yml'
+  pull_request:
+    paths:
+      - 'rust/**'
+      - 'rustpush/**'
+      - 'ob-frb-probe/**'
+      - '.github/workflows/ob-cli.yml'
+
+jobs:
+  build:
+    name: cargo build ob-cli
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Set up fake Fairplay keys
+        run: |
+          mkdir -p rustpush/certs/fairplay
+          cert_names=(
+            "4056631661436364584235346952193"
+            "4056631661436364584235346952194"
+            "4056631661436364584235346952195"
+            "4056631661436364584235346952196"
+            "4056631661436364584235346952197"
+            "4056631661436364584235346952198"
+            "4056631661436364584235346952199"
+            "4056631661436364584235346952200"
+            "4056631661436364584235346952201"
+            "4056631661436364584235346952208"
+          )
+          for name in "${cert_names[@]}"; do
+            cp rustpush/certs/legacy-fairplay/fairplay.pem "rustpush/certs/fairplay/$name.pem"
+            cp rustpush/certs/legacy-fairplay/fairplay.crt "rustpush/certs/fairplay/$name.crt"
+          done
+
+      - name: Build ob-cli
+        working-directory: rust
+        run: cargo build --bin ob-cli
+
+      - name: Build ob-frb-probe
+        working-directory: ob-frb-probe
+        run: cargo build
+
+      - name: Upload ob-cli binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ob-cli-debug
+          path: |
+            rust/target/debug/ob-cli
+            rust/target/debug/librust_lib_bluebubbles.so
