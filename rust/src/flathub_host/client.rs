@@ -185,11 +185,12 @@ impl FlathubLib {
         };
         let content_hash = unsafe { content_hash_fn() };
         let func_ids = func_ids_for_hash(content_hash)?;
-        if content_hash != SOURCE_FRB_CONTENT_HASH {
-            eprintln!(
-                "note: Flathub library FRB hash ({content_hash}) differs from ob-cli source ({SOURCE_FRB_CONTENT_HASH}); using Flathub funcIds."
-            );
-        }
+    if content_hash != SOURCE_FRB_CONTENT_HASH {
+        eprintln!(
+            "note: Flathub library FRB hash ({content_hash}) differs from ob-cli source ({SOURCE_FRB_CONTENT_HASH}); using Flathub funcIds.\n\
+             Run `flatpak update` after Flathub ships openbubbles >= 1.15.0+227 (see scripts/update-flathub-manifest.sh)."
+        );
+    }
 
         Ok(Self {
             _lib: lib,
