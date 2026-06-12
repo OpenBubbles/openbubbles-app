@@ -6,12 +6,13 @@ OpenBubbles is an open-source and cross-platform ecosystem of apps aimed to brin
 
 Key Features added so far in this repo:
 
-- Extensive sticker support (creating, sending, receiving)
+- Extensive sticker support (creating, sending, receiving, storing)
 - Show friend locations in chat header, just like iOS
 - Easier way to add images to shared albums
 - Improvements to Focus Mode
 - Carousel images in chat
 - Support for receiving moving stickers
+- iCloud Note support (read only for now)
 - A certain highly requested feature...
 - And many more! With more on the way!
 
