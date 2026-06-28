@@ -85,6 +85,7 @@ class _ReplyBubbleState extends CustomState<ReplyBubble, void, MessageWidgetCont
                 style: context.textTheme.labelLarge!.copyWith(color: context.theme.colorScheme.onBackground),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+                textDirection: getTextDirection(text),
               ),
             ),
           ),
@@ -185,6 +186,7 @@ class _ReplyBubbleState extends CustomState<ReplyBubble, void, MessageWidgetCont
                                 builder: (context, snapshot) {
                                   if (snapshot.data != null) {
                                     return RichText(
+                                      textDirection: getTextDirection(part.fullText),
                                       text: TextSpan(
                                         children: snapshot.data!,
                                       ),

@@ -416,6 +416,7 @@ class _ChatTitleState extends CustomState<ChatTitle, void, ConversationTileContr
       }
 
       return RichText(
+        textDirection: getTextDirection(_title),
         text: TextSpan(
           children: MessageHelper.buildEmojiText(
             _title,
@@ -551,6 +552,7 @@ class _ChatSubtitleState extends CustomState<ChatSubtitle, void, ConversationTil
       String _subtitle = hideContent ? fakeText : hideContacts && !kIsWeb ? MessageHelper.getNotificationText(Message.findOne(guid: cachedLatestMessageGuid!)!) : subtitle;
 
       return RichText(
+        textDirection: getTextDirection(_subtitle),
         text: TextSpan(
           children: MessageHelper.buildEmojiText(
             "${!iOS && isFromMe ? "You: " : ""}$_subtitle",

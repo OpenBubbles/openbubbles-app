@@ -899,7 +899,10 @@ class TextFieldComponentState extends State<TextFieldComponent> {
                     return const SizedBox.shrink();
                   }),
                 if (!isChatCreator && ss.settings.enablePrivateAPI.value && ss.settings.privateSubjectLine.value && chat!.isIMessage)
-                  TextField(
+                  TextDirectionBuilder(
+                    controller: subjController!,
+                    builder: (context, direction) => TextField(
+                    textDirection: direction,
                     textCapitalization: TextCapitalization.sentences,
                     focusNode: controller!.subjectFocusNode,
                     autocorrect: true,
@@ -935,7 +938,7 @@ class TextFieldComponentState extends State<TextFieldComponent> {
                       controller?.subjectFocusNode.requestFocus();
                     },
                     contentInsertionConfiguration: ContentInsertionConfiguration(onContentInserted: onContentCommit),
-                  ),
+                  )),
                 if (!isChatCreator && ss.settings.enablePrivateAPI.value && ss.settings.privateSubjectLine.value && chat!.isIMessage && iOS)
                   Divider(
                     height: 1.5,
@@ -945,7 +948,10 @@ class TextFieldComponentState extends State<TextFieldComponent> {
                   ),
                 CallbackShortcuts(
                   bindings: txtController.getShortcuts(),
-                  child: TextField(
+                  child: TextDirectionBuilder(
+                    controller: txtController,
+                    builder: (context, direction) => TextField(
+                    textDirection: direction,
                     textCapitalization: TextCapitalization.sentences,
                     focusNode: controller?.focusNode ?? focusNode,
                     autocorrect: true,
@@ -1003,7 +1009,7 @@ class TextFieldComponentState extends State<TextFieldComponent> {
                       sendMessage.call();
                     },
                     contentInsertionConfiguration: ContentInsertionConfiguration(onContentInserted: onContentCommit),
-                  ),
+                  )),
                 ),
               ],
             ),),
