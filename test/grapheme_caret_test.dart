@@ -16,8 +16,8 @@ void main() {
   TextEditingValue v(int base, [int? extent]) =>
       TextEditingValue(text: text, selection: TextSelection(baseOffset: base, extentOffset: extent ?? base));
 
-  test('a collapsed caret inside the pair is snapped to the pair start', () {
-    expect(snapSelectionOffSurrogatePairs(v(2)).selection, const TextSelection.collapsed(offset: 1));
+  test('a collapsed caret inside the pair is snapped past the pair end', () {
+    expect(snapSelectionOffSurrogatePairs(v(2)).selection, const TextSelection.collapsed(offset: 3));
   });
 
   test('boundary carets are unchanged', () {
@@ -29,7 +29,7 @@ void main() {
   test('a selection endpoint inside the pair is snapped (both ends handled)', () {
     // base inside the pair, extent at a boundary.
     final TextEditingValue out = snapSelectionOffSurrogatePairs(v(2, 4));
-    expect(out.selection.baseOffset, 1);
+    expect(out.selection.baseOffset, 3);
     expect(out.selection.extentOffset, 4);
   });
 
@@ -39,8 +39,8 @@ void main() {
   });
 
   test('inserting at the snapped caret keeps the emoji intact', () {
-    final int caret = snapSelectionOffSurrogatePairs(v(2)).selection.baseOffset; // 1
-    final String edited = text.replaceRange(caret, caret, 'x'); // 'ax😓b'
+    final int caret = snapSelectionOffSurrogatePairs(v(2)).selection.baseOffset; // 3
+    final String edited = text.replaceRange(caret, caret, 'x'); // 'a😓xb'
     // No lone surrogate remains.
     final List<int> u = edited.codeUnits;
     bool lone = false;
