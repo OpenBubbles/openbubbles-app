@@ -3,6 +3,7 @@ import "dart:math";
 
 import "package:bluebubbles/app/layouts/conversation_view/dialogs/custom_mention_dialog.dart";
 import "package:bluebubbles/helpers/helpers.dart";
+import "package:bluebubbles/helpers/ui/grapheme_caret.dart";
 import "package:bluebubbles/database/models.dart";
 import "package:bluebubbles/services/services.dart";
 import 'package:bluebubbles/utils/emoji.dart';
@@ -120,6 +121,11 @@ class SpellCheckTextEditingController extends TextEditingController {
       _mistakeTooltip?.remove();
       _mistakeTooltip = null;
     }
+
+    // Never leave the caret inside a UTF-16 surrogate pair: a following edit would split the
+    // emoji into lone surrogates, which the Android input channel turns into "?" (the "??"
+    // corruption) and which crash the text painter. App-side equivalent of flutter/flutter#188713.
+    newValue = snapSelectionOffSurrogatePairs(newValue);
 
     super.value = newValue;
   }
