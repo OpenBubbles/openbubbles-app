@@ -259,6 +259,9 @@ class IntentsService extends GetxService {
       if (!chatIsOpen) {
         Logger.debug("Navigating to conversation view...", tag: "IntentsService");
         await StartupTasks.waitForUI();
+        if (cm.activeChat != null) {
+          Navigator.of(Get.context!).popUntil((route) => route.isFirst);
+        }
         await Future.delayed(const Duration(seconds: 1));
         await ns.pushAndRemoveUntil(
           Get.context!,
