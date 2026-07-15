@@ -585,17 +585,23 @@ Future<void> paintAvatar(
   }
 }
 
+Uint8List _clipIsolate(Map<String, dynamic> args) {
+  Uint8List data = args['data'];
+  int size = args['size'];
+  img.Image? _image = img.decodeImage(data);
+  if (_image != null) {
+    _image = img.copyResize(_image, width: size, height: size);
+    return img.encodePng(_image);
+  }
+  return data;
+}
+
 Future<Uint8List?> clip(Uint8List data, {required int size, required bool circle}) async {
   ui.Image image;
   Uint8List _data = data;
 
   // Resize the image if it's the wrong size
-  img.Image? _image = img.decodeImage(data);
-  if (_image != null) {
-    _image = img.copyResize(_image, width: size, height: size);
-
-    _data = img.encodePng(_image);
-  }
+  _data = await compute(_clipIsolate, {'data': data, 'size': size});
 
   image = await loadImage(_data);
 

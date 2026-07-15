@@ -2,6 +2,8 @@
 
 set -e
 
+export CFLAGS="-Wno-error=unguarded-availability $CFLAGS"
+
 BASEDIR=$(dirname "$0")
 
 mkdir -p "$CARGOKIT_TOOL_TEMP_DIR"

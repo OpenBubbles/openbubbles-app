@@ -82,28 +82,11 @@ class InternalIntentReceiver: BroadcastReceiver() {
                         )
                     }
 
-                    Log.d(Constants.logTag, "Creating sender and message object for the user-created reply")
-                    val prefs = context.getSharedPreferences("FlutterSharedPreferences", 0)
-                    val sender = Person.Builder()
-                        .setName(prefs.getString("flutter.userName", "You"))
-                        .setImportant(true)
-                    val avatarPath = prefs.getString("flutter.userAvatarPath", "")
-                    if (avatarPath!!.isNotEmpty()) {
-                        val file = File(avatarPath)
-                        val bytes = ByteArray(file.length().toInt())
-                        try {
-                            val bis = BufferedInputStream(FileInputStream(file))
-                            val dis = DataInputStream(bis)
-                            dis.readFully(bytes)
-                            sender.setIcon(Utils.getAdaptiveIconFromByteArray(bytes).toIcon(context))
-                        } catch (e: IOException) {
-                            e.printStackTrace()
-                        }
-                    }
+                    Log.d(Constants.logTag, "Creating message object for the user-created reply")
                     oldStyle.addMessage(Notification.MessagingStyle.Message(
                         replyText,
-                        System.currentTimeMillis() / 1000,
-                        sender.build()
+                        System.currentTimeMillis(),
+                        null as Person?
                     ))
 
                     Log.d(Constants.logTag, "Posting the user-created reply")

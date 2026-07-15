@@ -11,7 +11,7 @@ import io.flutter.embedding.engine.loader.ApplicationInfoLoader
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
-import io.flutter.view.FlutterMain
+import io.flutter.FlutterInjector
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -42,8 +42,9 @@ class NativeSyncIsolateHandler : MethodCallHandlerImpl() {
             return
         }
 
-        FlutterMain.startInitialization(context)
-        FlutterMain.ensureInitializationComplete(context, null)
+        val loader = FlutterInjector.instance().flutterLoader()
+        loader.startInitialization(context)
+        loader.ensureInitializationComplete(context, null)
 
         Log.d(Constants.logTag, "Loading callback info")
         val info = ApplicationInfoLoader.load(context)

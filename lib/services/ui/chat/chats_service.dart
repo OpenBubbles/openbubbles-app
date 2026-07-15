@@ -196,6 +196,22 @@ class ChatsService extends GetxService {
     chats.sort(Chat.sort);
   }
 
+  Future<void> updateShareTarget(Chat c) async {
+    if (!Platform.isAndroid) return;
+    try {
+      final title = c.properTitle;
+      if (isNullOrEmpty(title)) return;
+      final icon = await avatarAsBytes(chat: c, quality: 256);
+      await mcs.invokeMethod("push-share-targets", {
+        "title": title,
+        "guid": c.guid,
+        "icon": icon,
+      });
+    } catch (ex) {
+      // ignore
+    }
+  }
+
   bool updateChat(Chat updated, {bool shouldSort = false, bool override = false}) {
     final index = chats.indexWhere((e) => updated.guid == e.guid);
     if (index != -1) {
@@ -209,6 +225,9 @@ class ChatsService extends GetxService {
       // ignore: invalid_use_of_protected_member
       chats.value[index] = override ? updated : updated.merge(toUpdate);
       if (shouldSort) sort();
+      if (updated.getTitle() != toUpdate.getTitle() || updated.customAvatarPath != toUpdate.customAvatarPath) {
+        updateShareTarget(updated);
+      }
     }
 
     return index != -1;
@@ -219,6 +238,7 @@ class ChatsService extends GetxService {
     chats.add(toAdd);
     cm.createChatController(toAdd);
     sort();
+    updateShareTarget(toAdd);
   }
 
   void removeChat(Chat toRemove) {
