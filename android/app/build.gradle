@@ -31,6 +31,7 @@ if (flutterVersionName == null) {
 android {
     namespace "com.bluebubbles.messaging"
     compileSdk 36
+    ndkVersion "28.0.12433566"
 
     lintOptions {
         checkReleaseBuilds false
@@ -43,7 +44,7 @@ android {
 
     defaultConfig {
         applicationId "com.bluebubbles.messaging"
-        minSdkVersion 24
+        minSdkVersion 28
         targetSdkVersion 36
         versionCode 20002000 + flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -121,7 +122,7 @@ android {
             productFlavors.alpha.signingConfig signingConfigs.debug
             productFlavors.beta.signingConfig signingConfigs.release
             productFlavors.prod.signingConfig signingConfigs.release
-            productFlavors.alpha.signingConfig signingConfigs.release
+            productFlavors.alpha.signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }

@@ -52,6 +52,9 @@ class CreateIncomingMessageNotification: MethodCallHandlerImpl() {
         val contactIcon: ByteArray? = call.argument("contact_avatar")
         val contactBitmap = if ((contactIcon?.size ?: 0) == 0) null else Utils.getAdaptiveIconFromByteArray(contactIcon!!)
         val chat_uri: String? = call.argument("contact_uri")
+        // attachment details
+        val attachmentPath: String? = call.argument("attachment_path")
+        val attachmentType: String? = call.argument("attachment_type")
 
         val name = if (notifyAnyways) {
             "Notify Anyways: $chatTitle"
@@ -120,11 +123,19 @@ class CreateIncomingMessageNotification: MethodCallHandlerImpl() {
             style.conversationTitle = chatTitle
         }
         // add the new message to the style
-        style.addMessage(NotificationCompat.MessagingStyle.Message(
+        val notifMessage = NotificationCompat.MessagingStyle.Message(
             messageText,
             messageDate,
-            sender
-        ))
+            if (messageIsFromMe) null else sender
+        )
+        if (attachmentPath != null && attachmentType != null) {
+            val file = java.io.File(attachmentPath)
+            if (file.exists()) {
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, context.getString(R.string.file_provider), file)
+                notifMessage.setData(attachmentType, uri)
+            }
+        }
+        style.addMessage(notifMessage)
 
         // create a bundle for extra info
         val extras = Bundle()

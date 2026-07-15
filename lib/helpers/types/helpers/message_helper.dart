@@ -166,9 +166,30 @@ class MessageHelper {
     // If there are attachments, return the number of attachments
     if (message.realAttachments.isNotEmpty) {
       int aCount = message.realAttachments.length;
+      String attachmentText = _getAttachmentText(message.realAttachments);
+      
+      String? emoji;
+      if (attachmentText.contains("image")) {
+        emoji = "📷";
+      } else if (attachmentText.contains("movie")) {
+        emoji = "🎥";
+      } else if (attachmentText.contains("GIF")) {
+        emoji = "🖼️";
+      } else if (attachmentText.contains("audio")) {
+        emoji = "🎵";
+      }
+
+      if (emoji != null) {
+        if (aCount == 1 && attachmentText == "1 image") return "📷 Image";
+        if (aCount == 1 && attachmentText == "1 movie") return "🎥 Video";
+        if (aCount == 1 && attachmentText == "1 GIF") return "🖼️ GIF";
+        if (aCount == 1 && attachmentText == "1 audio") return "🎵 Audio";
+        return "$emoji $attachmentText";
+      }
+
       // Build the attachment output by counting the attachments
       String output = "Attachment${aCount > 1 ? "s" : ""}";
-      return "$output: ${_getAttachmentText(message.realAttachments)}";
+      return "$output: $attachmentText";
     } else if (!isNullOrEmpty(message.associatedMessageGuid)) {
       // It's a reaction message, get the sender
       String sender = message.isFromMe! ? 'You' : (message.handle?.displayName ?? "Someone");

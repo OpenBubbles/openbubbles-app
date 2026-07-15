@@ -234,6 +234,16 @@ class NotificationsService extends GetxService {
     } else if (kIsDesktop) {
       _lock.synchronized(() async => await showDesktopNotif(message, text, chat, guid, title, contactName, isGroup, isReaction));
     } else {
+      String? attachmentPath;
+      String? attachmentType;
+      if (message.attachments.isNotEmpty) {
+        Attachment? attachment = message.attachments.firstWhereOrNull((e) => e?.mimeType?.startsWith("image/") ?? false);
+        if (attachment != null && attachment.existsOnDisk) {
+          attachmentPath = attachment.path;
+          attachmentType = attachment.mimeType;
+        }
+      }
+
       await mcs.invokeMethod("create-incoming-message-notification", {
         "channel_id": NEW_MESSAGE_CHANNEL,
         "chat_id": chat.id,
@@ -249,6 +259,8 @@ class NotificationsService extends GetxService {
         "message_text": text,
         "message_date": message.dateCreated!.millisecondsSinceEpoch,
         "message_is_from_me": false,
+        "attachment_path": attachmentPath,
+        "attachment_type": attachmentType,
       });
     }
   }

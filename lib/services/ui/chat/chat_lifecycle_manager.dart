@@ -23,7 +23,9 @@ class ChatLifecycleManager {
           return Database.chats.get(chat.id!);
         });
         if (_chat != null) {
-          bool shouldSort = chat.latestMessage.dateCreated != _chat.latestMessage.dateCreated;
+                    final newDate = Chat.getMessages(_chat, limit: 1, getDetails: false).firstOrNull?.dateCreated ?? DateTime.fromMillisecondsSinceEpoch(0);
+          bool shouldSort = chat.latestMessage.dateCreated != newDate;
+
           chats.updateChat(_chat, shouldSort: shouldSort);
           chat = _chat.merge(chat);
         }
