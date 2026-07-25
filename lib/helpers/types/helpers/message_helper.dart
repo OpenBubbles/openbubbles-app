@@ -225,12 +225,20 @@ class MessageHelper {
       // if we can't fetch the associated message for some reason
       // (or none of the above conditions about it are true)
       // then we should fallback to unparsed reaction messages
-      Logger.info("Couldn't fetch associated message for message: ${message.guid}");
-      return "$sender ${message.text}";
+      Logger.info("Couldn't fetch associated message for reaction");
+      return getReactionFallbackText(sender, message.text);
     } else {
       // It's all other message types
       return sender + message.fullText;
     }
+  }
+
+  static String getReactionFallbackText(String sender, String? messageText) {
+    final text = messageText?.trim();
+    if (text == null || text.isEmpty) {
+      return "$sender reacted to a message";
+    }
+    return "$sender $text";
   }
 
   // returns the attachments as a string

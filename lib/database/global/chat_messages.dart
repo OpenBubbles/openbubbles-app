@@ -1,8 +1,11 @@
 import 'package:bluebubbles/database/models.dart';
 
 class ChatMessages {
+  static const int _maxPendingReactionsPerMessage = 32;
+  static const int _maxPendingReactionParents = 128;
   final Map<String, Message> _messages = {};
   final Map<String, Message> _reactions = {};
+  final Map<String, Map<String, Message>> _pendingReactions = {};
   final Map<String, Attachment> _attachments = {};
   final Map<String, Map<String, Message>> _threads = {};
   final Map<String, Map<String, Message>> _edits = {};
@@ -21,9 +24,37 @@ class ChatMessages {
       if (m.associatedMessageGuid != null) {
         // add reactions
         _reactions[m.guid!] = m;
+        final parent = getMessage(m.associatedMessageGuid!);
+        if (parent != null) {
+          _attachReaction(parent, m);
+        } else {
+          final parentGuid = m.associatedMessageGuid!;
+          var pending = _pendingReactions[parentGuid];
+          if (pending == null) {
+            if (_pendingReactions.length >= _maxPendingReactionParents) {
+              _pendingReactions.remove(_pendingReactions.keys.first);
+            }
+            pending = <String, Message>{};
+            _pendingReactions[parentGuid] = pending;
+          }
+          // A malformed or delayed stream must not grow this cache forever.
+          // The database sync remains the source of truth if an item is
+          // evicted before its parent arrives.
+          if (pending.length >= _maxPendingReactionsPerMessage &&
+              !pending.containsKey(m.guid)) {
+            pending.remove(pending.keys.first);
+          }
+          pending[m.guid!] = m;
+        }
       } else {
         // add regular texts
         _messages[m.guid!] = m;
+        final pending = _pendingReactions.remove(m.guid);
+        if (pending != null) {
+          for (final reaction in pending.values) {
+            _attachReaction(m, reaction);
+          }
+        }
       }
       if (m.threadOriginatorGuid != null && !m.guid!.startsWith("temp") && m.associatedMessageGuid == null) {
         // add threaded messages
@@ -38,9 +69,17 @@ class ChatMessages {
     }
   }
 
+  void _attachReaction(Message parent, Message reaction) {
+    if (!parent.associatedMessages.any((item) => item.guid == reaction.guid)) {
+      parent.associatedMessages.add(reaction);
+    }
+    parent.hasReactions = true;
+  }
+
   void removeMessage(String guid) {
     _messages.remove(guid);
     _reactions.remove(guid);
+    _pendingReactions.remove(guid);
     final result = _threads.remove(guid);
     if (result == null) {
       for (Map element in _threads.values) {
@@ -100,6 +139,7 @@ class ChatMessages {
   flush() {
     _messages.clear();
     _reactions.clear();
+    _pendingReactions.clear();
     _attachments.clear();
     _threads.clear();
     _edits.clear();

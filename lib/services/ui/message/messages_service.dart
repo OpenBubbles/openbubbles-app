@@ -120,15 +120,26 @@ class MessagesService extends GetxController {
     if (message.amkSessionId != null) {
       message.fetchAssociatedMessages();
     }
-    // add this as a reaction if needed, update thread originators and associated messages
+    // Add this as a reaction if needed, update thread originators and
+    // associated messages. ChatMessages retains a bounded pending set when a
+    // reaction arrives before its base message.
     if (message.associatedMessageGuid != null) {
-      struct.getMessage(message.associatedMessageGuid!)?.associatedMessages.add(message);
-      getActiveMwc(message.associatedMessageGuid!)?.updateAssociatedMessage(message);
+      final parent = struct.getMessage(message.associatedMessageGuid!);
+      if (parent != null) {
+        getActiveMwc(message.associatedMessageGuid!)?.updateAssociatedMessage(message);
+      }
     }
     if (message.threadOriginatorGuid != null) {
       getActiveMwc(message.threadOriginatorGuid!)?.updateThreadOriginator(message);
     }
     struct.addMessages([message]);
+    if (message.associatedMessageGuid == null) {
+      // ChatMessages attaches any reactions that arrived before this message;
+      // refresh the active bubble after the parent is present in the struct.
+      for (final reaction in message.associatedMessages) {
+        getActiveMwc(message.guid!)?.updateAssociatedMessage(reaction);
+      }
+    }
     if (message.associatedMessageGuid == null) {
       newFunc.call(message);
     }

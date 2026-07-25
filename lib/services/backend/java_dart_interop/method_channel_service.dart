@@ -141,12 +141,11 @@ class MethodChannelService extends GetxService {
         await Database.waitForInit();
         Logger.info("Received new message from MethodChannel");
 
-        // The socket will handle this event if the app is alive and unifiedpush is not enabled
+        // When the app is backgrounded, FCM is the safe fallback if the optional
+        // foreground socket is disconnected or still reconnecting. The message
+        // handler deduplicates by GUID after the first delivery is persisted.
         if (ls.isAlive && socket.socket.connected && ss.settings.endpointUnifiedPush.value == "") {
           Logger.debug("App is alive, ignoring new message...");
-          return Future.value(true);
-        } else if (!ls.isAlive && ss.settings.keepAppAlive.value) {
-          Logger.debug("Ignoring FCM message while app is not alive, but keepAppAlive is enabled");
           return Future.value(true);
         }
 
@@ -173,9 +172,6 @@ class MethodChannelService extends GetxService {
         // The socket will handle this event if the app is alive
         if (ls.isAlive && socket.socket.connected) {
           Logger.debug("App is alive, ignoring updated message...");
-          return Future.value(true);
-        } else if (!ls.isAlive && ss.settings.keepAppAlive.value) {
-          Logger.debug("Ignoring FCM message while app is not alive, but keepAppAlive is enabled");
           return Future.value(true);
         }
 
@@ -221,9 +217,6 @@ class MethodChannelService extends GetxService {
         if (ls.isAlive && socket.socket.connected) {
           Logger.debug("App is alive, ignoring updated message...");
           return Future.value(true);
-        } else if (!ls.isAlive && ss.settings.keepAppAlive.value) {
-          Logger.debug("Ignoring FCM message while app is not alive, but keepAppAlive is enabled");
-          return Future.value(true);
         }
 
         try {
@@ -245,9 +238,6 @@ class MethodChannelService extends GetxService {
         // The socket will handle this event if the app is alive
         if (ls.isAlive && socket.socket.connected) {
           Logger.debug("App is alive, ignoring updated message...");
-          return Future.value(true);
-        } else if (!ls.isAlive && ss.settings.keepAppAlive.value) {
-          Logger.debug("Ignoring FCM message while app is not alive, but keepAppAlive is enabled");
           return Future.value(true);
         }
 

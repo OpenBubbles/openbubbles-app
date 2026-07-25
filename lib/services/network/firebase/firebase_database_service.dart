@@ -55,7 +55,7 @@ class FirebaseDatabaseService extends GetxService {
   }
 
   /// Fetch the new server URL from the Firebase Database
-  Future<String?> fetchNewUrl() async {
+  Future<String?> fetchNewUrl({bool restartSocket = true, bool tryRestartForegroundService = true}) async {
     // Make sure setup is complete and we have valid data
     if (!ss.settings.finishedSetup.value) return null;
     if (ss.fcmData.isNull) {
@@ -104,7 +104,12 @@ class FirebaseDatabaseService extends GetxService {
         url = sanitizeServerAddress(address: await mcs.invokeMethod("get-server-url"));
       }
 
-      await saveNewServerUrl(url ?? ss.settings.serverAddress.value, force: true);
+      await saveNewServerUrl(
+        url ?? ss.settings.serverAddress.value,
+        force: true,
+        restartSocket: restartSocket,
+        tryRestartForegroundService: tryRestartForegroundService,
+      );
       return url;
     } catch (e, s) {
       Logger.error("Failed to fetch URL!", error: e, trace: s);

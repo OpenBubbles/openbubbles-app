@@ -154,15 +154,41 @@ pub fn plist_to_string<T: serde::Serialize>(value: &T) -> Result<String, plist::
 
 pub static QUEUED_MESSAGES: LazyLock<Mutex<(u64, HashMap<u64, PushMessage>)>> = LazyLock::new(|| Mutex::new((0, HashMap::new())));
 
+fn is_terminal_poll_panic(message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    message.contains("wrong phase")
+        || (message.contains("watcher") && message.contains("closed"))
+        || message.contains("channel closed")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_terminal_poll_panic;
+
+    #[test]
+    fn terminal_watcher_panics_stop_the_receive_loop() {
+        assert!(is_terminal_poll_panic("Wrong phase!"));
+        assert!(is_terminal_poll_panic("APS watcher is closed"));
+        assert!(is_terminal_poll_panic("channel closed"));
+    }
+
+    #[test]
+    fn unrelated_panics_remain_retryable() {
+        assert!(!is_terminal_poll_panic("temporary network failure"));
+    }
+}
+
 #[uniffi::export]
 impl NativePushState {
 
     pub fn start_loop(self: Arc<NativePushState>, handler: Arc<dyn MsgReceiver>) {
         RUNTIME.spawn(async move {
             let mut watcher = self.watcher.lock().await;
+            let mut panic_backoff_ms = 250u64;
             loop {
                 match std::panic::AssertUnwindSafe(recv_wait(&mut watcher, &self.state)).catch_unwind().await {
                     Ok(yes) => {
+                        panic_backoff_ms = 250;
                         match yes {
                             PollResult::Cont(Some(msg)) => {
                                 if let PushMessage::TwoFaAuthEvent(event) = &msg {
@@ -211,7 +237,14 @@ impl NativePushState {
                                 None => None,
                             },
                         };
-                        error!("Failed {:?}", panic);
+                        if panic.map(is_terminal_poll_panic).unwrap_or(false) {
+                            warn!("Stopping APS receive loop after terminal watcher panic: {:?}", panic);
+                            break;
+                        }
+
+                        error!("Failed {:?}; backing off {}ms", panic, panic_backoff_ms);
+                        tokio::time::sleep(Duration::from_millis(panic_backoff_ms)).await;
+                        panic_backoff_ms = (panic_backoff_ms.saturating_mul(2)).min(5_000);
                     }
                 }
             }

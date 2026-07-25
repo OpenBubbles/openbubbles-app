@@ -400,19 +400,27 @@ class Message {
       var attachments = fetchAttachments()!;
       bool useMMS = chat.participants.length > 1 || attachments.isNotEmpty;
       int status;
-      if (useMMS) {
-        status = await TelephonyPlus().sendMMS(
-          addresses: chat.participants.map((e) => e.address).filter((e) => e.isPhoneNumber).toList(),
-          message: text?.trim() == "" ? null : text,
-          threadId: chat.telephonyId,
-          attachments: await Future.wait(attachments.map((e) => e!.toTelephony()).toList())
-        );
-      } else {
-        status = await TelephonyPlus().sendSMS(
-          address: chat.participants.first.address,
-          threadId: chat.telephonyId,
-          message: text!,
-        );
+      try {
+        if (useMMS) {
+          status = await TelephonyPlus().sendMMS(
+            addresses: chat.participants.map((e) => e.address).filter((e) => e.isPhoneNumber).toList(),
+            message: text?.trim() == "" ? null : text,
+            threadId: chat.telephonyId,
+            attachments: await Future.wait(attachments.map((e) => e!.toTelephony()).toList())
+          );
+        } else {
+          status = await TelephonyPlus().sendSMS(
+            address: chat.participants.first.address,
+            threadId: chat.telephonyId,
+            message: text!,
+          );
+        }
+      } catch (_) {
+        // No native status means the forwarding attempt did not complete. Let
+        // the transport retry instead of permanently suppressing forwarding.
+        hasBeenForwarded = false;
+        save(chat: chat);
+        rethrow;
       }
       if (status != -1) {
         await (backend as RustPushBackend).confirmSmsSent(this, chat, false);

@@ -62,6 +62,10 @@ const rpApiRoot = "https://hw.openbubbles.app/code";
 const clientId = '1041242226917-ik21n86fp43e82iu1e5soh6bu6gvuste.apps.googleusercontent.com';
 const clientSecret = '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';
 
+String _diagnosticHash(String value) => sha256.convert(utf8.encode(value)).toString().substring(0, 12);
+
+String _durationMs(Stopwatch stopwatch) => stopwatch.elapsedMilliseconds.toString();
+
 
 class SyncIsolate {
   static void initialize() {
@@ -1349,6 +1353,11 @@ class RustPushService extends GetxService {
   }
 
   Future<void> updateChatParticipants(Chat c, api.MessageInst myMsg, List<String> oldParticipants, List<String> newParticipants) async {
+    final sender = myMsg.sender;
+    if (sender == null || sender.isEmpty) {
+      Logger.warn("Ignoring participant update without a sender");
+      return;
+    }
     var myHandles = await api.getHandles(state: pushService.state!.client);
     var newP = newParticipants.filter((p) => !oldParticipants.contains(p) && !myHandles.contains(p));
     var delP = oldParticipants.filter((p) => !newParticipants.contains(p));
@@ -1367,8 +1376,8 @@ class RustPushService extends GetxService {
       var bb = RustPushBBUtils.rustHandleToBB(item);
       var msg = Message(
         guid: useId ? myMsg.id : uuid.v4(),
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: 1,
         groupActionType: 0,
@@ -1384,11 +1393,11 @@ class RustPushService extends GetxService {
 
     for (var item in delP) {
       var bb = RustPushBBUtils.rustHandleToBB(item);
-      var personDidLeave = item == myMsg.sender;
+      var personDidLeave = item == sender;
       var msg = Message(
         guid: useId ? myMsg.id : uuid.v4(),
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: personDidLeave ? 3 : 1,
         groupActionType: personDidLeave ? 0 : 1,
@@ -1681,15 +1690,16 @@ class RustPushService extends GetxService {
       return msg;
     } else if (myMsg.message is api.Message_RenameMessage) {
       var msg = myMsg.message as api.Message_RenameMessage;
-      if (myMsg.verificationFailed) return null;
+      final sender = myMsg.sender;
+      if (myMsg.verificationFailed || chat == null || sender == null || sender.isEmpty) return null;
 
-      chat!.ckSyncState = false;
+      chat.ckSyncState = false;
       chat.save(updateCkSyncState: true);
       
       return Message(
         guid: myMsg.id,
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: 2,
         groupActionType: 2,
@@ -1697,15 +1707,18 @@ class RustPushService extends GetxService {
       );
     } else if (myMsg.message is api.Message_ChangeParticipants) {
       var msg = myMsg.message as api.Message_ChangeParticipants;
-      if (myMsg.verificationFailed) return null;
-      await updateChatParticipants(chat!, myMsg, myMsg.conversation!.participants, msg.field0.newParticipants);
+      final conversation = myMsg.conversation;
+      if (myMsg.verificationFailed || chat == null || conversation == null || myMsg.sender == null) return null;
+      await updateChatParticipants(chat, myMsg, conversation.participants, msg.field0.newParticipants);
       chat.groupVersion = msg.field0.groupVersion;
       chat.ckSyncState = false;
       chat.save(updateGroupVersion: true, updateCkSyncState: true);
       return null;
     } else if (myMsg.message is api.Message_IconChange) {
       var innerMsg = myMsg.message as api.Message_IconChange;
-      if (!chat!.lockChatIcon && (chat.groupVersion ?? 0) < innerMsg.field0.groupVersion) {
+      final sender = myMsg.sender;
+      if (chat == null || sender == null || sender.isEmpty) return null;
+      if (!chat.lockChatIcon && (chat.groupVersion ?? 0) < innerMsg.field0.groupVersion) {
         var file = innerMsg.field0.file;
         chat.groupVersion = innerMsg.field0.groupVersion;
         chat.ckSyncState = false;
@@ -1724,16 +1737,21 @@ class RustPushService extends GetxService {
       }
       return Message(
         guid: myMsg.id,
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: 3,
         groupActionType: 1,
       );
     } else if (myMsg.message is api.Message_React) {
       var msg = myMsg.message as api.Message_React;
+      final sender = myMsg.sender;
+      if (sender == null || sender.isEmpty) {
+        Logger.warn("Ignoring reaction without a sender");
+        return null;
+      }
       if (msg.field0.embeddedProfile != null) {
-        handleSharedProfile(msg.field0.embeddedProfile!, myMsg.sender!, chat?.participants ?? []);
+        handleSharedProfile(msg.field0.embeddedProfile!, sender, chat?.participants ?? []);
       }
 
       String? reaction;
@@ -1785,7 +1803,11 @@ class RustPushService extends GetxService {
           final messages = query.find();
           query.close();
 
-          final original = messages.firstWhere((msg) => (msg.stagingGuid ?? msg.guid) != myMsg.id);
+          final original = messages.firstWhereOrNull((msg) => (msg.stagingGuid ?? msg.guid) != myMsg.id);
+          if (original == null) {
+            Logger.warn("Ignoring extension update without a base message");
+            return null;
+          }
 
           original.fetchAssociatedMessages();
 
@@ -1797,7 +1819,12 @@ class RustPushService extends GetxService {
           }
           
           // allow updating image
-          attributedBodyData = (attributedBodyData.$3.isEmpty ? original.attributedBody[0] : attributedBodyData.$1, original.text!, attributedBodyData.$3.isEmpty ? original.dbAttachments : attributedBodyData.$3);
+          final originalBody = original.attributedBody.firstOrNull;
+          if (attributedBodyData.$3.isEmpty && originalBody == null) {
+            Logger.warn("Ignoring extension update without message content");
+            return null;
+          }
+          attributedBodyData = (attributedBodyData.$3.isEmpty ? originalBody! : attributedBodyData.$1, original.text ?? "", attributedBodyData.$3.isEmpty ? original.dbAttachments : attributedBodyData.$3);
           var tag = es.getLatest(msg.field0.toUuid);
           // updates cached value; we are latest
           if (tag.firstOrNull != myMsg.id) {
@@ -1819,8 +1846,8 @@ class RustPushService extends GetxService {
       }
       var message = Message(
         guid: myMsg.id,
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         associatedMessagePart: msg.field0.toPart,
         associatedMessageGuid: reaction == null ? null : msg.field0.toUuid,
@@ -1844,7 +1871,11 @@ class RustPushService extends GetxService {
       return message;
     } else if (myMsg.message is api.Message_Unsend) {
       var msg = myMsg.message as api.Message_Unsend;
-      var msgObj = Message.findOne(guid: msg.field0.tuuid)!;
+      var msgObj = Message.findOne(guid: msg.field0.tuuid);
+      if (msgObj == null) {
+        Logger.warn("Ignoring unsend for a missing message");
+        return null;
+      }
       msgObj.verificationFailed = myMsg.verificationFailed;
       msgObj.dateEdited = DateTime.now();
       var summaryInfo = msgObj.messageSummaryInfo.firstOrNull;
@@ -3140,13 +3171,8 @@ class RustPushService extends GetxService {
     Chat.softDelete(chat);
   }
 
-  Future handleMsg(api.PushMessage push, bool finalAttempt) async {
-    try {
-      await handleMsgInner(push).timeout(const Duration(minutes: 3));
-    } catch (e, s) {
-      if (finalAttempt) markCertified(push);
-      rethrow;
-    }
+  Future handleMsg(api.PushMessage push) async {
+    await handleMsgInner(push).timeout(const Duration(minutes: 3));
     // if we complete successfully, mark delivery "certified"
     markCertified(push);
   }
@@ -3791,9 +3817,11 @@ class RustPushService extends GetxService {
             myMsg.target = otherIds.map((element) => api.MessageTarget.uuid(element)).toList(); // forward to other devices
             await (backend as RustPushBackend).sendMsg(myMsg);
           }
-          var msg = (await pushService.reflectMessageDyn(myMsg))!;
-          msg.temp = true;
-          msg.forwardIfNessesary(chat);
+          final msg = await pushService.reflectMessageDyn(myMsg);
+          if (msg != null) {
+            msg.temp = true;
+            await msg.forwardIfNessesary(chat);
+          }
           return;
         }
       }
@@ -3806,16 +3834,23 @@ class RustPushService extends GetxService {
         return;
       }
     }
-    Logger.info("Reflecting ${myMsg.id}");
+    final receiveStopwatch = Stopwatch()..start();
+    final receiveId = _diagnosticHash(myMsg.id);
+    Logger.info("rustpush_receive reflection_start id=$receiveId");
     var reflected = await pushService.reflectMessageDyn(myMsg);
-    Logger.info("Reflect finished ${myMsg.id}");
+    Logger.info("rustpush_receive reflection_complete id=$receiveId duration_ms=${_durationMs(receiveStopwatch)} reflected=${reflected != null}");
     if (reflected != null) {
-      Logger.info("Queing");
+      final queueStopwatch = Stopwatch()..start();
+      final queueCompletion = Completer<void>();
+      Logger.info("rustpush_receive incoming_queue_enqueue id=$receiveId pending_count=${inq.items.length}");
       await inq.queue(IncomingItem(
         chat: chat,
         message: reflected,
-        type: QueueType.newMessage
+        type: QueueType.newMessage,
+        completer: queueCompletion,
       ));
+      await queueCompletion.future;
+      Logger.info("rustpush_receive incoming_queue_complete id=$receiveId duration_ms=${_durationMs(queueStopwatch)} pending_count=${inq.items.length}");
     }
   }
 
@@ -4469,37 +4504,39 @@ class RustPushService extends GetxService {
     }
   }
 
-  Future<void> markAsHandledAfter(String ptr) async {
-    if (inq.isProcessing.value) {
-      Logger.info("Marking as handled processing wait $ptr");
-      await for (final value in inq.isProcessing.stream) {
-        if (!value) break;
-      }
-    }
-    Logger.info("Marking as handled commit $ptr");
+  Future<void> markAsHandledAfter(String ptr, {required String eventId, required int retry}) async {
+    final ackStopwatch = Stopwatch()..start();
+    // handleMsg awaits the completion for this pointer's queue item. Do not
+    // wait for unrelated incoming work before acknowledging this message.
+    Logger.info("rustpush_receive durable_work_complete id=$eventId retry=$retry pending_count=${inq.items.length}");
+    Logger.info("rustpush_receive ack_commit id=$eventId retry=$retry");
     await api.completeMsg(ptr: ptr);
+    Logger.info("rustpush_receive ack_complete id=$eventId retry=$retry duration_ms=${_durationMs(ackStopwatch)}");
   }
 
   Future recievedMsgPointer(String pointer, String retry) async {
+    final eventId = _diagnosticHash(pointer);
+    final retryCount = int.tryParse(retry) ?? 3;
+    final receiveStopwatch = Stopwatch()..start();
     var message = await api.ptrToDart(ptr: pointer);
     if (message == null) {
-      Logger.info("bad pointer $pointer $retry");
+      Logger.info("rustpush_receive pointer_missing id=$eventId retry=$retryCount");
       return;
     }
-    Logger.info("waitingForInit $pointer $retry");
+    final initStopwatch = Stopwatch()..start();
+    Logger.info("rustpush_receive aps_init_wait_start id=$eventId retry=$retryCount");
     await initFuture;
-    var isFinal = (int.tryParse(retry) ?? 3) >= 3;
+    Logger.info("rustpush_receive aps_init_wait_complete id=$eventId retry=$retryCount duration_ms=${_durationMs(initStopwatch)} total_ms=${_durationMs(receiveStopwatch)}");
     try {
-      Logger.info("Handling $pointer $retry");
-      await handleMsg(message, isFinal);
-      Logger.info("Marking as handled $pointer");
-      await markAsHandledAfter(pointer);
+      final handlingStopwatch = Stopwatch()..start();
+      Logger.info("rustpush_receive handle_start id=$eventId retry=$retryCount");
+      await handleMsg(message);
+      Logger.info("rustpush_receive handle_complete id=$eventId retry=$retryCount duration_ms=${_durationMs(handlingStopwatch)} total_ms=${_durationMs(receiveStopwatch)}");
+      await markAsHandledAfter(pointer, eventId: eventId, retry: retryCount);
     } catch (e, s) {
       Logger.error("Handle failed", error: e, trace: s);
-      if (isFinal) {
-        Logger.info("Failed; Marking as handled anyways $pointer");
-        await markAsHandledAfter(pointer);
-      }
+      // Leave the pointer pending so the native bounded retry loop can try
+      // again. A failed handler must never be acknowledged as delivered.
       rethrow;
     }
   }
@@ -4520,7 +4557,7 @@ class RustPushService extends GetxService {
         if (msg == null) {
           continue;
         }
-        await handleMsg(msg, true);
+        await handleMsg(msg);
       } catch (e, t) {
         // if there was an error somewhere, log it and move on.
         // don't stop our loop

@@ -46,14 +46,14 @@ class MessagesView extends StatefulWidget {
 class MessagesViewState extends OptimizedState<MessagesView> {
   bool initialized = false;
   bool fetching = false;
+  bool _refreshing = false;
   late bool noMoreMessages = widget.customService != null;
   List<Message> _messages = <Message>[];
 
   RxList<Widget> smartReplies = <Widget>[].obs;
   RxMap<String, Widget> internalSmartReplies = <String, Widget>{}.obs;
 
-  late final messageService = widget.customService ?? ms(chat.guid)
-    ..init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
+  late MessagesService messageService;
   final smartReply = GoogleMlKit.nlp.smartReply();
   final listKey = GlobalKey<SliverAnimatedListState>();
   final RxBool dragging = false.obs;
@@ -134,16 +134,12 @@ class MessagesViewState extends OptimizedState<MessagesView> {
   @override
   void initState() {
     super.initState();
+    messageService = widget.customService ?? ms(chat.guid);
+    messageService.init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
 
     eventDispatcher.stream.listen((e) async {
       if (e.item1 == "refresh-messagebloc" && e.item2 == chat.guid) {
-        // Clear state items
-        noMoreMessages = false;
-        _messages = [];
-        // Reload the state after refreshing
-        messageService.reload();
-        messageService.init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
-        setState(() {});
+        await _refreshMessageBloc();
       } else if (e.item1 == "add-custom-smartreply") {
         if (e.item2 != null && internalSmartReplies['attach-recent'] == null) {
           internalSmartReplies['attach-recent'] = _buildReply("Attach recent photo", onTap: () async {
@@ -196,6 +192,70 @@ class MessagesViewState extends OptimizedState<MessagesView> {
         });
       }
     });
+  }
+
+  void _closeMessageControllers(Iterable<Message> messages) {
+    for (final message in messages) {
+      final guid = message.guid;
+      if (guid != null) getActiveMwc(guid)?.close();
+    }
+  }
+
+  void _bindMessageControllers(Iterable<Message> messages) {
+    if (!mounted) return;
+    for (final message in messages) {
+      if (message.guid == null) continue;
+      final messageController = mwc(message);
+      messageController.cvController = controller;
+    }
+  }
+
+  Future<void> _refreshMessageBloc() async {
+    if (_refreshing) return;
+    if (widget.customService != null) {
+      Logger.info("message_refresh skipped_custom_service");
+      return;
+    }
+    _refreshing = true;
+    try {
+      final staleMessages = List<Message>.from(_messages);
+      _closeMessageControllers(staleMessages);
+      for (var index = _messages.length - 1; index >= 0; index--) {
+        listKey.currentState?.removeItem(
+          index,
+          (context, animation) => const SizedBox.shrink(),
+          duration: Duration.zero,
+        );
+      }
+      for (final node in messageFocusNodes.values) {
+        node.dispose();
+      }
+      messageFocusNodes.clear();
+
+      noMoreMessages = false;
+      fetching = false;
+      _messages = [];
+
+      // Get.reload rebuilds the original Get.put instance. Close it instead
+      // so its subscriptions and in-memory message structure are flushed
+      // before registering a genuinely new service for this transcript.
+      messageService.close(force: true);
+      messageService = ms(chat.guid);
+      messageService.init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
+      await messageService.loadChunk(0, controller);
+      if (!mounted) return;
+
+      _messages = List<Message>.from(messageService.struct.messages);
+      _messages.sort(Message.sort);
+      _bindMessageControllers(_messages);
+      _syncBottomMessageFocusNode();
+      setState(() {});
+      for (var index = 0; index < _messages.length; index++) {
+        listKey.currentState?.insertItem(index, duration: Duration.zero);
+      }
+    } finally {
+      _refreshing = false;
+    }
   }
 
   @override
