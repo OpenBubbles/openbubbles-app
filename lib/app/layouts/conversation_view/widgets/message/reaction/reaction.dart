@@ -12,7 +12,6 @@ import 'package:defer_pointer/defer_pointer.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:universal_io/io.dart';
 
@@ -34,8 +33,7 @@ class ReactionWidget extends StatefulWidget {
 
 class ReactionWidgetState extends OptimizedState<ReactionWidget> {
   late Message reaction = widget.reaction;
-  late final StreamSubscription sub;
-  bool hasStream = false;
+  StreamSubscription? sub;
 
   List<Message>? get reactions => widget.reactions;
   bool get reactionIsFromMe => reaction.isFromMe!;
@@ -70,8 +68,6 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
             getActiveMwc(widget.message!.guid!)?.updateAssociatedMessage(reaction, updateHolder: false);
           }
         });
-
-        hasStream = true;
       } else if (kIsWeb && widget.message != null) {
         sub = WebListeners.messageUpdate.listen((tuple) {
           final _message = tuple.item1;
@@ -125,7 +121,7 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
 
   @override
   void dispose() {
-    if (!kIsWeb && hasStream) sub.cancel();
+    sub?.cancel();
     super.dispose();
   }
 

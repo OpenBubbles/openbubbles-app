@@ -15,6 +15,7 @@ import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/popup/
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/reaction/reaction_holder.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/reply/reply_bubble.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/reply/reply_line_painter.dart';
+import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/reply/reply_thread_popup.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/text/text_bubble.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/timestamp/delivered_indicator.dart';
 import 'package:bluebubbles/app/layouts/conversation_view/widgets/message/timestamp/message_timestamp.dart';
@@ -182,6 +183,12 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
     Iterable<Message> reactionsForPart(int part) {
       return reactions.where((s) => (s.associatedMessagePart ?? 0) == part);
     }
+    final replyTarget = replyTo;
+    MessageWidgetController? replyController;
+    if (replyTarget?.guid != null) {
+      replyController = getActiveMwc(replyTarget!.guid!) ?? mwc(replyTarget);
+      replyController.cvController ??= widget.cvController;
+    }
     /// Layout tree
     /// - Timestamp
     /// - Stack (see code comment)
@@ -272,12 +279,12 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                               && olderMessage != null
                               && message.threadOriginatorGuid != null
                               && message.showUpperMessage(olderMessage!)
-                              && replyTo != null
-                              && getActiveMwc(replyTo!.guid!) != null)
+                              && replyTarget != null
+                              && replyController != null)
                             Padding(
-                              padding: EdgeInsets.only(left: (showAvatar || ss.settings.alwaysShowAvatars.value) && replyTo!.isFromMe! ? 35 : 0),
+                              padding: EdgeInsets.only(left: (showAvatar || ss.settings.alwaysShowAvatars.value) && replyTarget.isFromMe! ? 35 : 0),
                               child: DecoratedBox(
-                                decoration: replyTo!.isFromMe == message.isFromMe ? ReplyLineDecoration(
+                                decoration: replyTarget.isFromMe == message.isFromMe ? ReplyLineDecoration(
                                   isFromMe: message.isFromMe!,
                                   color: context.theme.colorScheme.properSurface,
                                   connectUpper: false,
@@ -286,11 +293,11 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                                 ) : const BoxDecoration(),
                                 child: Container(
                                   width: double.infinity,
-                                  alignment: replyTo!.isFromMe! ? Alignment.centerRight : Alignment.centerLeft,
+                                  alignment: replyTarget.isFromMe! ? Alignment.centerRight : Alignment.centerLeft,
                                   child: ReplyBubble(
-                                    parentController: getActiveMwc(replyTo!.guid!)!,
-                                    part: replyTo!.guid! == message.threadOriginatorGuid ? message.normalizedThreadPart : 0,
-                                    showAvatar: (chat.isGroup || ss.settings.alwaysShowAvatars.value || !iOS) && !replyTo!.isFromMe!,
+                                    parentController: replyController,
+                                    part: replyTarget.guid! == message.threadOriginatorGuid ? message.normalizedThreadPart : 0,
+                                    showAvatar: (chat.isGroup || ss.settings.alwaysShowAvatars.value || !iOS) && !replyTarget.isFromMe!,
                                     cvController: widget.cvController,
                                   ),
                                 ),
@@ -312,8 +319,8 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                           if (!iOS && index == 0 && !widget.isReplyThread
                               && olderMessage != null
                               && message.threadOriginatorGuid != null
-                              && replyTo != null
-                              && getActiveMwc(replyTo!.guid!) != null)
+                              && replyTarget != null
+                              && replyController != null)
                             Padding(
                               padding: showAvatar || ss.settings.alwaysShowAvatars.value
                                   ? const EdgeInsets.only(left: 45.0, right: 10) : const EdgeInsets.symmetric(horizontal: 10),
@@ -323,10 +330,10 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                                   border: Border.fromBorderSide(BorderSide(color: context.theme.colorScheme.properSurface)),
                                 ),
                                 child: ReplyBubble(
-                                  parentController: getActiveMwc(replyTo!.guid!)!,
-                                  part: replyTo!.guid! == message.threadOriginatorGuid ? message.normalizedThreadPart : 0,
+                                  parentController: replyController,
+                                  part: replyTarget.guid! == message.threadOriginatorGuid ? message.normalizedThreadPart : 0,
                                   showAvatar: (chat.isGroup || ss.settings.alwaysShowAvatars.value || !iOS)
-                                      && !replyTo!.isFromMe!,
+                                      && !replyTarget.isFromMe!,
                                   cvController: widget.cvController,
                                 ),
                               ),
@@ -369,6 +376,8 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
                                       } else {
                                         widget.cvController.selected.add(message);
                                       }
+                                    } : message.threadOriginatorGuid != null && !widget.isReplyThread ? () {
+                                      showReplyThread(context, message, e, service, widget.cvController);
                                     } : kIsDesktop || kIsWeb || iOS || material ? () => tapped.value = !tapped.value : null,
                                     child: IgnorePointer(
                                       ignoring: widget.cvController.inSelectMode.value,

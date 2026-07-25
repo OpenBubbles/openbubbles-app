@@ -432,7 +432,8 @@ class Message {
     return isFromMe != newerMessage.isFromMe;
   }
 
-  int get normalizedThreadPart => threadOriginatorPart == null ? 0 : int.parse(threadOriginatorPart![0]);
+  int get normalizedThreadPart =>
+      int.tryParse(threadOriginatorPart?.split(':').first ?? '') ?? 0;
 
   bool connectToUpper() => threadOriginatorGuid != null;
 

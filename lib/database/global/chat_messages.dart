@@ -12,9 +12,18 @@ class ChatMessages {
   List<Message> get messages => _messages.values.toList();
   List<Message> get reactions => _reactions.values.toList();
   List<Attachment> get attachments => _attachments.values.toList();
-  List<Message> threads(String originatorGuid, int originatorPart, {bool returnOriginator = true}) =>
-      _threads[originatorGuid]?.values.where((e) =>
-      (e.normalizedThreadPart == originatorPart && e.guid != originatorGuid) || (returnOriginator ? e.guid == originatorGuid : false)).toList() ?? [];
+  List<Message> threads(String originatorGuid, int originatorPart, {bool returnOriginator = true}) {
+    final thread = _threads[originatorGuid];
+    if (returnOriginator && thread?[originatorGuid] == null) {
+      final originator = _messages[originatorGuid];
+      if (originator != null) {
+        addThreadOriginator(originator);
+      }
+    }
+    return _threads[originatorGuid]?.values.where((e) =>
+        (e.normalizedThreadPart == originatorPart && e.guid != originatorGuid) ||
+        (returnOriginator && e.guid == originatorGuid)).toList() ?? [];
+  }
 
   void addMessages(List<Message> __messages) {
     for (Message m in __messages) {
@@ -27,8 +36,13 @@ class ChatMessages {
       }
       if (m.threadOriginatorGuid != null && !m.guid!.startsWith("temp") && m.associatedMessageGuid == null) {
         // add threaded messages
-        _threads[m.threadOriginatorGuid!] ??= {};
-        _threads[m.threadOriginatorGuid]![m.guid!] = m;
+        final originatorGuid = m.threadOriginatorGuid!;
+        _threads[originatorGuid] ??= {};
+        _threads[originatorGuid]![m.guid!] = m;
+        final loadedOriginator = _messages[originatorGuid];
+        if (loadedOriginator != null) {
+          _threads[originatorGuid]![originatorGuid] = loadedOriginator;
+        }
       }
       if (_threads.keys.contains(m.guid)) {
         // add thread 'originator'

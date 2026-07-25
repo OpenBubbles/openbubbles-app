@@ -1453,7 +1453,8 @@ class Message {
     return "$part:${run.range[0]}:${run.range[1]}";
   }
 
-  int get normalizedThreadPart => threadOriginatorPart == null ? 0 : int.parse(threadOriginatorPart![0]);
+  int get normalizedThreadPart =>
+      int.tryParse(threadOriginatorPart?.split(':').first ?? '') ?? 0;
 
   bool connectToUpper() => threadOriginatorGuid != null;
 

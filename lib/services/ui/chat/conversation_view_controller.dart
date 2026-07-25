@@ -11,6 +11,7 @@ import 'package:bluebubbles/services/services.dart';
 import 'package:emojis/emoji.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:get/get.dart';
 import 'package:google_ml_kit/google_ml_kit.dart' hide Message;
@@ -99,6 +100,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
   bool keyboardOpen = false;
   double _keyboardOffset = 0;
   Timer? _scrollDownDebounce;
+  StreamSubscription<bool>? keyboardVisibilitySubscription;
   Future<void> Function(Tuple7<List<PlatformFile>, AttributedBody, String, String?, int?, String?, PayloadData?>, bool, DateTime?)? sendFunc;
   bool isProcessingImage = false;
 
@@ -158,7 +160,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
     updateContactInfo();
 
     textController.mentionables = mentionables;
-    KeyboardVisibilityController().onChange.listen((bool visible) async {
+    keyboardVisibilitySubscription = KeyboardVisibilityController().onChange.listen((bool visible) async {
       keyboardOpen = visible;
       if (scrollController.hasClients) {
         _keyboardOffset = scrollController.offset;
@@ -229,7 +231,14 @@ class ConversationViewController extends StatefulController with GetSingleTicker
     scrollController.dispose();
     headerBackFocusNode.dispose();
     shareSubscription?.cancel();
+    keyboardVisibilitySubscription?.cancel();
     super.onClose();
+  }
+
+  void dismissKeyboard() {
+    focusNode.unfocus();
+    subjectFocusNode.unfocus();
+    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
   }
 
   Future<void> scrollToBottom() async {
