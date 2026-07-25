@@ -448,7 +448,7 @@ class _ChatIconAndTitle extends CustomStateful<ConversationViewController> {
 
 class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, ConversationViewController> {
   String title = "Unknown";
-  late final StreamSubscription sub;
+  StreamSubscription? sub;
   String? cachedDisplayName = "";
   List<Handle> cachedParticipants = [];
   late String cachedGuid;
@@ -523,7 +523,7 @@ class _ChatIconAndTitleState extends CustomState<_ChatIconAndTitle, void, Conver
 
   @override
   void dispose() {
-    sub.cancel();
+    sub?.cancel();
     sub2.cancel();
     super.dispose();
   }

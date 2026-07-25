@@ -8,7 +8,7 @@ import 'package:get/get.dart';
 /// [GetxController] with support for optimized state management
 class StatefulController extends GetxController {
   final Map<Object, List<Function>> updateWidgetFunctions = {};
-  late final void Function(VoidCallback) updateObx;
+  late void Function(VoidCallback) updateObx;
 
   void updateWidgets<T>(Object? arg) {
     updateWidgetFunctions[T]?.forEach((e) => e.call(arg));
@@ -28,6 +28,7 @@ abstract class CustomStateful<T extends StatefulController> extends StatefulWidg
 abstract class CustomState<T extends CustomStateful, R, S extends StatefulController> extends State<T> with ThemeHelpers {
   // completer to check if the page animation is complete
   final animCompleted = Completer<void>();
+  late final void Function(R) _updateWidgetCallback;
 
   @protected
   /// Convenience getter for the [GetxController]
@@ -49,13 +50,14 @@ abstract class CustomState<T extends CustomStateful, R, S extends StatefulContro
     super.initState();
 
     // set functions in the custom [GetxController]
-    // this if clause allows us to only set the late final variable
-    // when we are sure the controller is a fresh one
+    // Rebind after the last widget using a retained controller is disposed.
+    // Message controllers can outlive lazily recycled list rows.
     if (widget.parentController.updateWidgetFunctions.isEmpty) {
       widget.parentController.updateObx = updateObx;
     }
     widget.parentController.updateWidgetFunctions[T] ??= [];
-    widget.parentController.updateWidgetFunctions[T]!.add(updateWidget);
+    _updateWidgetCallback = updateWidget;
+    widget.parentController.updateWidgetFunctions[T]!.add(_updateWidgetCallback);
 
     // complete the completer when we know the page animation has finished
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
@@ -83,6 +85,11 @@ abstract class CustomState<T extends CustomStateful, R, S extends StatefulContro
   /// Force delete the [GetxController] when the page has disposed (unless we
   /// don't want to)
   void dispose() {
+    final callbacks = widget.parentController.updateWidgetFunctions[T];
+    callbacks?.remove(_updateWidgetCallback);
+    if (callbacks?.isEmpty ?? false) {
+      widget.parentController.updateWidgetFunctions.remove(T);
+    }
     if (_forceDelete) Get.delete<S>(tag: _tag);
     super.dispose();
   }

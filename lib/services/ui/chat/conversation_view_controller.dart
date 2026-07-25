@@ -199,7 +199,6 @@ class ConversationViewController extends StatefulController with GetSingleTicker
         _subjectWasLastFocused = true;
       }
     });
-    updatePoster();
   }
 
   void updatePoster() async {
@@ -301,9 +300,6 @@ class ConversationViewController extends StatefulController with GetSingleTicker
       return;
     }
     imageData[attachment.guid!] = tmpData;
-    try {
-      await precacheImage(MemoryImage(tmpData), queued.item3);
-    } catch (_) {}
     queued.item4.complete(tmpData);
 
     await _processNextImage();

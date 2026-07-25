@@ -2828,7 +2828,38 @@ class RustPushService extends GetxService {
   }
 
   List<String> profilesDownloading = [];
-  Future handleSharedProfile(api.ShareProfileMessage shared, String sender, List<Handle> targets) async {
+  final Map<String, DateTime> _profileRetryAfter = {};
+  static const int _maxProfileRetryEntries = 128;
+
+  void _pruneProfileRetryAfter(DateTime now) {
+    _profileRetryAfter.removeWhere((_, expiry) => !expiry.isAfter(now));
+    while (_profileRetryAfter.length >= _maxProfileRetryEntries) {
+      _profileRetryAfter.remove(_profileRetryAfter.keys.first);
+    }
+  }
+
+  Future<void> handleSharedProfile(api.ShareProfileMessage shared, String sender, List<Handle> targets) async {
+    final profileKey = shared.cloudKitRecordKey;
+    final now = DateTime.now();
+    _pruneProfileRetryAfter(now);
+    final retryAfter = _profileRetryAfter[profileKey];
+    if (retryAfter != null && retryAfter.isAfter(now)) return;
+
+    try {
+      await _handleSharedProfile(shared, sender, targets);
+      _profileRetryAfter.remove(profileKey);
+    } catch (error) {
+      // Shared profile payloads are optional message metadata. A malformed
+      // CloudKit plist must not escape an unawaited profile task and disturb
+      // message delivery or repeatedly consume CPU while the same payload is
+      // replayed.
+      _pruneProfileRetryAfter(DateTime.now());
+      _profileRetryAfter[profileKey] = DateTime.now().add(const Duration(minutes: 10));
+      Logger.warn("Skipping shared profile payload after ${error.runtimeType}");
+    }
+  }
+
+  Future<void> _handleSharedProfile(api.ShareProfileMessage shared, String sender, List<Handle> targets) async {
     var myHandles = await api.getHandles(state: pushService.state!.client);
     if (myHandles.contains(sender)) {
       for (var target in targets) {

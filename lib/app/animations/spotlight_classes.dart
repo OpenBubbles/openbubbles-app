@@ -14,7 +14,7 @@ class SpotlightController implements Listenable {
   final Random random = Random();
   Size windowSize;
 
-  late Ticker ticker;
+  Ticker? ticker;
   late Point<double> position;
   late double size;
 
@@ -32,6 +32,7 @@ class SpotlightController implements Listenable {
     lastAutoLaunch = Duration.zero;
     position = Point((bubbleDimensions.left + bubbleDimensions.right) / 2, (bubbleDimensions.top + bubbleDimensions.bottom) / 2);
     size = max(bubbleDimensions.width, bubbleDimensions.height) + 50;
+    ticker?.dispose();
     ticker = vsync.createTicker(update)..start();
   }
 
@@ -57,7 +58,8 @@ class SpotlightController implements Listenable {
 
   void dispose() {
     listeners.clear();
-    ticker.dispose();
+    ticker?.dispose();
+    ticker = null;
   }
 
   void update(Duration elapsedDuration) {
@@ -76,8 +78,9 @@ class SpotlightController implements Listenable {
     spotlight!.update(elapsedDuration);
 
     if (spotlight!.stop < 0 && requestedToStop) {
-      ticker.stop();
-      ticker.dispose();
+      ticker?.stop();
+      ticker?.dispose();
+      ticker = null;
       isPlaying = false;
       requestedToStop = false;
       spotlight = null;

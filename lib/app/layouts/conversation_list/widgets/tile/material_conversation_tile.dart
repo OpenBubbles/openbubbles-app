@@ -177,7 +177,7 @@ class MaterialTrailing extends CustomStateful<ConversationTileController> {
 
 class _MaterialTrailingState extends CustomState<MaterialTrailing, void, ConversationTileController> {
   DateTime? dateCreated;
-  late final StreamSubscription sub;
+  StreamSubscription? sub;
   String? cachedLatestMessageGuid = "";
   Message? cachedLatestMessage;
 
@@ -235,7 +235,7 @@ class _MaterialTrailingState extends CustomState<MaterialTrailing, void, Convers
 
   @override
   void dispose() {
-    sub.cancel();
+    sub?.cancel();
     super.dispose();
   }
 

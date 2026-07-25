@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:bluebubbles/app/components/custom/custom_bouncing_scroll_physics.dart';
@@ -84,6 +85,7 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
   List<GlobalKey> keys = [];
   bool gaveHapticFeedback = false;
   final RxBool tapped = false.obs;
+  StreamSubscription? _avatarRefreshSubscription;
 
   @override
   void initState() {
@@ -105,12 +107,19 @@ class _MessageHolderState extends CustomState<MessageHolder, void, MessageWidget
       keys = List.generate(messageParts.length, (_) => GlobalKey());
     }
 
-    eventDispatcher.stream.listen((event) {
+    _avatarRefreshSubscription = eventDispatcher.stream.listen((event) {
+      if (!mounted) return;
       if (event.item1 != 'refresh-avatar') return;
       if (event.item2[0] != message.handle?.address) return;
       message.handle?.color = event.item2[1];
       setState(() {});
     });
+  }
+
+  @override
+  void dispose() {
+    _avatarRefreshSubscription?.cancel();
+    super.dispose();
   }
 
   @override

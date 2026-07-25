@@ -49,6 +49,8 @@ class ConversationViewState extends OptimizedState<ConversationView> {
     cm.activeChat!.controller = controller;
     Logger.debug("Conversation View initialized for ${chat.guid}");
 
+    controller.updatePoster();
+
     if (widget.onInit != null) {
       Future.delayed(Duration.zero, widget.onInit!);
     }

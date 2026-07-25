@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 
@@ -41,12 +42,14 @@ class _BubbleEffectsState extends OptimizedState<BubbleEffects> {
   late MovieTween tween;
   Control controller = Control.stop;
   Size size = Size.zero;
+  StreamSubscription? _effectSubscription;
 
   @override
   void initState() {
     getTween();
 
-    eventDispatcher.stream.listen((event) async {
+    _effectSubscription = eventDispatcher.stream.listen((event) {
+      if (!mounted) return;
       if (event.item1 == 'play-bubble-effect' && event.item2 == '${widget.part}/${widget.message.guid}') {
         size = widget.globalKey?.currentContext?.size ?? Size.zero;
         setState(() {
@@ -56,6 +59,12 @@ class _BubbleEffectsState extends OptimizedState<BubbleEffects> {
     });
 
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _effectSubscription?.cancel();
+    super.dispose();
   }
 
   void getTween() {

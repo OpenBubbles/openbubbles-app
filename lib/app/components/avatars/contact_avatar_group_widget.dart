@@ -31,7 +31,7 @@ class ContactAvatarGroupWidget extends StatefulWidget {
 }
 
 class _ContactAvatarGroupWidgetState extends OptimizedState<ContactAvatarGroupWidget> {
-  late final List<Handle> participants = widget.chat?.participants ?? widget.participants ?? [];
+  late List<Handle> participants;
   final Map materialGeneration = {
     2: [24.5/40, 10.5/40, [Alignment.topRight, Alignment.bottomLeft]],
     3: [21.5/40, 9/40, [Alignment.bottomRight, Alignment.bottomLeft, Alignment.topCenter]],
@@ -41,6 +41,20 @@ class _ContactAvatarGroupWidgetState extends OptimizedState<ContactAvatarGroupWi
   @override
   void initState() {
     super.initState();
+    _syncParticipants();
+  }
+
+  @override
+  void didUpdateWidget(covariant ContactAvatarGroupWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncParticipants();
+  }
+
+  void _syncParticipants() {
+    // Copy before sorting. Chat.participants is backed by the persisted
+    // relation, so sorting it in place can make participant order appear to
+    // change as a side effect of rendering.
+    participants = List<Handle>.from(widget.chat?.participants ?? widget.participants ?? []);
     participants.sort((a, b) {
       bool avatarA = a.contact?.avatar?.isNotEmpty ?? false;
       bool avatarB = b.contact?.avatar?.isNotEmpty ?? false;

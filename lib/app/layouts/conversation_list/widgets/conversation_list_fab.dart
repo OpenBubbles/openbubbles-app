@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bluebubbles/app/layouts/conversation_list/pages/conversation_list.dart';
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/app/wrappers/theme_switcher.dart';
@@ -18,6 +20,8 @@ class ConversationListFAB extends CustomStateful<ConversationListController> {
 }
 
 class _ConversationListFABState extends CustomState<ConversationListFAB, void, ConversationListController> {
+  StreamSubscription? _avatarOnlySubscription;
+
   void _focusBackToList() {
     if (!FocusScope.of(context).focusInDirection(TraversalDirection.left)) {
       FocusScope.of(context).previousFocus();
@@ -31,27 +35,29 @@ class _ConversationListFABState extends CustomState<ConversationListFAB, void, C
     const SingleActivator(LogicalKeyboardKey.space): () => controller.openNewChatCreator(context),
   };
 
+  void _handleMaterialScroll() {
+    if (!mounted || !material) return;
+    if (controller.materialScrollStartPosition - controller.materialScrollController.offset < -75
+        && controller.materialScrollController.position.userScrollDirection == ScrollDirection.reverse
+        && controller.showMaterialFABText) {
+      setState(() {
+        controller.showMaterialFABText = false;
+      });
+    } else if (controller.materialScrollStartPosition - controller.materialScrollController.offset > 75
+        && controller.materialScrollController.position.userScrollDirection == ScrollDirection.forward
+        && !controller.showMaterialFABText) {
+      setState(() {
+        controller.showMaterialFABText = true;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
 
-    controller.materialScrollController.addListener(() {
-      if (!material) return;
-      if (controller.materialScrollStartPosition - controller.materialScrollController.offset < -75
-          && controller.materialScrollController.position.userScrollDirection == ScrollDirection.reverse
-          && controller.showMaterialFABText) {
-        setState(() {
-          controller.showMaterialFABText = false;
-        });
-      } else if (controller.materialScrollStartPosition - controller.materialScrollController.offset > 75
-          && controller.materialScrollController.position.userScrollDirection == ScrollDirection.forward
-          && !controller.showMaterialFABText) {
-        setState(() {
-          controller.showMaterialFABText = true;
-        });
-      }
-    });
-    ns.listener.stream.listen((event) {
+    controller.materialScrollController.addListener(_handleMaterialScroll);
+    _avatarOnlySubscription = ns.listener.stream.listen((event) {
       if (!mounted) return;
       if (ns.isAvatarOnly(context) && controller.showMaterialFABText) {
         setState(() {
@@ -59,6 +65,13 @@ class _ConversationListFABState extends CustomState<ConversationListFAB, void, C
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    controller.materialScrollController.removeListener(_handleMaterialScroll);
+    _avatarOnlySubscription?.cancel();
+    super.dispose();
   }
 
   @override

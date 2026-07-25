@@ -147,7 +147,7 @@ class SamsungTrailing extends CustomStateful<ConversationTileController> {
 
 class _SamsungTrailingState extends CustomState<SamsungTrailing, void, ConversationTileController> {
   DateTime? dateCreated;
-  late final StreamSubscription sub;
+  StreamSubscription? sub;
   String? cachedLatestMessageGuid = "";
   Message? cachedLatestMessage;
 
@@ -205,7 +205,7 @@ class _SamsungTrailingState extends CustomState<SamsungTrailing, void, Conversat
 
   @override
   void dispose() {
-    sub.cancel();
+    sub?.cancel();
     super.dispose();
   }
 

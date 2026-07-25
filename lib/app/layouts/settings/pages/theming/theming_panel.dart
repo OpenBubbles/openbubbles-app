@@ -463,7 +463,7 @@ class _ThemingPanelState extends CustomState<ThemingPanel, void, ThemingPanelCon
                 ),
                 if (!kIsWeb && !kIsDesktop)
                   Obx(() {
-                    if (controller.refreshRates.length > 2) {
+                    if (controller.refreshRates.length > 1) {
                       return SettingsHeader(
                           iosSubtitle: iosSubtitle,
                           materialSubtitle: materialSubtitle,
@@ -474,7 +474,7 @@ class _ThemingPanelState extends CustomState<ThemingPanel, void, ThemingPanelCon
                   }),
                 if (!kIsWeb && !kIsDesktop)
                   Obx(() {
-                    if (controller.refreshRates.length > 2) {
+                    if (controller.refreshRates.length > 1) {
                       return SettingsSection(
                         backgroundColor: tileColor,
                         children: [

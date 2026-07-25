@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:bluebubbles/helpers/ui/theme_helpers.dart';
@@ -43,6 +44,8 @@ class _TabletModeWrapperState extends OptimizedState<TabletModeWrapper> {
   late final RxDouble _ratio;
   double? _maxWidth;
   bool? altLayoutCache;
+  StreamSubscription? _eventSubscription;
+  Worker? _ratioWorker;
 
   get _width1 => max(min(_ratio * _maxWidth!, widget.maxWidthLeft ?? double.infinity), widget.minWidthLeft ?? double.negativeInfinity);
 
@@ -52,7 +55,8 @@ class _TabletModeWrapperState extends OptimizedState<TabletModeWrapper> {
   void initState() {
     super.initState();
     _ratio = RxDouble((ss.prefs.getDouble('splitRatio') ?? widget.initialRatio).clamp(widget.minRatio, widget.maxRatio));
-    eventDispatcher.stream.listen((event) {
+    _eventSubscription = eventDispatcher.stream.listen((event) {
+      if (!mounted) return;
       if (event.item1 == 'split-refresh') {
         _ratio.value = ss.prefs.getDouble('splitRatio') ?? _ratio.value;
         setState(() {});
@@ -61,10 +65,17 @@ class _TabletModeWrapperState extends OptimizedState<TabletModeWrapper> {
         setState(() {});
       }
     });
-    debounce<double>(_ratio, (val) async {
+    _ratioWorker = debounce<double>(_ratio, (val) async {
       await ss.prefs.setDouble('splitRatio', val);
       eventDispatcher.emit('split-refresh', null);
     });
+  }
+
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    _ratioWorker?.dispose();
+    super.dispose();
   }
 
   @override
