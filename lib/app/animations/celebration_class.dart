@@ -14,6 +14,7 @@ class CelebrationController extends FireworkController {
     isPlaying = true;
     autoLaunchDuration = const Duration(milliseconds: 100);
     lastAutoLaunch = Duration.zero;
+    ticker?.dispose();
     ticker = vsync.createTicker(update)..start();
   }
 
@@ -41,7 +42,8 @@ class CelebrationController extends FireworkController {
   @override
   void dispose() {
     listeners.clear();
-    ticker.dispose();
+    ticker?.dispose();
+    ticker = null;
   }
 
   @override
@@ -63,8 +65,9 @@ class CelebrationController extends FireworkController {
 
     particles.removeWhere((element) => element.alpha <= 0);
     if (particles.isEmpty && requestedToStop) {
-      ticker.stop();
-      ticker.dispose();
+      ticker?.stop();
+      ticker?.dispose();
+      ticker = null;
       isPlaying = false;
       requestedToStop = false;
       hasCreatedParticles = false;

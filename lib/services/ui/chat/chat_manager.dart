@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:bluebubbles/database/models.dart';
+import 'package:bluebubbles/helpers/group_participant_helpers.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:dio/dio.dart';
 import 'package:bluebubbles/services/rustpush/rustpush_service.dart';
@@ -157,18 +158,24 @@ class ChatManager extends GetxService {
       if (chat == null) {
         updatedChat.save();
         chat = Chat.findOne(guid: chatGuid)!;
-      } else if (chat.handles.length > updatedChat.participants.length) {
-        final newAddresses = updatedChat.participants.map((e) => e.address);
-        final handlesToUse = chat.participants.where((e) => newAddresses.contains(e.address));
-        chat.handles.clear();
-        chat.handles.addAll(handlesToUse);
-        chat.handles.applyToDb();
-      } else if (chat.handles.length < updatedChat.participants.length) {
-        final existingAddresses = chat.participants.map((e) => e.address);
-        final newHandle = updatedChat.participants.firstWhere((e) => !existingAddresses.contains(e.address));
-        final handle = Handle.findOne(addressAndService: Tuple2(newHandle.address, chat.isIMessage ? "iMessage" : "SMS")) ?? newHandle.save();
-        chat.handles.add(handle);
-        chat.handles.applyToDb();
+      } else {
+        // Reconcile by address and service, not just list length. A group can
+        // replace one participant without changing its size, and multiple
+        // additions must all be reflected in the local relation.
+        // An incomplete server response must not erase a known participant
+        // list. A valid empty group is not useful for this client, so retain
+        // the local list when the response contains no participants.
+        if (updatedChat.participants.isNotEmpty || chat.participants.isEmpty) {
+          final handles = reconcileGroupParticipants(
+            chat.participants,
+            updatedChat.participants,
+          );
+          if (handles.isNotEmpty) Handle.bulkSave(handles);
+          chat.handles.clear();
+          chat.handles.addAll(handles);
+          chat.handles.applyToDb();
+          chat.getParticipants();
+        }
       }
       if (!chat.lockChatName) {
         chat.displayName = updatedChat.displayName;

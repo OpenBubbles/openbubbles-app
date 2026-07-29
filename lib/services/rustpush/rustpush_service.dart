@@ -51,6 +51,7 @@ import 'package:mixpanel_flutter/mixpanel_flutter.dart';
 import 'package:bluebubbles/helpers/backend/startup_tasks.dart';
 import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:google_sign_in_all_platforms/google_sign_in_all_platforms.dart';
+import 'package:synchronized/synchronized.dart';
 
 var uuid = const Uuid();
 RustPushService pushService =
@@ -58,9 +59,16 @@ RustPushService pushService =
 
 
 const rpApiRoot = "https://hw.openbubbles.app/code";
+const registrationRelayHost = "https://registration-relay.beeper.com";
+const registrationRelayAccessToken =
+    "5c175851953ecaf5209185d897591badb6c3e712";
 
 const clientId = '1041242226917-ik21n86fp43e82iu1e5soh6bu6gvuste.apps.googleusercontent.com';
 const clientSecret = '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';
+
+String _diagnosticHash(String value) => sha256.convert(utf8.encode(value)).toString().substring(0, 12);
+
+String _durationMs(Stopwatch stopwatch) => stopwatch.elapsedMilliseconds.toString();
 
 
 class SyncIsolate {
@@ -398,22 +406,69 @@ class RustPushBackend implements BackendService {
     return const api.MessageType.iMessage();
   }
 
-  Future<void> sendMsg(api.MessageInst msg) async {
+  static final RegExp resourceRetryRegex = RegExp(r"retrying in (\d+)s");
+  static const maxResourceWait = Duration(seconds: 35);
+
+  /// rustpush's ResourceManager hands the *cached* failure to every caller for as long as
+  /// it is backing off, so anything we do inside that window fails instantly without ever
+  /// touching the network (e.g. the APNs socket got reset and won't be redialed for another
+  /// 30s). Those aren't real failures, they just mean "not yet" -- so return how long the
+  /// resource wants before it tries again, or null if the error isn't worth waiting on.
+  Duration? resourceRetryWait(Object e) {
+    if (e is! AnyhowException) return null;
+    // "not retrying" means the resource gave up entirely, nothing to wait for. Note that a
+    // "Do not retry" prefix is *not* the same thing; that only means the caller (e.g. an IDS
+    // lookup) already burned its own immediate retries, the resource itself is still coming back.
+    if (!e.message.contains("Failed to generate resource")) return null;
+    if (e.message.contains("not retrying")) return null;
+    var seconds = int.tryParse(resourceRetryRegex.firstMatch(e.message)?.group(1) ?? "");
+    if (seconds == null) return null;
+    var wait = Duration(seconds: seconds);
+    return wait > maxResourceWait ? maxResourceWait : wait;
+  }
+
+  /// How long we are willing to wait on a reconnecting resource before giving up on a send.
+  /// Kept under the 5 minute timeout ActionHandler puts on sends.
+  static const sendRetryBudget = Duration(minutes: 3);
+  static const sendTimeoutRetryWait = Duration(seconds: 2);
+  static const maxSendTimeoutRetries = 1;
+
+  Future<void> sendMsg(api.MessageInst msg, {bool waitForResource = true}) async {
     var message = Message.findOne(guid: msg.id);
     if (message != null) {
       message.sendingServiceId = pushService.serviceId;
       message.save(updateSendingServiceId: true);
     }
     var stillRunning = false;
+    var waited = Duration.zero;
+    var sendTimeoutRetries = 0;
     try {
-      stillRunning = await api.send(state: pushService.state!.client, local: pushService.state!.localBroadcast, msg: msg);
-    } catch (e) {
-      if (e is AnyhowException) {
-        if (e.message.contains("Failed to generate resource") && e.message.contains("not retrying")) {
-          pushService.markFailedToLogin();
+      while (true) {
+        try {
+          stillRunning = await api.send(state: pushService.state!.client, local: pushService.state!.localBroadcast, msg: msg);
+          break;
+        } catch (e) {
+          if (e is AnyhowException) {
+            if (e.message.contains("Failed to generate resource") && e.message.contains("not retrying")) {
+              pushService.markFailedToLogin();
+              rethrow;
+            }
+            if (e.message.contains("Send timeout; try again") && sendTimeoutRetries < maxSendTimeoutRetries) {
+              sendTimeoutRetries++;
+              Logger.warn("Send confirmation timed out; retrying once after the push connection reload");
+              await Future.delayed(sendTimeoutRetryWait);
+              continue;
+            }
+          }
+          var wait = waitForResource ? resourceRetryWait(e) : null;
+          // add a second so we retry *after* rustpush has had a chance to regenerate
+          if (wait != null) wait += const Duration(seconds: 1);
+          if (wait == null || waited + wait > sendRetryBudget) rethrow;
+          Logger.warn("Connection isn't ready; retrying ${msg.id} in ${wait.inSeconds}s ($e)");
+          await Future.delayed(wait);
+          waited += wait;
         }
       }
-      rethrow;
     } finally {
       if (!stillRunning) {
         message = Message.findOne(guid: msg.id);
@@ -1279,7 +1334,7 @@ class RustPushBackend implements BackendService {
         icon: base64Decode(appdata.appIcon!),
       ) : null)
     );
-    await sendMsg(msg);
+    await sendMsg(msg, waitForResource: false); // a typing indicator is worthless by the time we reconnect
   }
 
   @override
@@ -1290,7 +1345,7 @@ class RustPushBackend implements BackendService {
       sender: await c.ensureHandle(),
       message: const api.Message.typing(false)
     );
-    await sendMsg(msg);
+    await sendMsg(msg, waitForResource: false);
   }
 
   @override
@@ -1312,6 +1367,234 @@ class RustPushService extends GetxService {
   Mixpanel? mixpanel;
 
   var disableOutgoingSms = false;
+
+  final RxBool relayHealthChecking = false.obs;
+  final RxBool relayHealthAvailable = false.obs;
+  final RxnBool relayReachable = RxnBool();
+  final Rxn<DateTime> relayLastChecked = Rxn<DateTime>();
+  final Rxn<DateTime> relayLastSuccess = Rxn<DateTime>();
+  Future<bool?>? _relayHealthInFlight;
+  String? _relayHealthFingerprint;
+  final Lock _relayReminderLock = Lock();
+
+  Future<api.DeviceInfo?> getUserManagedIPhoneRelayDevice(
+      {api.SharedPushState? fromState}) async {
+    final currentState = fromState ?? state;
+    if (currentState == null || ss.settings.deviceIsHosted.value) {
+      return null;
+    }
+
+    final device =
+        await api.getDeviceInfo(config: currentState.osConfig);
+    if (device.name.contains("iPhone") ||
+        device.name.contains("iPod") ||
+        device.name.contains("iPad")) {
+      return device;
+    }
+    return null;
+  }
+
+  String relayHealthFingerprint(api.DeviceInfo device) {
+    final relayHost = ss.prefs.getString("registration-relay-host") ??
+        registrationRelayHost;
+    final fingerprintSource =
+        "${device.serial}|${ss.settings.iCloudAccount.value}|$relayHost";
+    return sha256.convert(utf8.encode(fingerprintSource)).toString();
+  }
+
+  Future<void> clearRelayHealthState({bool clearPreferences = true}) async {
+    relayHealthAvailable.value = false;
+    relayReachable.value = null;
+    relayLastChecked.value = null;
+    relayLastSuccess.value = null;
+    _relayHealthFingerprint = null;
+    if (!clearPreferences) {
+      return;
+    }
+
+    await Future.wait([
+      ss.prefs.remove("relay-health-fingerprint"),
+      ss.prefs.remove("relay-health-last-checked"),
+      ss.prefs.remove("relay-health-last-success"),
+      ss.prefs.remove("relay-health-reachable"),
+    ]);
+  }
+
+  Future<void> restoreRelayHealthState() async {
+    final device = await getUserManagedIPhoneRelayDevice();
+    if (device == null) {
+      await clearRelayHealthState();
+      return;
+    }
+
+    final fingerprint = relayHealthFingerprint(device);
+    relayHealthAvailable.value = true;
+    final savedFingerprint =
+        ss.prefs.getString("relay-health-fingerprint");
+    if (savedFingerprint != fingerprint) {
+      await clearRelayHealthState();
+      relayHealthAvailable.value = true;
+      _relayHealthFingerprint = fingerprint;
+      await ss.prefs.setString(
+          "relay-health-fingerprint", fingerprint);
+      return;
+    }
+
+    _relayHealthFingerprint = fingerprint;
+    final lastChecked = ss.prefs.getInt("relay-health-last-checked");
+    final lastSuccess = ss.prefs.getInt("relay-health-last-success");
+    relayReachable.value = ss.prefs.getBool("relay-health-reachable");
+    relayLastChecked.value = lastChecked == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(lastChecked);
+    relayLastSuccess.value = lastSuccess == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(lastSuccess);
+  }
+
+  Future<bool> usesUserManagedIPhoneRelay() async {
+    return await getUserManagedIPhoneRelayDevice() != null;
+  }
+
+  Future<bool?> checkRelayHealth() async {
+    final existingCheck = _relayHealthInFlight;
+    if (existingCheck != null) {
+      return await existingCheck;
+    }
+
+    final check = _performRelayHealthCheck();
+    _relayHealthInFlight = check;
+    try {
+      return await check;
+    } finally {
+      if (identical(_relayHealthInFlight, check)) {
+        _relayHealthInFlight = null;
+      }
+    }
+  }
+
+  Future<bool?> _performRelayHealthCheck() async {
+    final currentState = state;
+    if (currentState == null) {
+      return null;
+    }
+
+    api.DeviceInfo? relayDevice;
+    try {
+      relayDevice = await getUserManagedIPhoneRelayDevice(
+          fromState: currentState);
+    } catch (e, s) {
+      Logger.warn("Failed to identify iPhone relay",
+          error: e, trace: s);
+      return null;
+    }
+    if (relayDevice == null) {
+      return null;
+    }
+    relayHealthAvailable.value = true;
+
+    final fingerprint = relayHealthFingerprint(relayDevice);
+    if (_relayHealthFingerprint != fingerprint) {
+      await clearRelayHealthState();
+      relayHealthAvailable.value = true;
+      _relayHealthFingerprint = fingerprint;
+      await ss.prefs.setString(
+          "relay-health-fingerprint", fingerprint);
+    }
+
+    relayHealthChecking.value = true;
+    final checkedAt = DateTime.now();
+    relayLastChecked.value = checkedAt;
+    await ss.prefs.setInt(
+        "relay-health-last-checked", checkedAt.millisecondsSinceEpoch);
+
+    try {
+      final relayCode =
+          await api.validateRelay(configRef: currentState.osConfig);
+      var reachable = false;
+      if (relayCode != null) {
+        final relayHost =
+            ss.prefs.getString("registration-relay-host") ??
+                registrationRelayHost;
+        final response = await http.dio.post(
+          "$relayHost/api/v1/bridge/get-version-info",
+          data: {},
+          options: Options(
+            headers: {
+              "X-Beeper-Access-Token":
+                  registrationRelayAccessToken,
+              "Authorization": "Bearer $relayCode",
+            },
+          ),
+        );
+        final responseData = response.data;
+        final versions =
+            responseData is Map ? responseData["versions"] : null;
+        reachable = response.statusCode == 200 &&
+            versions is Map &&
+            versions["software_name"] == "iPhone OS";
+      }
+
+      relayReachable.value = reachable;
+      await ss.prefs.setBool("relay-health-reachable", reachable);
+
+      if (reachable) {
+        relayLastSuccess.value = checkedAt;
+        await ss.prefs.setInt(
+            "relay-health-last-success", checkedAt.millisecondsSinceEpoch);
+      }
+
+      return reachable;
+    } catch (e, s) {
+      relayReachable.value = false;
+      await ss.prefs.setBool("relay-health-reachable", false);
+      Logger.warn("iPhone relay health check failed", error: e, trace: s);
+      return false;
+    } finally {
+      relayHealthChecking.value = false;
+    }
+  }
+
+  Future<void> scheduleRelayHealthReminder(
+      int secondsUntilRenewal) async {
+    await _relayReminderLock.synchronized(() async {
+      await notif.cancelRelayCheckReminder();
+      final currentState = state;
+      if (currentState == null) {
+        return;
+      }
+      try {
+        if (await getUserManagedIPhoneRelayDevice(
+                fromState: currentState) ==
+            null) {
+          return;
+        }
+        if ((await api.getMyPhoneHandles(
+                state: currentState.client))
+            .isEmpty) {
+          return;
+        }
+      } catch (e, s) {
+        Logger.warn("Failed to schedule iPhone relay reminder",
+            error: e, trace: s);
+        return;
+      }
+      if (!identical(state, currentState)) {
+        return;
+      }
+
+      const warningLeadTime = Duration(minutes: 15);
+      final delaySeconds =
+          max(10, secondsUntilRenewal - warningLeadTime.inSeconds);
+      await notif.scheduleRelayCheckReminder(
+          DateTime.now().add(Duration(seconds: delaySeconds)));
+    });
+  }
+
+  Future<void> cancelRelayHealthReminder() async {
+    await _relayReminderLock.synchronized(
+        () => notif.cancelRelayCheckReminder());
+  }
 
   Map<String, api.Attachment> attachments = {};
 
@@ -1349,6 +1632,11 @@ class RustPushService extends GetxService {
   }
 
   Future<void> updateChatParticipants(Chat c, api.MessageInst myMsg, List<String> oldParticipants, List<String> newParticipants) async {
+    final sender = myMsg.sender;
+    if (sender == null || sender.isEmpty) {
+      Logger.warn("Ignoring participant update without a sender");
+      return;
+    }
     var myHandles = await api.getHandles(state: pushService.state!.client);
     var newP = newParticipants.filter((p) => !oldParticipants.contains(p) && !myHandles.contains(p));
     var delP = oldParticipants.filter((p) => !newParticipants.contains(p));
@@ -1367,8 +1655,8 @@ class RustPushService extends GetxService {
       var bb = RustPushBBUtils.rustHandleToBB(item);
       var msg = Message(
         guid: useId ? myMsg.id : uuid.v4(),
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: 1,
         groupActionType: 0,
@@ -1384,11 +1672,11 @@ class RustPushService extends GetxService {
 
     for (var item in delP) {
       var bb = RustPushBBUtils.rustHandleToBB(item);
-      var personDidLeave = item == myMsg.sender;
+      var personDidLeave = item == sender;
       var msg = Message(
         guid: useId ? myMsg.id : uuid.v4(),
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: personDidLeave ? 3 : 1,
         groupActionType: personDidLeave ? 0 : 1,
@@ -1681,15 +1969,16 @@ class RustPushService extends GetxService {
       return msg;
     } else if (myMsg.message is api.Message_RenameMessage) {
       var msg = myMsg.message as api.Message_RenameMessage;
-      if (myMsg.verificationFailed) return null;
+      final sender = myMsg.sender;
+      if (myMsg.verificationFailed || chat == null || sender == null || sender.isEmpty) return null;
 
-      chat!.ckSyncState = false;
+      chat.ckSyncState = false;
       chat.save(updateCkSyncState: true);
       
       return Message(
         guid: myMsg.id,
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: 2,
         groupActionType: 2,
@@ -1697,15 +1986,18 @@ class RustPushService extends GetxService {
       );
     } else if (myMsg.message is api.Message_ChangeParticipants) {
       var msg = myMsg.message as api.Message_ChangeParticipants;
-      if (myMsg.verificationFailed) return null;
-      await updateChatParticipants(chat!, myMsg, myMsg.conversation!.participants, msg.field0.newParticipants);
+      final conversation = myMsg.conversation;
+      if (myMsg.verificationFailed || chat == null || conversation == null || myMsg.sender == null) return null;
+      await updateChatParticipants(chat, myMsg, conversation.participants, msg.field0.newParticipants);
       chat.groupVersion = msg.field0.groupVersion;
       chat.ckSyncState = false;
       chat.save(updateGroupVersion: true, updateCkSyncState: true);
       return null;
     } else if (myMsg.message is api.Message_IconChange) {
       var innerMsg = myMsg.message as api.Message_IconChange;
-      if (!chat!.lockChatIcon && (chat.groupVersion ?? 0) < innerMsg.field0.groupVersion) {
+      final sender = myMsg.sender;
+      if (chat == null || sender == null || sender.isEmpty) return null;
+      if (!chat.lockChatIcon && (chat.groupVersion ?? 0) < innerMsg.field0.groupVersion) {
         var file = innerMsg.field0.file;
         chat.groupVersion = innerMsg.field0.groupVersion;
         chat.ckSyncState = false;
@@ -1724,16 +2016,21 @@ class RustPushService extends GetxService {
       }
       return Message(
         guid: myMsg.id,
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         itemType: 3,
         groupActionType: 1,
       );
     } else if (myMsg.message is api.Message_React) {
       var msg = myMsg.message as api.Message_React;
+      final sender = myMsg.sender;
+      if (sender == null || sender.isEmpty) {
+        Logger.warn("Ignoring reaction without a sender");
+        return null;
+      }
       if (msg.field0.embeddedProfile != null) {
-        handleSharedProfile(msg.field0.embeddedProfile!, myMsg.sender!, chat?.participants ?? []);
+        handleSharedProfile(msg.field0.embeddedProfile!, sender, chat?.participants ?? []);
       }
 
       String? reaction;
@@ -1785,7 +2082,11 @@ class RustPushService extends GetxService {
           final messages = query.find();
           query.close();
 
-          final original = messages.firstWhere((msg) => (msg.stagingGuid ?? msg.guid) != myMsg.id);
+          final original = messages.firstWhereOrNull((msg) => (msg.stagingGuid ?? msg.guid) != myMsg.id);
+          if (original == null) {
+            Logger.warn("Ignoring extension update without a base message");
+            return null;
+          }
 
           original.fetchAssociatedMessages();
 
@@ -1797,7 +2098,12 @@ class RustPushService extends GetxService {
           }
           
           // allow updating image
-          attributedBodyData = (attributedBodyData.$3.isEmpty ? original.attributedBody[0] : attributedBodyData.$1, original.text!, attributedBodyData.$3.isEmpty ? original.dbAttachments : attributedBodyData.$3);
+          final originalBody = original.attributedBody.firstOrNull;
+          if (attributedBodyData.$3.isEmpty && originalBody == null) {
+            Logger.warn("Ignoring extension update without message content");
+            return null;
+          }
+          attributedBodyData = (attributedBodyData.$3.isEmpty ? originalBody! : attributedBodyData.$1, original.text ?? "", attributedBodyData.$3.isEmpty ? original.dbAttachments : attributedBodyData.$3);
           var tag = es.getLatest(msg.field0.toUuid);
           // updates cached value; we are latest
           if (tag.firstOrNull != myMsg.id) {
@@ -1819,8 +2125,8 @@ class RustPushService extends GetxService {
       }
       var message = Message(
         guid: myMsg.id,
-        isFromMe: myHandles.contains(myMsg.sender),
-        handleId: RustPushBBUtils.rustHandleToBB(myMsg.sender!).originalROWID!,
+        isFromMe: myHandles.contains(sender),
+        handleId: RustPushBBUtils.rustHandleToBB(sender).originalROWID!,
         dateCreated: DateTime.fromMillisecondsSinceEpoch(myMsg.sentTimestamp),
         associatedMessagePart: msg.field0.toPart,
         associatedMessageGuid: reaction == null ? null : msg.field0.toUuid,
@@ -1844,7 +2150,11 @@ class RustPushService extends GetxService {
       return message;
     } else if (myMsg.message is api.Message_Unsend) {
       var msg = myMsg.message as api.Message_Unsend;
-      var msgObj = Message.findOne(guid: msg.field0.tuuid)!;
+      var msgObj = Message.findOne(guid: msg.field0.tuuid);
+      if (msgObj == null) {
+        Logger.warn("Ignoring unsend for a missing message");
+        return null;
+      }
       msgObj.verificationFailed = myMsg.verificationFailed;
       msgObj.dateEdited = DateTime.now();
       var summaryInfo = msgObj.messageSummaryInfo.firstOrNull;
@@ -2509,6 +2819,7 @@ class RustPushService extends GetxService {
       Logger.info("Syncing group of ${items2.length} messages, total $totalMessages");
       totalMessages += items2.length;
 
+      var processedInBatch = 0;
       for (var item in items2.entries) {
         try {
           if (item.value == null) {
@@ -2546,7 +2857,15 @@ class RustPushService extends GetxService {
           message.applyFromCloud(item.value!, item.key);
           remoteNew++;
         } catch (e, s) {
-          Logger.error("Failed to sync attachment ${item.key}", error: e, trace: s);
+          Logger.error("Failed to sync cloud message", error: e, trace: s);
+        } finally {
+          processedInBatch++;
+          // Cloud decoding and ObjectBox writes run on Flutter's main isolate.
+          // Yield periodically so window painting and input remain responsive
+          // during a multi-thousand-message initial sync.
+          if (processedInBatch % 25 == 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1));
+          }
         }
       }
 
@@ -2661,6 +2980,7 @@ class RustPushService extends GetxService {
   }
 
   Future<PurchaseWrapper?> getPurchaseDetails() async {
+    if (!Platform.isAndroid) return null;
     try {
       var purchases = await pushService.client.runWithClient((client) => client.queryPurchases(ProductType.subs));
       var token = purchases.purchasesList.firstOrNull?.purchaseToken;
@@ -2686,7 +3006,7 @@ class RustPushService extends GetxService {
 
   Future<void> handleRegistered() async {
     notif.clearRegisterFailed();
-    if (ss.settings.hostedToken.value != null) {
+    if (Platform.isAndroid && ss.settings.hostedToken.value != null) {
       var detail = await getPurchaseDetails();
       if (detail == null) return;
 
@@ -2827,8 +3147,99 @@ class RustPushService extends GetxService {
     return null;
   }
 
-  List<String> profilesDownloading = [];
-  Future handleSharedProfile(api.ShareProfileMessage shared, String sender, List<Handle> targets) async {
+  final Set<String> profilesDownloading = {};
+  final Map<String, Timer> _profileRetryTimers = {};
+  final Map<String, int> _profileRetryAttempts = {};
+  static const List<Duration> _profileRetryDelays = [
+    Duration(seconds: 5),
+    Duration(seconds: 30),
+    Duration(minutes: 2),
+  ];
+
+  bool _isTransientProfileFailure(String category) =>
+      category == "service_unavailable" ||
+      category == "timeout" ||
+      category == "network";
+
+  String _profileFailureCategory(Object error) {
+    final description = error.toString().toLowerCase();
+    if (description.contains("profile service unavailable")) return "service_unavailable";
+    if (description.contains("timeout")) return "timeout";
+    if (description.contains("connection") ||
+        description.contains("network") ||
+        description.contains("socket") ||
+        description.contains("dns")) {
+      return "network";
+    }
+    if (description.contains("record") && description.contains("not found")) return "record_not_found";
+    if (description.contains("plist") || description.contains("serde")) return "plist";
+    if (description.contains("decrypt") ||
+        description.contains("hmac") ||
+        description.contains("crypto")) {
+      return "crypto";
+    }
+    if (description.contains("asset")) return "asset";
+    if (description.contains("panic")) return "panic";
+    return error.runtimeType.toString();
+  }
+
+  void _clearProfileRetry(String profileKey) {
+    _profileRetryTimers.remove(profileKey)?.cancel();
+    _profileRetryAttempts.remove(profileKey);
+  }
+
+  void _scheduleProfileRetry(
+    api.ShareProfileMessage shared,
+    String sender,
+    List<Handle> targets,
+    String category,
+  ) {
+    final profileKey = shared.cloudKitRecordKey;
+    if (_profileRetryTimers.containsKey(profileKey)) return;
+    if (!_isTransientProfileFailure(category)) {
+      _profileRetryAttempts.remove(profileKey);
+      Logger.warn("Shared profile fetch skipped retry category=$category transient=false");
+      return;
+    }
+
+    final attempt = _profileRetryAttempts[profileKey] ?? 0;
+    if (attempt >= _profileRetryDelays.length) {
+      _profileRetryAttempts.remove(profileKey);
+      Logger.warn("Shared profile fetch exhausted category=$category attempts=$attempt");
+      return;
+    }
+
+    final delay = _profileRetryDelays[attempt];
+    _profileRetryAttempts[profileKey] = attempt + 1;
+    Logger.warn(
+      "Shared profile fetch deferred category=$category "
+      "attempt=${attempt + 1} retry_in_seconds=${delay.inSeconds}",
+    );
+    _profileRetryTimers[profileKey] = Timer(delay, () {
+      _profileRetryTimers.remove(profileKey);
+      unawaited(handleSharedProfile(shared, sender, targets));
+    });
+  }
+
+  Future<void> handleSharedProfile(api.ShareProfileMessage shared, String sender, List<Handle> targets) async {
+    final profileKey = shared.cloudKitRecordKey;
+    if (_profileRetryTimers.containsKey(profileKey) || !profilesDownloading.add(profileKey)) return;
+
+    try {
+      await _handleSharedProfile(shared, sender, targets);
+      _clearProfileRetry(profileKey);
+    } catch (error) {
+      // Shared profile payloads are optional message metadata. A malformed
+      // CloudKit plist must not escape an unawaited profile task and disturb
+      // message delivery. Retry independently so the contact image can recover
+      // after transient CloudKit, network, or service-initialization failures.
+      _scheduleProfileRetry(shared, sender, targets, _profileFailureCategory(error));
+    } finally {
+      profilesDownloading.remove(profileKey);
+    }
+  }
+
+  Future<void> _handleSharedProfile(api.ShareProfileMessage shared, String sender, List<Handle> targets) async {
     var myHandles = await api.getHandles(state: pushService.state!.client);
     if (myHandles.contains(sender)) {
       for (var target in targets) {
@@ -2841,68 +3252,72 @@ class RustPushService extends GetxService {
       return;
     }
     var profiles = pushService.state?.icloudServices?.profilesClient;
-    if (profiles == null) return;
+    if (profiles == null) throw StateError("Profile service unavailable");
 
     // mask with profilesDownloading because iPhones have a nasty habit of sharing once to every handle. We don't want to download 15 times for each handle
-    if (Contact.findOne(id: shared.cloudKitRecordKey) != null || profilesDownloading.contains(shared.cloudKitRecordKey)) return; // already downloaded
-    profilesDownloading.add(shared.cloudKitRecordKey);
+    if (Contact.findOne(id: shared.cloudKitRecordKey) != null) return; // already downloaded
 
-    try {
-      var fetch = await api.fetchProfile(profiles: profiles, message: shared);
-      var otherHandle = RustPushBBUtils.rustHandleToBB(sender);
+    var fetch = await api.fetchProfile(profiles: profiles, message: shared);
+    var otherHandle = RustPushBBUtils.rustHandleToBB(sender);
 
-      String? posterPath;
-      if (fetch.poster != null && !kIsDesktop) {
-        var decoded = await api.parsePoster(poster: fetch.poster!);
+    String? posterPath;
+    if (fetch.poster != null && !kIsDesktop) {
+      var decoded = await api.parsePoster(poster: fetch.poster!);
+      try {
+        posterPath = await savePoster(decoded);
+      } catch (e, t) {
+        Logger.error("Could not decode other poster", error: e, trace: t);
+      }
+    }
+
+    Uint8List? avatar = fetch.image;
+    if ((avatar == null || avatar.isEmpty) && posterPath != null) {
+      final posterPreview = File("$posterPath.jpg");
+      if (await posterPreview.exists()) {
+        avatar = await posterPreview.readAsBytes();
+      }
+    }
+
+    var existingShared = Contact.findOne(address: otherHandle.address, wantShared: true);
+    if (existingShared != null) {
+      if (otherHandle.contactRelation.targetId == existingShared.dbId) {
+        otherHandle.contactRelation.target = null;
+      }
+      if (existingShared.posterPath != null) {
         try {
-          posterPath = await savePoster(decoded);
-        } catch (e, t) {
-          Logger.error("Could not decode other poster", error: e, trace: t); 
-        }
+          await deletePoster(existingShared.posterPath!);
+        } catch (e) { /* */ }
       }
-
-      var existingShared = Contact.findOne(address: otherHandle.address, wantShared: true);
-      if (existingShared != null) {
-        if (otherHandle.contactRelation.targetId == existingShared.dbId) {
-          otherHandle.contactRelation.target = null;
-        }
-        if (existingShared.posterPath != null) {
-          try {
-            await deletePoster(existingShared.posterPath!);
-          } catch (e) { /* */ }
-        }
-        Database.contacts.remove(existingShared.dbId!);
-      }
-      if (otherHandle.getPoster() == null) {
-        otherHandle.setPoster(posterPath);
-        posterPath = "alreadyset";
-      }
-      var newId = Database.contacts.put(Contact(
-        id: shared.cloudKitRecordKey,
-        displayName: "Maybe: ${fetch.name.name}",
-        structuredName: StructuredName(
-          namePrefix: "",
-          nameSuffix: "",
-          givenName: fetch.name.first,
-          middleName: "",
-          familyName: fetch.name.last,
-        ),
-        avatar: fetch.image,
-        isShared: true,
-        phones: otherHandle.contact?.phones ?? (otherHandle.address.isEmail ? [] : [otherHandle.address]),
-        emails: otherHandle.contact?.emails ?? (otherHandle.address.isEmail ? [otherHandle.address] : []),
-        posterPath: posterPath,
-      ));
-      if (otherHandle.contactRelation.target == null) {
-        otherHandle.contactRelation.targetId = newId;
-        Database.handles.put(otherHandle);
-      }
-      final result = (await Chat.findByRust(api.ConversationData(participants: [sender]), "iMessage", soft: true));
-      if (result != null) {
-        cvc(result).updateContactInfo();
-      }
-    } finally {
-      profilesDownloading.remove(shared.cloudKitRecordKey);
+      Database.contacts.remove(existingShared.dbId!);
+    }
+    if (otherHandle.getPoster() == null) {
+      otherHandle.setPoster(posterPath);
+      posterPath = "alreadyset";
+    }
+    var newId = Database.contacts.put(Contact(
+      id: shared.cloudKitRecordKey,
+      displayName: "Maybe: ${fetch.name.name}",
+      structuredName: StructuredName(
+        namePrefix: "",
+        nameSuffix: "",
+        givenName: fetch.name.first,
+        middleName: "",
+        familyName: fetch.name.last,
+      ),
+      avatar: avatar,
+      isShared: true,
+      phones: otherHandle.contact?.phones ?? (otherHandle.address.isEmail ? [] : [otherHandle.address]),
+      emails: otherHandle.contact?.emails ?? (otherHandle.address.isEmail ? [otherHandle.address] : []),
+      posterPath: posterPath,
+    ));
+    if (otherHandle.contactRelation.target == null) {
+      otherHandle.contactRelation.targetId = newId;
+      Database.handles.put(otherHandle);
+    }
+    eventDispatcher.emit("refresh-avatar", [otherHandle.address, otherHandle.color]);
+    final result = (await Chat.findByRust(api.ConversationData(participants: [sender]), "iMessage", soft: true));
+    if (result != null) {
+      cvc(result).updateContactInfo();
     }
   }
 
@@ -2959,7 +3374,7 @@ class RustPushService extends GetxService {
 
     String appDocPath = fs.appDocDir.path;
 
-    savePosterData(decoded.poster, number);
+    await savePosterData(decoded.poster, number);
 
     var save = await api.parsePosterSave(poster: decoded);
     File file = File("$appDocPath/avatars/you/poster-$number.jpg");
@@ -2978,7 +3393,7 @@ class RustPushService extends GetxService {
 
     String appDocPath = fs.appDocDir.path;
 
-    savePosterData(decoded.poster, number);
+    await savePosterData(decoded.poster, number);
 
     var save = await api.transcriptPosterSave(poster: decoded);
     File file = File("$appDocPath/avatars/you/poster-$number.jpg");
@@ -3140,13 +3555,8 @@ class RustPushService extends GetxService {
     Chat.softDelete(chat);
   }
 
-  Future handleMsg(api.PushMessage push, bool finalAttempt) async {
-    try {
-      await handleMsgInner(push).timeout(const Duration(minutes: 3));
-    } catch (e, s) {
-      if (finalAttempt) markCertified(push);
-      rethrow;
-    }
+  Future handleMsg(api.PushMessage push) async {
+    await handleMsgInner(push).timeout(const Duration(minutes: 3));
     // if we complete successfully, mark delivery "certified"
     markCertified(push);
   }
@@ -3353,12 +3763,17 @@ class RustPushService extends GetxService {
       var state = push.field0;
       if (state is api.RegisterState_Registered) {
         notifiedFailed = false;
+        unawaited(scheduleRelayHealthReminder(state.nextS));
         if (ss.settings.deviceIsHosted.value) {
           mixpanel?.track("hosted-register-success");
         }
         handleRegistered();
       }
+      if (state is api.RegisterState_Registering) {
+        unawaited(cancelRelayHealthReminder());
+      }
       if (state is api.RegisterState_Failed && !notifiedFailed) {
+        unawaited(cancelRelayHealthReminder());
         if (ss.settings.deviceIsHosted.value) {
           mixpanel?.track("hosted-register-failure");
         }
@@ -3791,9 +4206,11 @@ class RustPushService extends GetxService {
             myMsg.target = otherIds.map((element) => api.MessageTarget.uuid(element)).toList(); // forward to other devices
             await (backend as RustPushBackend).sendMsg(myMsg);
           }
-          var msg = (await pushService.reflectMessageDyn(myMsg))!;
-          msg.temp = true;
-          msg.forwardIfNessesary(chat);
+          final msg = await pushService.reflectMessageDyn(myMsg);
+          if (msg != null) {
+            msg.temp = true;
+            await msg.forwardIfNessesary(chat);
+          }
           return;
         }
       }
@@ -3806,16 +4223,23 @@ class RustPushService extends GetxService {
         return;
       }
     }
-    Logger.info("Reflecting ${myMsg.id}");
+    final receiveStopwatch = Stopwatch()..start();
+    final receiveId = _diagnosticHash(myMsg.id);
+    Logger.info("rustpush_receive reflection_start id=$receiveId");
     var reflected = await pushService.reflectMessageDyn(myMsg);
-    Logger.info("Reflect finished ${myMsg.id}");
+    Logger.info("rustpush_receive reflection_complete id=$receiveId duration_ms=${_durationMs(receiveStopwatch)} reflected=${reflected != null}");
     if (reflected != null) {
-      Logger.info("Queing");
+      final queueStopwatch = Stopwatch()..start();
+      final queueCompletion = Completer<void>();
+      Logger.info("rustpush_receive incoming_queue_enqueue id=$receiveId pending_count=${inq.items.length}");
       await inq.queue(IncomingItem(
         chat: chat,
         message: reflected,
-        type: QueueType.newMessage
+        type: QueueType.newMessage,
+        completer: queueCompletion,
       ));
+      await queueCompletion.future;
+      Logger.info("rustpush_receive incoming_queue_complete id=$receiveId duration_ms=${_durationMs(queueStopwatch)} pending_count=${inq.items.length}");
     }
   }
 
@@ -4335,7 +4759,15 @@ class RustPushService extends GetxService {
     var isInClique = await checkClique();
     if (isInClique) return true;
 
-    var bottles = await wrapPromise(api.getBottles(keychain: pushService.state!.icloudServices!.keychain!), "Fetching Bottles...");
+    var bottles = await wrapPromise(
+      api.getBottles(keychain: pushService.state!.icloudServices!.keychain!).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw TimeoutException(
+          "Apple did not return recovery data within 30 seconds.",
+        ),
+      ),
+      "Fetching Bottles...",
+    );
 
     if (bottles.isEmpty) {
       await promptResetData(true);
@@ -4469,37 +4901,39 @@ class RustPushService extends GetxService {
     }
   }
 
-  Future<void> markAsHandledAfter(String ptr) async {
-    if (inq.isProcessing.value) {
-      Logger.info("Marking as handled processing wait $ptr");
-      await for (final value in inq.isProcessing.stream) {
-        if (!value) break;
-      }
-    }
-    Logger.info("Marking as handled commit $ptr");
+  Future<void> markAsHandledAfter(String ptr, {required String eventId, required int retry}) async {
+    final ackStopwatch = Stopwatch()..start();
+    // handleMsg awaits the completion for this pointer's queue item. Do not
+    // wait for unrelated incoming work before acknowledging this message.
+    Logger.info("rustpush_receive durable_work_complete id=$eventId retry=$retry pending_count=${inq.items.length}");
+    Logger.info("rustpush_receive ack_commit id=$eventId retry=$retry");
     await api.completeMsg(ptr: ptr);
+    Logger.info("rustpush_receive ack_complete id=$eventId retry=$retry duration_ms=${_durationMs(ackStopwatch)}");
   }
 
   Future recievedMsgPointer(String pointer, String retry) async {
+    final eventId = _diagnosticHash(pointer);
+    final retryCount = int.tryParse(retry) ?? 3;
+    final receiveStopwatch = Stopwatch()..start();
     var message = await api.ptrToDart(ptr: pointer);
     if (message == null) {
-      Logger.info("bad pointer $pointer $retry");
+      Logger.info("rustpush_receive pointer_missing id=$eventId retry=$retryCount");
       return;
     }
-    Logger.info("waitingForInit $pointer $retry");
+    final initStopwatch = Stopwatch()..start();
+    Logger.info("rustpush_receive aps_init_wait_start id=$eventId retry=$retryCount");
     await initFuture;
-    var isFinal = (int.tryParse(retry) ?? 3) >= 3;
+    Logger.info("rustpush_receive aps_init_wait_complete id=$eventId retry=$retryCount duration_ms=${_durationMs(initStopwatch)} total_ms=${_durationMs(receiveStopwatch)}");
     try {
-      Logger.info("Handling $pointer $retry");
-      await handleMsg(message, isFinal);
-      Logger.info("Marking as handled $pointer");
-      await markAsHandledAfter(pointer);
+      final handlingStopwatch = Stopwatch()..start();
+      Logger.info("rustpush_receive handle_start id=$eventId retry=$retryCount");
+      await handleMsg(message);
+      Logger.info("rustpush_receive handle_complete id=$eventId retry=$retryCount duration_ms=${_durationMs(handlingStopwatch)} total_ms=${_durationMs(receiveStopwatch)}");
+      await markAsHandledAfter(pointer, eventId: eventId, retry: retryCount);
     } catch (e, s) {
       Logger.error("Handle failed", error: e, trace: s);
-      if (isFinal) {
-        Logger.info("Failed; Marking as handled anyways $pointer");
-        await markAsHandledAfter(pointer);
-      }
+      // Leave the pointer pending so the native bounded retry loop can try
+      // again. A failed handler must never be acknowledged as delivered.
       rethrow;
     }
   }
@@ -4520,7 +4954,7 @@ class RustPushService extends GetxService {
         if (msg == null) {
           continue;
         }
-        await handleMsg(msg, true);
+        await handleMsg(msg);
       } catch (e, t) {
         // if there was an error somewhere, log it and move on.
         // don't stop our loop
@@ -4864,7 +5298,10 @@ class RustPushService extends GetxService {
           }
           if (ss.settings.cloudSyncingEnabled.value) {
             Logger.info("Doing cloudkit sync!");
-            pushService.doCloudKitSync();
+            pushService.doCloudKitSync().catchError((error, stackTrace) {
+              Logger.warn("Initial CloudKit sync failed",
+                  error: error, trace: stackTrace);
+            });
           }
         }
         var keychain = pushService.state?.icloudServices?.keychain;
@@ -4877,9 +5314,37 @@ class RustPushService extends GetxService {
     initAppLinks();
     initMixPanel();
     await initFuture;
+    try {
+      await restoreRelayHealthState();
+    } catch (e, s) {
+      Logger.warn("Failed to restore iPhone relay health",
+          error: e, trace: s);
+      await clearRelayHealthState();
+    }
+    if (state != null) {
+      try {
+        final registrationState =
+            await api.getRegstate(state: state!.client);
+        if (registrationState is api.RegisterState_Registered) {
+          await scheduleRelayHealthReminder(registrationState.nextS);
+        }
+      } catch (e, s) {
+        Logger.warn("Failed to schedule iPhone relay health check",
+            error: e, trace: s);
+      }
+    }
     Timer(const Duration(seconds: 2), checkIncident);
     // pre-cache next FT link
-    if (pushService.state != null) api.getFtLink(facetime: pushService.state!.ftClient, usage: "next");
+    if (pushService.state != null) {
+      api
+          .getFtLink(
+              facetime: pushService.state!.ftClient,
+              usage: "next")
+          .then<void>((_) {}, onError: (Object error, StackTrace stackTrace) {
+        Logger.warn("Failed to pre-cache FaceTime link",
+            error: error, trace: stackTrace);
+      });
+    }
     Logger.info("initDone");
     final sendingProgress = Database.messages.query(Message_.sendingServiceId.notNull()).build().find();
     for (var item in sendingProgress) {
@@ -4955,6 +5420,14 @@ class RustPushService extends GetxService {
     var thisState = state;
     state = null;
 
+    final relayHealthCheck = _relayHealthInFlight;
+    if (relayHealthCheck != null) {
+      await relayHealthCheck;
+    }
+    await cancelRelayHealthReminder();
+    if (hw || logout) {
+      await clearRelayHealthState();
+    }
     if (thisState == null) return;
 
     if (logout) {
@@ -5036,6 +5509,12 @@ class RustPushService extends GetxService {
 
   @override
   void onClose() {
+    for (final timer in _profileRetryTimers.values) {
+      timer.cancel();
+    }
+    _profileRetryTimers.clear();
+    _profileRetryAttempts.clear();
+    unawaited(cancelRelayHealthReminder());
     if (state != null) disposeState(state!, true, false);
     super.onClose();
   }

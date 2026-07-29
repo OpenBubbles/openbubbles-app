@@ -150,9 +150,21 @@ class FaceTimeBtnState extends OptimizedState<FaceTimeBtn> {
   void initState() {
     super.initState();
     (() async {
-      var data = await chat.getConversationData();
-      ftSupportedParticipants = await api.validateTargetsFacetime(state: pushService.state!.client, targets: data.participants, sender: await chat.ensureHandle());
-      setState(() { });
+      final state = pushService.state;
+      if (state == null) return;
+      try {
+        var data = await chat.getConversationData();
+        final supported = await api.validateTargetsFacetime(
+            state: state.client,
+            targets: data.participants,
+            sender: await chat.ensureHandle());
+        if (!mounted) return;
+        ftSupportedParticipants = supported;
+        setState(() { });
+      } catch (error, trace) {
+        Logger.warn("Failed to load FaceTime availability",
+            error: error, trace: trace);
+      }
     })();
   }
 

@@ -4,6 +4,7 @@ use flexi_logger::{opt_format, Age, Cleanup, Criterion, FileSpec, Logger, Naming
 use tokio::runtime::Runtime;
 use log::info;
 
+static LOGGER_INITIALIZED: OnceLock<()> = OnceLock::new();
 
 uniffi::setup_scaffolding!();
 
@@ -21,6 +22,7 @@ pub mod bbhwinfo {
 }
 
 pub fn init_logger(path: &Path) {
+    LOGGER_INITIALIZED.get_or_init(|| {
     #[cfg(target_os = "android")]
     let system = android_logger::AndroidLogger::new(
         android_logger::Config::default().with_max_level(log::LevelFilter::Debug),
@@ -34,8 +36,6 @@ pub fn init_logger(path: &Path) {
             .build()
     };
 
-    println!("here??");
-    
     let (logger, _) = Logger::try_with_str("debug").expect("No logger?")
         .log_to_file(FileSpec::default().directory(path.join("logs")).suppress_timestamp())
         .append()
@@ -45,7 +45,10 @@ pub fn init_logger(path: &Path) {
         .write_mode(WriteMode::BufferAndFlush)
         .build().unwrap();
     
-    multi_log::MultiLogger::init(vec![Box::new(system), logger], log::Level::Trace).expect("No init?");
+        // Logging is process-global. Background isolates can call this entry
+        // point again, so repeated initialization must be harmless.
+        let _ = multi_log::MultiLogger::init(vec![Box::new(system), logger], log::Level::Trace);
+    });
 }
 
 mod native;

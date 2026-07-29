@@ -32,7 +32,18 @@ class ActionHandler extends GetxService {
   final RxList<Tuple2<String, RxDouble>> attachmentProgress = <Tuple2<String, RxDouble>>[].obs;
   final List<String> outOfOrderTempGuids = [];
   final List<String> handledNewMessages = [];
+  final Map<String, Future<void>> _inFlightNewMessages = {};
   CancelToken? latestCancelToken;
+
+  Future<void> _notifyNewMessageBestEffort(Message message, Chat chat) async {
+    try {
+      await MessageHelper.handleNotification(message, chat, findExisting: false);
+    } catch (_, stack) {
+      // Notification rendering must never prevent a message from being kept.
+      // Do not include the message or sender in diagnostics.
+      Logger.warn("Incoming message notification failed after persistence", tag: "Notification", trace: stack);
+    }
+  }
 
   /// Checks if a GUID has been handled.
   /// After each check, before returning, trim the list of GUIDs to the last 100.
@@ -487,6 +498,35 @@ class ActionHandler extends GetxService {
   }
 
   Future<void> handleNewMessage(Chat c, Message m, String? tempGuid, {bool checkExisting = true}) async {
+    final key = m.guid;
+    final existingFlight = key == null ? null : _inFlightNewMessages[key];
+    if (existingFlight != null) {
+      try {
+        await existingFlight;
+      } catch (_) {
+        // A failed first attempt must not prevent a concurrent fallback from retrying.
+      }
+      if (checkExisting && Message.findOne(guid: tempGuid ?? m.guid) != null) {
+        return await handleUpdatedMessage(c, m, tempGuid, checkExisting: false);
+      }
+    }
+
+    if (key == null) {
+      return await _handleNewMessage(c, m, tempGuid, checkExisting: checkExisting);
+    }
+
+    final flight = _handleNewMessage(c, m, tempGuid, checkExisting: checkExisting);
+    _inFlightNewMessages[key] = flight;
+    try {
+      await flight;
+    } finally {
+      if (identical(_inFlightNewMessages[key], flight)) {
+        _inFlightNewMessages.remove(key);
+      }
+    }
+  }
+
+  Future<void> _handleNewMessage(Chat c, Message m, String? tempGuid, {bool checkExisting = true}) async {
     Logger.info("handling new ${m.id}");
     // sanity check
     if (checkExisting) {
@@ -498,7 +538,7 @@ class ActionHandler extends GetxService {
     }
     // should have been handled by the sanity check
     if (tempGuid != null) return;
-    Logger.info("New message: [${m.text}] - for chat [${c.guid}]", tag: "ActionHandler");
+    Logger.debug("Received new message (attachments=${m.hasAttachments})", tag: "ActionHandler");
     // Gets the chat from the db or server (if new)
     c = m.isParticipantEvent ? await handleNewOrUpdatedChat(c) : kIsWeb ? c : (Chat.findOne(guid: c.guid) ?? await handleNewOrUpdatedChat(c));
     // Get the message handle
@@ -510,11 +550,13 @@ class ActionHandler extends GetxService {
       Logger.info("Not notifying for already handled new message with GUID ${m.guid}...", tag: "ActionHandler");
     }
 
-    if ((!ls.isAlive || ss.settings.endpointUnifiedPush.value != "") && shouldNotify) {
-      await MessageHelper.handleNotification(m, c);
-    }
-    await m.forwardIfNessesary(c, markFailed: true);
     await c.addMessage(m);
+    await m.forwardIfNessesary(c, markFailed: true);
+    // Persistence is complete before notification work begins. Notification
+    // failures are isolated so they cannot make the transport drop the message.
+    if ((!ls.isAlive || ss.settings.endpointUnifiedPush.value != "") && shouldNotify) {
+      unawaited(_notifyNewMessageBestEffort(m, c));
+    }
   }
 
   Future<void> handleUpdatedMessage(Chat c, Message m, String? tempGuid, {bool checkExisting = true}) async {

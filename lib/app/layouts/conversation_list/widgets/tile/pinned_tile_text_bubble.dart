@@ -32,7 +32,7 @@ class PinnedTileTextBubbleState extends CustomState<PinnedTileTextBubble, void, 
   Message? lastMessage;
   String subtitle = "Unknown";
   String fakeText = faker.lorem.words(1).join(" ");
-  late final StreamSubscription sub;
+  StreamSubscription? sub;
   String? cachedLatestMessageGuid = "";
   DateTime? cachedDateCreated;
 
@@ -102,7 +102,7 @@ class PinnedTileTextBubbleState extends CustomState<PinnedTileTextBubble, void, 
 
   @override
   void dispose() {
-    sub.cancel();
+    sub?.cancel();
     super.dispose();
   }
 

@@ -49,6 +49,8 @@ class ConversationViewState extends OptimizedState<ConversationView> {
     cm.activeChat!.controller = controller;
     Logger.debug("Conversation View initialized for ${chat.guid}");
 
+    controller.updatePoster();
+
     if (widget.onInit != null) {
       Future.delayed(Duration.zero, widget.onInit!);
     }
@@ -93,6 +95,12 @@ class ConversationViewState extends OptimizedState<ConversationView> {
           canPop: false,
           onPopInvoked: (didPop) async {
             if (didPop) return;
+            if (controller.keyboardOpen ||
+                controller.focusNode.hasFocus ||
+                controller.subjectFocusNode.hasFocus) {
+              controller.dismissKeyboard();
+              return;
+            }
             if (controller.inSelectMode.value) {
               controller.inSelectMode.value = false;
               controller.selected.clear();
@@ -155,10 +163,20 @@ class ConversationViewState extends OptimizedState<ConversationView> {
                             Expanded(
                               child: Stack(
                                 children: [
-                                  MessagesView(
-                                    key: Key(chat.guid),
-                                    customService: widget.customService,
-                                    controller: controller,
+                                  Listener(
+                                    behavior: HitTestBehavior.translucent,
+                                    onPointerDown: (_) {
+                                      if (controller.keyboardOpen ||
+                                          controller.focusNode.hasFocus ||
+                                          controller.subjectFocusNode.hasFocus) {
+                                        controller.dismissKeyboard();
+                                      }
+                                    },
+                                    child: MessagesView(
+                                      key: Key(chat.guid),
+                                      customService: widget.customService,
+                                      controller: controller,
+                                    ),
                                   ),
                                   Align(
                                     alignment: iOS ? Alignment.bottomRight : Alignment.bottomCenter,
@@ -218,8 +236,7 @@ class ConversationViewState extends OptimizedState<ConversationView> {
                                       if (ss.settings.swipeToCloseKeyboard.value &&
                                           details.delta.dy > 0 &&
                                           controller.keyboardOpen) {
-                                        controller.focusNode.unfocus();
-                                        controller.subjectFocusNode.unfocus();
+                                        controller.dismissKeyboard();
                                       } else if (ss.settings.swipeToOpenKeyboard.value &&
                                           details.delta.dy < 0 &&
                                           !controller.keyboardOpen) {

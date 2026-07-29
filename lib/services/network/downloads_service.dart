@@ -1,11 +1,9 @@
 import 'package:bluebubbles/services/network/backend_service.dart';
-import 'package:bluebubbles/utils/file_utils.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:collection/collection.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart' hide Response;
 import 'package:path/path.dart';
@@ -24,11 +22,13 @@ class AttachmentDownloadService extends GetxService {
     return _downloaders.values.flattened.firstWhereOrNull((element) => element.attachment.guid == guid);
   }
 
-  AttachmentDownloadController startDownload(Attachment a, {Function(PlatformFile)? onComplete, Function? onError}) {
+  AttachmentDownloadController startDownload(Attachment a,
+      {Function(PlatformFile)? onComplete, Function? onError, bool prioritized = false}) {
     return Get.put(AttachmentDownloadController(
       attachment: a,
       onComplete: onComplete,
       onError: onError,
+      prioritized: prioritized,
     ), tag: a.guid!);
   }
 
@@ -36,7 +36,11 @@ class AttachmentDownloadService extends GetxService {
     downloaders.add(downloader.attachment.guid!);
     final chatGuid = downloader.attachment.message.target?.chat.target?.guid ?? "unknown";
     if (_downloaders.containsKey(chatGuid)) {
-      _downloaders[chatGuid]!.add(downloader);
+      if (downloader.prioritized) {
+        _downloaders[chatGuid]!.insert(0, downloader);
+      } else {
+        _downloaders[chatGuid]!.add(downloader);
+      }
     } else {
       _downloaders[chatGuid] = [downloader];
     }
@@ -49,6 +53,15 @@ class AttachmentDownloadService extends GetxService {
     _downloaders[chatGuid]!.removeWhere((e) => e.attachment.guid == downloader.attachment.guid);
     if (_downloaders[chatGuid]!.isEmpty) _downloaders.remove(chatGuid);
     Get.delete<AttachmentDownloadController>(tag: downloader.attachment.guid!);
+    _fetchNext();
+  }
+
+  void prioritize(AttachmentDownloadController downloader) {
+    if (downloader.isFetching) return;
+    final chatGuid = downloader.attachment.message.target?.chat.target?.guid ?? "unknown";
+    final queue = _downloaders[chatGuid];
+    if (queue == null || !queue.remove(downloader)) return;
+    queue.insert(0, downloader);
     _fetchNext();
   }
 
@@ -75,6 +88,7 @@ class AttachmentDownloadController extends GetxController {
   final RxnNum progress = RxnNum();
   final Rxn<PlatformFile> file = Rxn<PlatformFile>();
   final RxBool error = RxBool(false);
+  final bool prioritized;
   Stopwatch stopwatch = Stopwatch();
   bool isFetching = false;
 
@@ -82,6 +96,7 @@ class AttachmentDownloadController extends GetxController {
     required this.attachment,
     Function(PlatformFile)? onComplete,
     Function? onError,
+    this.prioritized = false,
   }) {
     if (onComplete != null) completeFuncs.add(onComplete);
     if (onError != null) errorFuncs.add(onError);

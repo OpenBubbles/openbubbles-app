@@ -390,7 +390,11 @@ class Chat {
   RxDouble sendProgress = 0.0.obs;
 
   void handlesChanged() {
-    var cachedChat = cvc(this).chat;
+    // Group updates can arrive while the app is backgrounded. Do not create a
+    // full conversation controller just to mirror a relation that has no
+    // visible UI; that leaks controller resources and can wake rendering work.
+    if (!Get.isRegistered<ConversationViewController>(tag: guid)) return;
+    var cachedChat = Get.find<ConversationViewController>(tag: guid).chat;
     cachedChat.handles = handles; // someone can't keep their objects in sync...
     cachedChat._participants = [];
   }

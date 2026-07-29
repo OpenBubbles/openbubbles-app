@@ -44,12 +44,14 @@ class _AttachmentHolderState extends CustomState<AttachmentHolder, void, Message
   String? get audioTranscript => getAudioTranscriptsFromAttributedBody(message.attributedBody)[part.part];
   late dynamic content;
   late bool selected = controller.cvController?.isSelected(message.guid!) ?? false;
+  Worker? _selectionWorker;
 
   @override
   void initState() {
     forceDelete = false;
     if (controller.cvController != null && !iOS) {
-      ever<List<Message>>(controller.cvController!.selected, (event) {
+      _selectionWorker = ever<List<Message>>(controller.cvController!.selected, (event) {
+        if (!mounted) return;
         if (controller.cvController!.isSelected(message.guid!) && !selected) {
           setState(() {
             selected = true;
@@ -65,6 +67,11 @@ class _AttachmentHolderState extends CustomState<AttachmentHolder, void, Message
     updateContent();
   }
 
+  @override
+  void dispose() {
+    _selectionWorker?.dispose();
+    super.dispose();
+  }
 
   void updateContent() async {
     try {
@@ -104,15 +111,22 @@ class _AttachmentHolderState extends CustomState<AttachmentHolder, void, Message
         child: InkWell(
           onTap: content is PlatformFile ? null : () async {
             if (content is Attachment && message.error == 0 && !message.guid!.contains("temp")) {
+              final downloader =
+                  attachmentDownloader.startDownload(content, onComplete: onComplete, prioritized: true);
               setState(() {
-                content = attachmentDownloader.startDownload(content, onComplete: onComplete);
+                content = downloader;
               });
             } else if (content is AttachmentDownloadController) {
               final AttachmentDownloadController _content = content;
-              if (!_content.error.value) return;
+              if (!_content.error.value) {
+                attachmentDownloader.prioritize(_content);
+                return;
+              }
               Get.delete<AttachmentDownloadController>(tag: _content.attachment.guid);
+              final downloader = attachmentDownloader.startDownload(
+                  _content.attachment, onComplete: onComplete, prioritized: true);
               setState(() {
-                content = attachmentDownloader.startDownload(_content.attachment, onComplete: onComplete);
+                content = downloader;
               });
             }
           },

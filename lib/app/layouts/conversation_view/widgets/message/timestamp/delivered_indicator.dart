@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/models.dart';
@@ -22,17 +24,25 @@ class DeliveredIndicator extends CustomStateful<MessageWidgetController> {
 class _DeliveredIndicatorState extends CustomState<DeliveredIndicator, void, MessageWidgetController> {
   Message get message => controller.message;
   bool get showAvatar => (controller.cvController?.chat ?? cm.activeChat!.chat).isGroup;
+  StreamSubscription? _messageUpdateSubscription;
 
   @override
   void initState() {
     forceDelete = false;
     super.initState();
 
-    eventDispatcher.stream.listen((event) {
+    _messageUpdateSubscription = eventDispatcher.stream.listen((event) {
+      if (!mounted) return;
       if (event.item1 == "message-updated-${message.guid}") {
         setState(() {});
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _messageUpdateSubscription?.cancel();
+    super.dispose();
   }
 
   bool get shouldShow {

@@ -12,7 +12,6 @@ import 'package:defer_pointer/defer_pointer.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:universal_io/io.dart';
 
@@ -34,8 +33,7 @@ class ReactionWidget extends StatefulWidget {
 
 class ReactionWidgetState extends OptimizedState<ReactionWidget> {
   late Message reaction = widget.reaction;
-  late final StreamSubscription sub;
-  bool hasStream = false;
+  StreamSubscription? sub;
 
   List<Message>? get reactions => widget.reactions;
   bool get reactionIsFromMe => reaction.isFromMe!;
@@ -52,13 +50,15 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
     updateReaction();
     updateObx(() {
       if (!kIsWeb && widget.message != null) {
-        final messageQuery = Database.messages.query(Message_.id.equals(reaction.id!)).watch();
+        final messageQuery =
+            Database.messages.query(Message_.id.equals(reaction.id!)).watch();
         sub = messageQuery.listen((Query<Message> query) async {
           final _message = await runAsync(() {
             return Database.messages.get(reaction.id!);
           });
           if (_message != null) {
-            if (_message.guid != reaction.guid || _message.dateDelivered != reaction.dateDelivered) {
+            if (_message.guid != reaction.guid ||
+                _message.dateDelivered != reaction.dateDelivered) {
               setState(() {
                 reaction = _message;
                 updateReaction();
@@ -67,11 +67,10 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
               reaction = _message;
               updateReaction();
             }
-            getActiveMwc(widget.message!.guid!)?.updateAssociatedMessage(reaction, updateHolder: false);
+            getActiveMwc(widget.message!.guid!)
+                ?.updateAssociatedMessage(reaction, updateHolder: false);
           }
         });
-
-        hasStream = true;
       } else if (kIsWeb && widget.message != null) {
         sub = WebListeners.messageUpdate.listen((tuple) {
           final _message = tuple.item1;
@@ -81,7 +80,8 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
               reaction = _message;
               updateReaction();
             });
-            getActiveMwc(widget.message!.guid!)?.updateAssociatedMessage(reaction, updateHolder: false);
+            getActiveMwc(widget.message!.guid!)
+                ?.updateAssociatedMessage(reaction, updateHolder: false);
           }
         });
       }
@@ -99,9 +99,14 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
     //   ),
     // );
     final bytes = await File(pathName).readAsBytes();
-    controller!.stickerData[reaction.guid!] = {
-      attachment.guid!: (bytes, null)
-    };
+    if (!mounted) return;
+    final activeController = controller;
+    if (activeController == null) return;
+    final reactionStickers = Map<String, (Uint8List, StickerData?)>.from(
+      activeController.stickerData[reaction.guid!] ?? const {},
+    );
+    reactionStickers[attachment.guid!] = (bytes, null);
+    activeController.stickerData[reaction.guid!] = reactionStickers;
     setState(() {});
   }
 
@@ -109,127 +114,158 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
     if (reactionType != ReactionTypes.STICKERBACK) return;
     reaction.fetchAttachments();
     for (Attachment? attachment in reaction.attachments) {
+      if (attachment == null || attachment.guid == null) continue;
+      final currentAttachment = attachment;
       // If we've already loaded it, don't try again
-      if (controller!.stickerData.keys.contains(attachment!.guid)) continue;
+      final activeController = controller;
+      if (activeController == null) return;
+      if (activeController.stickerData[reaction.guid!]
+              ?.containsKey(currentAttachment.guid) ??
+          false) {
+        continue;
+      }
 
-      final pathName = attachment.path;
-      if (await FileSystemEntity.type(pathName) == FileSystemEntityType.notFound) {
-        attachmentDownloader.startDownload(attachment, onComplete: (_) async {
-          await checkImage(attachment);
+      final pathName = currentAttachment.path;
+      if (await FileSystemEntity.type(pathName) ==
+          FileSystemEntityType.notFound) {
+        if (!mounted) return;
+        attachmentDownloader.startDownload(currentAttachment,
+            onComplete: (_) async {
+          await checkImage(currentAttachment);
         });
       } else {
-        await checkImage(attachment);
+        await checkImage(currentAttachment);
       }
     }
   }
 
   @override
   void dispose() {
-    if (!kIsWeb && hasStream) sub.cancel();
+    sub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    var emoji = ReactionTypes.reactionToEmoji[reactionType] ?? reaction.associatedMessageEmoji ?? "X";
+    var emoji = ReactionTypes.reactionToEmoji[reactionType] ??
+        reaction.associatedMessageEmoji ??
+        "X";
 
     if (ss.settings.skin.value != Skins.iOS) {
       return Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: reactionIsFromMe ? context.theme.colorScheme.primary : context.theme.colorScheme.properSurface,
-          border: Border.all(color: context.theme.colorScheme.background),
-          shape: BoxShape.circle,
-        ),
-        child: GestureDetector(
-          onTap: () {
-            if (reactions == null) return;
-            for (Message m in reactions!) {
-              if (!m.isFromMe!) {
-                m.handle ??= m.getHandle();
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: reactionIsFromMe
+                ? context.theme.colorScheme.primary
+                : context.theme.colorScheme.properSurface,
+            border: Border.all(color: context.theme.colorScheme.background),
+            shape: BoxShape.circle,
+          ),
+          child: GestureDetector(
+            onTap: () {
+              if (reactions == null) return;
+              for (Message m in reactions!) {
+                if (!m.isFromMe!) {
+                  m.handle ??= m.getHandle();
+                }
               }
-            }
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                transitionDuration: const Duration(milliseconds: 500),
-                pageBuilder: (context, animation, secondaryAnimation) {
-                  return SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0.0, 1.0),
-                      end: Offset.zero,
-                    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-                    child: Theme(
-                      data: context.theme.copyWith(
-                        // in case some components still use legacy theming
-                        primaryColor: context.theme.colorScheme.bubble(context, true),
-                        colorScheme: context.theme.colorScheme.copyWith(
-                          primary: context.theme.colorScheme.bubble(context, true),
-                          onPrimary: context.theme.colorScheme.onBubble(context, true),
-                          surface: ss.settings.monetTheming.value == Monet.full ? null : (context.theme.extensions[BubbleColors] as BubbleColors?)?.receivedBubbleColor,
-                          onSurface: ss.settings.monetTheming.value == Monet.full ? null : (context.theme.extensions[BubbleColors] as BubbleColors?)?.onReceivedBubbleColor,
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 500),
+                  pageBuilder: (context, animation, secondaryAnimation) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.0, 1.0),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                          parent: animation, curve: Curves.easeOut)),
+                      child: Theme(
+                        data: context.theme.copyWith(
+                          // in case some components still use legacy theming
+                          primaryColor:
+                              context.theme.colorScheme.bubble(context, true),
+                          colorScheme: context.theme.colorScheme.copyWith(
+                            primary:
+                                context.theme.colorScheme.bubble(context, true),
+                            onPrimary: context.theme.colorScheme
+                                .onBubble(context, true),
+                            surface:
+                                ss.settings.monetTheming.value == Monet.full
+                                    ? null
+                                    : (context.theme.extensions[BubbleColors]
+                                            as BubbleColors?)
+                                        ?.receivedBubbleColor,
+                            onSurface:
+                                ss.settings.monetTheming.value == Monet.full
+                                    ? null
+                                    : (context.theme.extensions[BubbleColors]
+                                            as BubbleColors?)
+                                        ?.onReceivedBubbleColor,
+                          ),
+                        ),
+                        child: Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                            Positioned(
+                                bottom: 10,
+                                left: 15,
+                                right: 15,
+                                child: ReactionDetails(reactions: reactions!)),
+                          ],
                         ),
                       ),
-                      child: Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                          Positioned(
-                            bottom: 10,
-                            left: 15,
-                            right: 15,
-                            child: ReactionDetails(reactions: reactions!)
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                fullscreenDialog: true,
-                opaque: false,
-                barrierDismissible: true,
-              ),
-            );
-          },
-          child: Center(
-            child: Builder(
-                builder: (context) {
-                  if (reactionType == ReactionTypes.STICKERBACK) {
-                    var image = controller!.stickerData[reaction.guid]?[reaction.attachments[0]?.guid]?.$1;
-                    return image != null ? Padding(
-                      padding: const EdgeInsets.all(5),
-                      child: Image.memory(
-                        image,
-                        gaplessPlayback: true,
-                        cacheHeight: 200,
-                        filterQuality: FilterQuality.none,
-                      ),
-                    ) : const SizedBox.shrink();
-                  }
-                  final text = Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 15, fontFamily: 'Apple Color Emoji'),
-                    textAlign: TextAlign.center,
-                  );
-                  // rotate thumbs down to match iOS
-                  if (reactionType == "dislike") {
-                    return Transform(
-                      transform: Matrix4.identity()..rotateY(pi),
-                      alignment: FractionalOffset.center,
-                      child: text,
                     );
-                  }
-                  return text;
+                  },
+                  fullscreenDialog: true,
+                  opaque: false,
+                  barrierDismissible: true,
+                ),
+              );
+            },
+            child: Center(
+              child: Builder(builder: (context) {
+                if (reactionType == ReactionTypes.STICKERBACK) {
+                  var image = controller!
+                      .stickerData[reaction.guid]
+                          ?[reaction.attachments[0]?.guid]
+                      ?.$1;
+                  return image != null
+                      ? Padding(
+                          padding: const EdgeInsets.all(5),
+                          child: Image.memory(
+                            image,
+                            gaplessPlayback: true,
+                            cacheHeight: 200,
+                            filterQuality: FilterQuality.none,
+                          ),
+                        )
+                      : const SizedBox.shrink();
                 }
+                final text = Text(
+                  emoji,
+                  style: const TextStyle(
+                      fontSize: 15, fontFamily: 'Apple Color Emoji'),
+                  textAlign: TextAlign.center,
+                );
+                // rotate thumbs down to match iOS
+                if (reactionType == "dislike") {
+                  return Transform(
+                    transform: Matrix4.identity()..rotateY(pi),
+                    alignment: FractionalOffset.center,
+                    child: text,
+                  );
+                }
+                return text;
+              }),
             ),
-          ),
-        )
-      );
+          ));
     }
     return Stack(
       alignment: messageIsFromMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -250,52 +286,55 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
           ),
         ),
         ClipPath(
-          clipper: ReactionClipper(isFromMe: messageIsFromMe),
-          child: Container(
-            width: iosSize,
-            height: iosSize,
-            color: reactionIsFromMe
-                ? context.theme.colorScheme.primary
-                : context.theme.colorScheme.properSurface,
-            alignment: messageIsFromMe ? Alignment.topRight : Alignment.topLeft,
-            child: SizedBox(
-              width: iosSize*0.8,
-              height: iosSize*0.8,
-              child: Center(
-                child: Builder(
-                  builder: (context) {
-                    if (reactionType == ReactionTypes.STICKERBACK) {
-                      var image = controller!.stickerData[reaction.guid]?[reaction.attachments[0]?.guid]?.$1;
-                      return image != null ? Padding(
-                        padding: const EdgeInsets.all(5),
-                        child: Image.memory(
-                          image,
-                          gaplessPlayback: true,
-                          cacheHeight: 200,
-                          filterQuality: FilterQuality.none,
-                        ),
-                      ) : const SizedBox.shrink();
-                    }
-                    final text = Text(
-                      emoji,
-                      style: const TextStyle(fontSize: 16, fontFamily: 'Apple Color Emoji'),
-                      textAlign: TextAlign.center,
-                    );
-                    // rotate thumbs down to match iOS
-                    if (reactionType == "dislike") {
-                      return Transform(
-                        transform: Matrix4.identity()..rotateY(pi),
-                        alignment: FractionalOffset.center,
-                        child: text,
+            clipper: ReactionClipper(isFromMe: messageIsFromMe),
+            child: Container(
+                width: iosSize,
+                height: iosSize,
+                color: reactionIsFromMe
+                    ? context.theme.colorScheme.primary
+                    : context.theme.colorScheme.properSurface,
+                alignment:
+                    messageIsFromMe ? Alignment.topRight : Alignment.topLeft,
+                child: SizedBox(
+                  width: iosSize * 0.8,
+                  height: iosSize * 0.8,
+                  child: Center(
+                    child: Builder(builder: (context) {
+                      if (reactionType == ReactionTypes.STICKERBACK) {
+                        var image = controller!
+                            .stickerData[reaction.guid]
+                                ?[reaction.attachments[0]?.guid]
+                            ?.$1;
+                        return image != null
+                            ? Padding(
+                                padding: const EdgeInsets.all(5),
+                                child: Image.memory(
+                                  image,
+                                  gaplessPlayback: true,
+                                  cacheHeight: 200,
+                                  filterQuality: FilterQuality.none,
+                                ),
+                              )
+                            : const SizedBox.shrink();
+                      }
+                      final text = Text(
+                        emoji,
+                        style: const TextStyle(
+                            fontSize: 16, fontFamily: 'Apple Color Emoji'),
+                        textAlign: TextAlign.center,
                       );
-                    }
-                    return text;
-                  }
-                ),
-              ),
-            )
-          )
-        ),
+                      // rotate thumbs down to match iOS
+                      if (reactionType == "dislike") {
+                        return Transform(
+                          transform: Matrix4.identity()..rotateY(pi),
+                          alignment: FractionalOffset.center,
+                          child: text,
+                        );
+                      }
+                      return text;
+                    }),
+                  ),
+                ))),
         Positioned(
           left: !messageIsFromMe ? 0 : -75,
           right: messageIsFromMe ? 0 : -75,
@@ -306,13 +345,15 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
               if (errorCode == 22) {
                 errorText = "The recipient is not registered with iMessage!";
               } else if (reaction.guid!.startsWith("error-")) {
-                errorText = reaction.guid!.substring(reaction.guid!.indexOf('-') + 1);
+                errorText = errorFromGuid(reaction.guid!);
               }
 
               return DeferPointer(
                 child: GestureDetector(
                   child: Icon(
-                    ss.settings.skin.value == Skins.iOS ? CupertinoIcons.exclamationmark_circle : Icons.error_outline,
+                    ss.settings.skin.value == Skins.iOS
+                        ? CupertinoIcons.exclamationmark_circle
+                        : Icons.error_outline,
                     color: context.theme.colorScheme.error,
                   ),
                   onTap: () {
@@ -320,30 +361,40 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
                       context: context,
                       builder: (BuildContext context) {
                         return AlertDialog(
-                          backgroundColor: context.theme.colorScheme.properSurface,
-                          title: Text("Message failed to send", style: context.theme.textTheme.titleLarge),
-                          content: Text("Error ($errorCode): $errorText", style: context.theme.textTheme.bodyLarge),
+                          backgroundColor:
+                              context.theme.colorScheme.properSurface,
+                          title: Text("Message failed to send",
+                              style: context.theme.textTheme.titleLarge),
+                          content: Text("Error ($errorCode): $errorText",
+                              style: context.theme.textTheme.bodyLarge),
                           actions: <Widget>[
                             TextButton(
-                              child: Text(
-                                  "Retry",
-                                  style: context.theme.textTheme.bodyLarge!.copyWith(color: Get.context!.theme.colorScheme.primary)
-                              ),
+                              child: Text("Retry",
+                                  style: context.theme.textTheme.bodyLarge!
+                                      .copyWith(
+                                          color: Get.context!.theme.colorScheme
+                                              .primary)),
                               onPressed: () async {
                                 // Remove the original message and notification
                                 Navigator.of(context).pop();
                                 Message.delete(reaction.guid!);
-                                await notif.clearFailedToSend(cm.activeChat!.chat.id!);
-                                getActiveMwc(reaction.associatedMessageGuid!)?.removeAssociatedMessage(reaction);
+                                await notif
+                                    .clearFailedToSend(cm.activeChat!.chat.id!);
+                                getActiveMwc(reaction.associatedMessageGuid!)
+                                    ?.removeAssociatedMessage(reaction);
                                 // Re-send
-                                final selected = getActiveMwc(reaction.associatedMessageGuid!)!.message;
+                                final selected = getActiveMwc(
+                                        reaction.associatedMessageGuid!)!
+                                    .message;
                                 outq.queue(OutgoingItem(
                                   type: QueueType.sendMessage,
                                   chat: cm.activeChat!.chat,
                                   message: Message(
                                     associatedMessageGuid: selected.guid,
-                                    associatedMessageType: reaction.associatedMessageType,
-                                    associatedMessagePart: reaction.associatedMessagePart,
+                                    associatedMessageType:
+                                        reaction.associatedMessageType,
+                                    associatedMessagePart:
+                                        reaction.associatedMessagePart,
                                     dateCreated: DateTime.now(),
                                     hasAttachments: false,
                                     isFromMe: true,
@@ -355,32 +406,37 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
                               },
                             ),
                             TextButton(
-                              child: Text(
-                                  "Remove",
-                                  style: context.theme.textTheme.bodyLarge!.copyWith(color: Get.context!.theme.colorScheme.primary)
-                              ),
+                              child: Text("Remove",
+                                  style: context.theme.textTheme.bodyLarge!
+                                      .copyWith(
+                                          color: Get.context!.theme.colorScheme
+                                              .primary)),
                               onPressed: () async {
                                 Navigator.of(context).pop();
                                 // Delete the message from the DB
                                 Message.delete(reaction.guid!);
                                 // Remove the message from the Bloc
-                                getActiveMwc(reaction.associatedMessageGuid!)?.removeAssociatedMessage(reaction);
+                                getActiveMwc(reaction.associatedMessageGuid!)
+                                    ?.removeAssociatedMessage(reaction);
                                 final chat = cm.activeChat!.chat;
                                 await notif.clearFailedToSend(chat.id!);
                                 // Get the "new" latest info
-                                List<Message> latest = Chat.getMessages(chat, limit: 1);
+                                List<Message> latest =
+                                    Chat.getMessages(chat, limit: 1);
                                 chat.latestMessage = latest.first;
                                 chat.save();
                               },
                             ),
                             TextButton(
-                              child: Text(
-                                  "Cancel",
-                                  style: context.theme.textTheme.bodyLarge!.copyWith(color: Get.context!.theme.colorScheme.primary)
-                              ),
+                              child: Text("Cancel",
+                                  style: context.theme.textTheme.bodyLarge!
+                                      .copyWith(
+                                          color: Get.context!.theme.colorScheme
+                                              .primary)),
                               onPressed: () async {
                                 Navigator.of(context).pop();
-                                await notif.clearFailedToSend(cm.activeChat!.chat.id!);
+                                await notif
+                                    .clearFailedToSend(cm.activeChat!.chat.id!);
                               },
                             )
                           ],
@@ -398,4 +454,3 @@ class ReactionWidgetState extends OptimizedState<ReactionWidget> {
     );
   }
 }
-

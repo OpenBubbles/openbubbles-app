@@ -395,12 +395,14 @@ Future<Uint8List> avatarAsBytes({
   await paintGroupAvatar(
       chat: chat, participants: participants, canvas: canvas, size: quality, usingParticipantsOverride: participantsOverride != null);
 
-  ui.Picture picture = pictureRecorder.endRecording();
-  ui.Image image = await picture.toImage(quality.toInt(), quality.toInt());
-
-  Uint8List bytes = (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
-
-  return bytes;
+  final picture = pictureRecorder.endRecording();
+  final image = await picture.toImage(quality.toInt(), quality.toInt());
+  try {
+    return (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+  } finally {
+    image.dispose();
+    picture.dispose();
+  }
 }
 
 Future<void> paintGroupAvatar({
@@ -412,14 +414,15 @@ Future<void> paintGroupAvatar({
 }) async {
   late final ThemeData theme;
   final bool systemDark = PlatformDispatcher.instance.platformBrightness == Brightness.dark;
-  if (!ls.isAlive) {
+  final context = Get.context;
+  if (!ls.isAlive || context == null) {
     if (systemDark) {
       theme = ThemeStruct.getDarkTheme().data;
     } else {
       theme = ThemeStruct.getLightTheme().data;
     }
   } else {
-    theme = Get.context!.theme;
+    theme = context.theme;
   }
 
   if (chat.customAvatarPath != null && !usingParticipantsOverride) {
@@ -430,7 +433,12 @@ Future<void> paintGroupAvatar({
       Logger.warn("Failed to load/clip custom avatar!", error: e, trace: stack);
     }
     if (customAvatar != null) {
-      canvas.drawImage(await loadImage(customAvatar), const Offset(0, 0), Paint());
+      final avatarImage = await loadImage(customAvatar);
+      try {
+        canvas.drawImage(avatarImage, const Offset(0, 0), Paint());
+      } finally {
+        avatarImage.dispose();
+      }
       return;
     }
   }
@@ -519,7 +527,12 @@ Future<void> paintAvatar(
   if (contact?.avatar != null) {
     Uint8List? contactAvatar = await clip(contact!.avatar ?? contact.avatar!, size: size.toInt(), circle: kIsDesktop || inGroup);
     if (contactAvatar != null) {
-      canvas.drawImage(await loadImage(contactAvatar), offset, Paint());
+      final avatarImage = await loadImage(contactAvatar);
+      try {
+        canvas.drawImage(avatarImage, offset, Paint());
+      } finally {
+        avatarImage.dispose();
+      }
       return;
     }
   }
@@ -586,7 +599,6 @@ Future<void> paintAvatar(
 }
 
 Future<Uint8List?> clip(Uint8List data, {required int size, required bool circle}) async {
-  ui.Image image;
   Uint8List _data = data;
 
   // Resize the image if it's the wrong size
@@ -597,26 +609,29 @@ Future<Uint8List?> clip(Uint8List data, {required int size, required bool circle
     _data = img.encodePng(_image);
   }
 
-  image = await loadImage(_data);
+  final sourceImage = await loadImage(_data);
 
   ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
   Canvas canvas = Canvas(pictureRecorder);
   Paint paint = Paint();
   paint.isAntiAlias = true;
 
-  Rect bounds = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+  Rect bounds = Rect.fromLTWH(0, 0, sourceImage.width.toDouble(), sourceImage.height.toDouble());
   Path path = circle ? (Path()..addOval(bounds)) : (Path()..addRect(bounds));
 
   canvas.clipPath(path);
 
-  canvas.drawImage(image, const Offset(0, 0), paint);
+  canvas.drawImage(sourceImage, const Offset(0, 0), paint);
 
-  ui.Picture picture = pictureRecorder.endRecording();
-  image = await picture.toImage(image.width, image.height);
-
-  Uint8List? bytes = (await image.toByteData(format: ui.ImageByteFormat.png))?.buffer.asUint8List();
-
-  return bytes;
+  final picture = pictureRecorder.endRecording();
+  final clippedImage = await picture.toImage(sourceImage.width, sourceImage.height);
+  try {
+    return (await clippedImage.toByteData(format: ui.ImageByteFormat.png))?.buffer.asUint8List();
+  } finally {
+    clippedImage.dispose();
+    picture.dispose();
+    sourceImage.dispose();
+  }
 }
 
 Future<ui.Image> loadImage(Uint8List data) async {

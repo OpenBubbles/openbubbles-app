@@ -233,6 +233,7 @@ class _TextFieldSuffixState extends OptimizedState<TextFieldSuffix> {
               (widget.controller?.pickedAttachments.isNotEmpty ?? false.obs.value);
           bool showRecording = (widget.controller?.showRecording.value ?? false.obs.value) && widget.recorderController != null;
           bool isLinuxArm64 = kIsDesktop && Platform.isLinux && SysInfo.kernelArchitecture == ProcessorArchitecture.arm64;
+          final recordTapTargetSize = kIsDesktop || iOS ? (kIsDesktop ? 40.0 : 32.0) : 48.0;
           return Padding(
             padding: const EdgeInsets.all(3.0),
             child: AnimatedCrossFade(
@@ -255,31 +256,45 @@ class _TextFieldSuffixState extends OptimizedState<TextFieldSuffix> {
                     toggleRecording(context);
                   },
                 },
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    backgroundColor: !iOS || (iOS && !isChatCreator && !showRecording)
-                        ? null
-                        : !isChatCreator && !showRecording
-                        ? context.theme.colorScheme.outline
-                        : context.theme.colorScheme.primary.withOpacity(0.4),
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(0),
-                    maximumSize: kIsDesktop ? const Size(40, 40) : const Size(32, 32),
-                    minimumSize: kIsDesktop ? const Size(40, 40) : const Size(32, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                child: Tooltip(
+                  message: showRecording ? "Stop recording audio" : "Record audio",
+                  child: Semantics(
+                    button: true,
+                    label: showRecording ? "Stop recording audio" : "Record audio",
+                    tooltip: showRecording ? "Stop recording audio" : "Record audio",
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        backgroundColor: !iOS || (iOS && !isChatCreator && !showRecording)
+                            ? null
+                            : !isChatCreator && !showRecording
+                            ? context.theme.colorScheme.outline
+                            : context.theme.colorScheme.primary.withOpacity(0.4),
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(0),
+                        maximumSize: Size(recordTapTargetSize, recordTapTargetSize),
+                        minimumSize: Size(recordTapTargetSize, recordTapTargetSize),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: isLinuxArm64
+                          ? const SizedBox(height: 40)
+                          : !isChatCreator && !showRecording
+                          ? CupertinoIconWrapper(
+                              icon: Icon(
+                                iOS ? CupertinoIcons.waveform : Icons.mic_none,
+                                color: iOS ? context.theme.colorScheme.outline : context.theme.colorScheme.properOnSurface,
+                                size: iOS ? 24 : 20, // Waveform icon appears smaller, using size 24
+                              ),
+                            )
+                          : CupertinoIconWrapper(
+                              icon: Icon(
+                                iOS ? CupertinoIcons.stop_fill : Icons.stop_circle,
+                                color: iOS ? context.theme.colorScheme.primary : context.theme.colorScheme.properOnSurface,
+                                size: 15,
+                              ),
+                            ),
+                      onPressed: () async => toggleRecording(context),
+                    ),
                   ),
-                  child: isLinuxArm64 ? const SizedBox(height: 40) :
-                    !isChatCreator && !showRecording
-                    ? CupertinoIconWrapper(icon: Icon(
-                      iOS ? CupertinoIcons.waveform : Icons.mic_none,
-                      color: iOS ? context.theme.colorScheme.outline : context.theme.colorScheme.properOnSurface,
-                      size: iOS ? 24 : 20, // Waveform icon appears smaller, using size 24
-                    )) : CupertinoIconWrapper(icon: Icon(
-                      iOS ? CupertinoIcons.stop_fill : Icons.stop_circle,
-                      color: iOS ? context.theme.colorScheme.primary : context.theme.colorScheme.properOnSurface,
-                      size: 15,
-                    )),
-                  onPressed: () async => toggleRecording(context),
                 ),
               ),
               secondChild: SendButton(

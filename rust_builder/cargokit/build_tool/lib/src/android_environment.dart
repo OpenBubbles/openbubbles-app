@@ -52,6 +52,14 @@ class AndroidEnvironment {
   /// Target being built.
   final Target target;
 
+  // OpenSSL's vendored build runs these values through a POSIX make shell.
+  // Backslashes in Windows paths are treated as escapes there, turning
+  // `C:\path\clang.exe` into `C:pathclang.exe`. Forward slashes remain valid
+  // Windows paths and survive both Cargo and make unchanged.
+  String _buildScriptPath(String value) {
+    return Platform.isWindows ? value.replaceAll(r'\', '/') : value;
+  }
+
   bool ndkIsInstalled() {
     final ndkPath = path.join(sdkPath, 'ndk', ndkVersion);
     final ndkPackageXml = File(path.join(ndkPath, 'package.xml'));
@@ -107,19 +115,19 @@ class AndroidEnvironment {
     final targetArg = '--target=${target.rust}$minSdkVersion';
 
     final ccKey = 'CC_${target.rust}';
-    final ccValue = path.join(toolchainPath, 'clang$exe');
+    final ccValue = _buildScriptPath(path.join(toolchainPath, 'clang$exe'));
     final cfFlagsKey = 'CFLAGS_${target.rust}';
     final cFlagsValue = targetArg;
 
     final cxxKey = 'CXX_${target.rust}';
-    final cxxValue = path.join(toolchainPath, 'clang++$exe');
+    final cxxValue = _buildScriptPath(path.join(toolchainPath, 'clang++$exe'));
     final cxxfFlagsKey = 'CXXFLAGS_${target.rust}';
     final cxxFlagsValue = targetArg;
 
     final linkerKey = 'cargo_target_${target.rust.replaceAll('-', '_')}_linker'.toUpperCase();
 
     final ranlibKey = 'RANLIB_${target.rust}';
-    final ranlibValue = path.join(toolchainPath, 'llvm-ranlib$exe');
+    final ranlibValue = _buildScriptPath(path.join(toolchainPath, 'llvm-ranlib$exe'));
 
     final ndkVersionParsed = Version.parse(ndkVersion);
     final rustFlagsKey = 'CARGO_ENCODED_RUSTFLAGS';
@@ -141,7 +149,7 @@ class AndroidEnvironment {
     final toolTempDir = Platform.environment['CARGOKIT_TOOL_TEMP_DIR'] ?? targetTempDir;
 
     return {
-      arKey: arValue,
+      arKey: _buildScriptPath(arValue),
       ccKey: ccValue,
       cfFlagsKey: cFlagsValue,
       cxxKey: cxxValue,

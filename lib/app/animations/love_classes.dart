@@ -14,7 +14,7 @@ class LoveController implements Listenable {
   final Random random = Random();
   Size windowSize;
 
-  late Ticker ticker;
+  Ticker? ticker;
   late Point<double> position;
 
   bool isPlaying = false;
@@ -30,6 +30,7 @@ class LoveController implements Listenable {
     autoLaunchDuration = const Duration(milliseconds: 100);
     lastAutoLaunch = Duration.zero;
     position = startPos;
+    ticker?.dispose();
     ticker = vsync.createTicker(update)..start();
   }
 
@@ -55,7 +56,8 @@ class LoveController implements Listenable {
 
   void dispose() {
     listeners.clear();
-    ticker.dispose();
+    ticker?.dispose();
+    ticker = null;
   }
 
   void update(Duration elapsedDuration) {
@@ -75,8 +77,9 @@ class LoveController implements Listenable {
     heart!.update();
 
     if (heart!.position.y < -200 && requestedToStop) {
-      ticker.stop();
-      ticker.dispose();
+      ticker?.stop();
+      ticker?.dispose();
+      ticker = null;
       isPlaying = false;
       requestedToStop = false;
       heart = null;

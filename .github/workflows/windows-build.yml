@@ -1,0 +1,223 @@
+name: Windows builds
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            # Flutter 3.24 does not recognize the Visual Studio 2026 image
+            # currently behind windows-latest. Pin VS 2022 until the app's
+            # Flutter toolchain is upgraded.
+            runner: windows-2022
+            flutter-version: 3.24.0
+            rust-target: x86_64-pc-windows-msvc
+            build-directory: x64
+            experimental: false
+          - arch: arm64
+            runner: windows-11-arm
+            # Native Windows ARM64 Dart and engine artifacts are available
+            # starting with Flutter 3.44.
+            flutter-version: 3.44.8
+            rust-target: aarch64-pc-windows-msvc
+            build-directory: arm64
+            experimental: true
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Report runner architecture
+        shell: pwsh
+        run: |
+          $osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+          Write-Host "Runner architecture: $osArchitecture"
+          Write-Host "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
+          if ("$osArchitecture".ToLowerInvariant() -ne "${{ matrix.arch }}") {
+            throw "Expected a native ${{ matrix.arch }} runner, but received $osArchitecture."
+          }
+
+      # Do not remove this guard merely to make CI green. A native ARM64
+      # executable cannot load the x64 DLLs currently selected by these
+      # packages. Re-audit all three dependencies before enabling the build.
+      - name: Audit native ARM64 dependency compatibility
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          Write-Error @"
+          Native Windows ARM64 packaging is blocked by the locked native dependencies:
+
+          1. objectbox_flutter_libs 4.0.3 selects ObjectBox C 4.0.2 using
+             CMAKE_SYSTEM_PROCESSOR, but that release provides Windows x86 and
+             x64 archives only. There is no objectbox-windows-ARM64.zip.
+          2. printing 5.13.4 hard-codes PDFIUM_ARCH=x64 and downloads an x64
+             PDFium archive.
+          3. media_kit_libs_windows_video 1.0.10 hard-codes an x86_64 libmpv
+             archive and an x64 ANGLE bundle.
+
+          This job is experimental and allowed to fail. Keep it blocked until
+          native ARM64 replacements exist and are runtime-tested.
+          "@
+          exit 1
+
+      - name: Set up Flutter
+        id: flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ matrix.flutter-version }}
+          # Flutter's full Windows SDK archive is x64. On the ARM64 runner,
+          # the next step replaces its Dart SDK and downloads ARM64 engines.
+          architecture: x64
+          cache: true
+
+      - name: Bootstrap native ARM64 Dart and Flutter engine
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          $flutterRoot = "${{ steps.flutter.outputs['cache-path'] }}"
+          Remove-Item -Force "$flutterRoot\bin\cache\engine-dart-sdk.stamp" -ErrorAction SilentlyContinue
+          & "$flutterRoot\bin\internal\update_dart_sdk.ps1"
+
+          $dartVersion = & "$flutterRoot\bin\dart.bat" --version 2>&1 | Out-String
+          Write-Host $dartVersion
+          if ($dartVersion -notmatch "windows_arm64") {
+            throw "Expected an ARM64 Dart SDK, but got: $dartVersion"
+          }
+
+          & "$flutterRoot\bin\flutter.bat" precache --windows
+          $engineDirectory = "$flutterRoot\bin\cache\artifacts\engine\windows-arm64-release"
+          if (-not (Test-Path $engineDirectory)) {
+            throw "Flutter did not install the native Windows ARM64 release engine."
+          }
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Set up Protocol Buffers compiler
+        shell: pwsh
+        run: |
+          # protobuf does not publish a native Windows ARM64 protoc archive.
+          # The official win64 compiler is build-time tooling and runs under
+          # Windows 11 ARM's x64 emulation without affecting app architecture.
+          $version = "29.5"
+          $expectedHash = "633d3e555fc97f0a1f55b4adb03256cd94b8059e51e7abbae98ff39e58a9dfa5"
+          $archive = Join-Path $env:RUNNER_TEMP "protoc-$version-win64.zip"
+          $destination = Join-Path $env:RUNNER_TOOL_CACHE "protoc\$version\x64"
+          Invoke-WebRequest `
+            "https://github.com/protocolbuffers/protobuf/releases/download/v$version/protoc-$version-win64.zip" `
+            -OutFile $archive
+
+          $actualHash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) {
+            throw "protoc archive checksum mismatch: expected $expectedHash, got $actualHash"
+          }
+
+          Expand-Archive -Path $archive -DestinationPath $destination -Force
+          "$destination\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & "$destination\bin\protoc.exe" --version
+
+      - name: Set up test FairPlay certificates
+        shell: pwsh
+        run: |
+          $destination = "rustpush\certs\fairplay"
+          New-Item -ItemType Directory -Force -Path $destination | Out-Null
+          $certificateNames = @(
+            "4056631661436364584235346952193",
+            "4056631661436364584235346952194",
+            "4056631661436364584235346952195",
+            "4056631661436364584235346952196",
+            "4056631661436364584235346952197",
+            "4056631661436364584235346952198",
+            "4056631661436364584235346952199",
+            "4056631661436364584235346952200",
+            "4056631661436364584235346952201",
+            "4056631661436364584235346952208"
+          )
+          foreach ($name in $certificateNames) {
+            Copy-Item "rustpush\certs\legacy-fairplay\fairplay.pem" "$destination\$name.pem"
+            Copy-Item "rustpush\certs\legacy-fairplay\fairplay.crt" "$destination\$name.crt"
+          }
+
+      - name: Resolve Flutter dependencies
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop
+          flutter doctor -v
+          flutter pub get
+
+      - name: Build Windows release
+        shell: pwsh
+        env:
+          # Keep the large Rust release link inside the standard hosted
+          # runner's memory budget.
+          CARGO_BUILD_JOBS: "2"
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "4"
+          CARGO_TERM_COLOR: never
+          CARGOKIT_VERBOSE: "1"
+        run: |
+          # OpenSSL's longest generated object path exceeds the legacy
+          # 260-character compiler limit from GitHub's nested checkout path.
+          # Build from a real short path and regenerate Flutter's absolute
+          # plugin links there. A substituted drive breaks Cargokit's link
+          # integrity checks because the links retain the original drive.
+          $shortWorkspace = "D:\s"
+          New-Item -ItemType Directory -Force -Path $shortWorkspace | Out-Null
+          robocopy "$env:GITHUB_WORKSPACE" $shortWorkspace /E `
+            /XD `
+              "$env:GITHUB_WORKSPACE\.git" `
+              "$env:GITHUB_WORKSPACE\.dart_tool" `
+              "$env:GITHUB_WORKSPACE\build" `
+              "$env:GITHUB_WORKSPACE\windows\flutter\ephemeral" `
+            /NFL /NDL /NJH /NJS /NP
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage the short Windows build workspace."
+          }
+
+          Set-Location $shortWorkspace
+          flutter pub get
+          flutter build windows --release
+
+      - name: Package Windows release
+        shell: pwsh
+        run: |
+          $bundle = "D:\s\build\windows\${{ matrix.build-directory }}\runner\Release"
+          if (-not (Test-Path "$bundle\bluebubbles_app.exe")) {
+            throw "Expected release executable was not produced at $bundle\bluebubbles_app.exe"
+          }
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $archive = "dist\OpenBubbles-windows-${{ matrix.arch }}.zip"
+          Compress-Archive -Path "$bundle\*" -DestinationPath $archive -Force
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  OpenBubbles-windows-${{ matrix.arch }}.zip" |
+            Set-Content "$archive.sha256"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenBubbles-windows-${{ matrix.arch }}
+          path: |
+            dist/OpenBubbles-windows-${{ matrix.arch }}.zip
+            dist/OpenBubbles-windows-${{ matrix.arch }}.zip.sha256
+          if-no-files-found: error

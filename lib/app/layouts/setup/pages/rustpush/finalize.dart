@@ -15,6 +15,7 @@ import 'package:bluebubbles/services/backend/settings/settings_service.dart';
 import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/services/ui/contact_service.dart';
 import 'package:bluebubbles/src/rust/api/api.dart' as api;
+import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/services/rustpush/rustpush_service.dart';
 import 'package:flutter/cupertino.dart';
@@ -156,7 +157,7 @@ class _FinalizePageState extends OptimizedState<FinalizePage> {
               onTap: () async {
                 final credentials = await pushService.googleSignIn.signIn();
                 if (credentials != null) {
-                  print('Signed in successfully: ${credentials.accessToken}');
+                  Logger.info("Google account sign-in succeeded");
                   googleCreds.value = credentials;
                   cs.refreshContacts();
                 } else {

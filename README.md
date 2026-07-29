@@ -34,3 +34,11 @@ If you need help setting up the app, have any issues or feature requests, or jus
 ## Getting Started
 
 [Quickstart](https://openbubbles.app/quickstart.html)
+
+## Contributor documentation
+
+The repository-specific development and diagnostic notes are in
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) and
+[`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md). They document the Android build
+matrix, the iMessage/relay versus SMS/MMS/RCS boundary, safe log collection,
+and the current known limitations.

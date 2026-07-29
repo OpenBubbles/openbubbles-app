@@ -11,7 +11,7 @@ We encourage all contributions to this project! All we ask are you follow these 
 Please make sure you have completed the following pre-requisites:
 
 * Install Git: [download](https://git-scm.com/downloads)
-* Install Java: [download](https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html)
+* Install Java 21: [download](https://adoptium.net/temurin/releases/?version=21)
 * Install Flutter: [guide/download](https://flutter.dev/docs/get-started/install)
 * Install Android Studio [download](https://developer.android.com/studio)
     - Also install the Flutter & Dart Plugins via the Plugin Manager
@@ -25,6 +25,11 @@ Once you have a code editor installed, remember to install all of the required p
 * Dart
 * Flutter
 * Intellisense/Intellicode
+
+Before opening a pull request, read the repository-specific
+[development and diagnostics notes](docs/DEVELOPMENT.md). Do not commit relay
+registration codes, Apple credentials, phone numbers, message text, generated
+signing files, or `.env` values.
 
 ## Forking the Repository
 

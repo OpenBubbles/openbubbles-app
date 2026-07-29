@@ -10,7 +10,6 @@ import 'package:bluebubbles/helpers/backend/startup_tasks.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/services/network/http_overrides.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
-import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/utils/window_effects.dart';
 import 'package:bluebubbles/app/layouts/conversation_list/pages/conversation_list.dart';
 import 'package:bluebubbles/app/layouts/startup/failure_to_start.dart';
@@ -29,7 +28,6 @@ import 'package:flutter/scheduler.dart' hide Priority;
 import 'package:flutter/services.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:get/get.dart';
 import 'package:google_ml_kit/google_ml_kit.dart' hide Message;
@@ -55,6 +53,22 @@ import 'package:path_provider/path_provider.dart';
 var usingRustPush = true;
 bool isAuthing = false;
 final systemTray = st.SystemTray();
+
+String _renderIncidentId() => Random.secure().nextInt(0x7fffffff).toRadixString(16).padLeft(8, '0');
+
+String _redactedRenderContext(FlutterErrorDetails details) {
+  final contextType = details.context?.runtimeType.toString() ?? "none";
+  return "contextType=$contextType";
+}
+
+void _logRenderError(FlutterErrorDetails details) {
+  final incidentId = _renderIncidentId();
+  Logger.error(
+    "Render error incident=$incidentId exceptionType=${details.exception.runtimeType} context=${_redactedRenderContext(details)}",
+    error: details.exception,
+    trace: details.stack,
+  );
+}
 
 @pragma('vm:entry-point')
 //ignore: prefer_void_to_null
@@ -82,7 +96,7 @@ Future<Null> initApp(bool bubble, List<String> arguments) async {
       StackTrace? stacktrace;
 
       FlutterError.onError = (details) {
-        Logger.error("Rendering Error: ${details.exceptionAsString()}", error: details.exception, trace: details.stack);
+        _logRenderError(details);
       };
 
       try {
@@ -465,7 +479,8 @@ class _HomeState extends OptimizedState<Home> with WidgetsBindingObserver, TrayL
       }
 
       ErrorWidget.builder = (FlutterErrorDetails error) {
-        Logger.error("An unexpected error occurred when rendering.", error: error.exception, trace: error.stack);
+        // FlutterError.onError above records the incident. Logging here would
+        // produce a second incident ID for the same rendering failure.
         return CustomErrorWidget(
           "An unexpected error occurred when rendering.",
         );

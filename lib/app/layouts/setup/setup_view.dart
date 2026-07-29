@@ -49,6 +49,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 
 class SetupViewController extends StatefulController {
+  static const int _maxIdsAliasRetries = 1;
+  static const Duration _idsAliasRetryDelay = Duration(seconds: 5);
+
   final pageController = PageController(initialPage: 0);
   int currentPage = 1;
   int numberToDownload = 25;
@@ -137,7 +140,7 @@ class SetupViewController extends StatefulController {
 
   Future<void> updateIAPState() async {
     hasDanglingSubscription = false;
-    if (currentWaitlist == null && !fetchedReferrer) {
+    if (Platform.isAndroid && currentWaitlist == null && !fetchedReferrer) {
       try {
         ReferrerDetails referrerDetails = await AndroidPlayInstallReferrer.installReferrer;
         var referrer = referrerDetails.installReferrer;
@@ -179,6 +182,11 @@ class SetupViewController extends StatefulController {
         noCapErrorMsg.value = status.data["message"];
         return;
       }
+    }
+    if (!Platform.isAndroid) {
+      // Google Play Billing has no desktop implementation.
+      availableIAP.value = null;
+      return;
     }
     var details = await pushService.client.runWithClient((client) => client.queryProductDetails(productList: [const ProductWrapper(productId: 'monthly_hosted', productType: ProductType.subs)]));
     if (details.productDetailsList.isEmpty) {
@@ -365,7 +373,7 @@ class SetupViewController extends StatefulController {
         if (selectedRadio == -1) {
           return ret;
         }
-        ret = await api.send2FaSms(locked: circleSession, account: currentAppleAccount!, phoneId: options.$1[0].id);
+        ret = await api.send2FaSms(locked: circleSession, account: currentAppleAccount!, phoneId: selectedRadio);
         circleSession = null;
       }
       isSms.value = true;
@@ -429,14 +437,7 @@ class SetupViewController extends StatefulController {
     if (users.isEmpty) {
       throw Exception("No users to register!");
     }
-      var (newUsers, response) = await api.registerIds(
-        path: pushService.statePath,
-        aps: connection!,
-        identity: identity!, 
-        config: config!, 
-        // stupid FRB will take ownership for us, so we have to do this
-        users: users.map((i) => api.duplicateUser(user: i)).toList(),
-      );
+      var (newUsers, response) = await _registerIdsWithRetry(users);
       if (response != null) {
         var devInfo = await api.getDeviceInfo(config: config!);
         await showDialog(
@@ -557,6 +558,31 @@ class SetupViewController extends StatefulController {
 
       Logger.debug("Finishing!");
       setup.finishSetup();
+  }
+
+  Future<(List<api.IdsUser>?, api.SupportAlert?)> _registerIdsWithRetry(
+      List<api.IdsUser> users) async {
+    for (var attempt = 0;; attempt++) {
+      try {
+        return await api.registerIds(
+          path: pushService.statePath,
+          aps: connection!,
+          identity: identity!,
+          config: config!,
+          // FRB takes ownership, so duplicate users for every attempt.
+          users: users.map((i) => api.duplicateUser(user: i)).toList(),
+        );
+      } catch (error) {
+        final isTransientAliasRemoval = error is AnyhowException &&
+            RegExp(r'(^|\D)5052(\D|$)').hasMatch(error.message);
+        if (!isTransientAliasRemoval || attempt >= _maxIdsAliasRetries) {
+          rethrow;
+        }
+        Logger.warn(
+            "IDS registration returned transient alias-removal status 5052; retrying once");
+        await Future.delayed(_idsAliasRetryDelay);
+      }
+    }
   }
 
   Future<void> cacheCode(String code) async {

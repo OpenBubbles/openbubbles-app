@@ -44,6 +44,7 @@ class SendButtonState extends OptimizedState<SendButton> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final tapTargetSize = iOS || kIsDesktop ? 28.0 : 48.0;
     return GestureDetector(
       onSecondaryTap: () {
         if (controller.isAnimating) {
@@ -76,69 +77,78 @@ class SendButtonState extends OptimizedState<SendButton> with SingleTickerProvid
               widget.sendMessage.call();
             }
           },
-          child: TextButton(
-        style: TextButton.styleFrom(
-          backgroundColor: iOS ? context.theme.colorScheme.primary : null,
-          shape: const CircleBorder(),
-          padding: const EdgeInsets.all(0),
-          maximumSize: const Size(28, 28),
-          minimumSize: const Size(28, 28),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, widget) {
-            return Container(
-              constraints: const BoxConstraints(minHeight: 28, minWidth: 28),
-              decoration: BoxDecoration(
-                  shape: iOS ? BoxShape.circle : BoxShape.rectangle,
-                  borderRadius: iOS ? null : BorderRadius.circular(10),
-                  gradient: iOS || controller.value != 0
-                      ? LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            baseColor,
-                            baseColor,
-                            context.theme.colorScheme.error,
-                            context.theme.colorScheme.error
-                          ],
-                          stops: [0.0, 1 - controller.value, 1 - controller.value, 1.0],
-                        )
-                      : null),
-              alignment: Alignment.center,
-              child: Icon(
-                controller.value == 0
-                    ? (iOS ? CupertinoIcons.arrow_up : Icons.send_outlined)
-                    : (iOS ? CupertinoIcons.xmark : Icons.close),
-                color: controller.value == 0
-                    ? (iOS ? context.theme.colorScheme.onPrimary : context.theme.colorScheme.secondary)
-                    : context.theme.colorScheme.onError,
-                size: iOS || controller.value != 0 ? 20 : 28,
+          child: Tooltip(
+            message: "Send message",
+            child: Semantics(
+              button: true,
+              label: "Send message",
+              tooltip: "Send message",
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  backgroundColor: iOS ? context.theme.colorScheme.primary : null,
+                  shape: const CircleBorder(),
+                  padding: const EdgeInsets.all(0),
+                  maximumSize: Size(tapTargetSize, tapTargetSize),
+                  minimumSize: Size(tapTargetSize, tapTargetSize),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: AnimatedBuilder(
+                  animation: controller,
+                  builder: (context, widget) {
+                    return Container(
+                      constraints: const BoxConstraints(minHeight: 28, minWidth: 28),
+                      decoration: BoxDecoration(
+                        shape: iOS ? BoxShape.circle : BoxShape.rectangle,
+                        borderRadius: iOS ? null : BorderRadius.circular(10),
+                        gradient: iOS || controller.value != 0
+                            ? LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  baseColor,
+                                  baseColor,
+                                  context.theme.colorScheme.error,
+                                  context.theme.colorScheme.error,
+                                ],
+                                stops: [0.0, 1 - controller.value, 1 - controller.value, 1.0],
+                              )
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        controller.value == 0
+                            ? (iOS ? CupertinoIcons.arrow_up : Icons.send_outlined)
+                            : (iOS ? CupertinoIcons.xmark : Icons.close),
+                        color: controller.value == 0
+                            ? (iOS ? context.theme.colorScheme.onPrimary : context.theme.colorScheme.secondary)
+                            : context.theme.colorScheme.onError,
+                        size: iOS || controller.value != 0 ? 20 : 28,
+                      ),
+                    );
+                  },
+                ),
+                onPressed: () {
+                  if (controller.isAnimating) {
+                    controller.reset();
+                  } else if (ss.settings.sendDelay.value != 0) {
+                    controller.forward();
+                  } else {
+                    HapticFeedback.lightImpact();
+                    widget.sendMessage.call();
+                  }
+                },
+                onLongPress: () {
+                  if (controller.isAnimating) {
+                    controller.reset();
+                  } else {
+                    widget.onLongPress.call();
+                  }
+                },
               ),
-            );
-          },
+            ),
+          ),
         ),
-        onPressed: () {
-          if (controller.isAnimating) {
-            controller.reset();
-          } else if (ss.settings.sendDelay.value != 0) {
-            controller.forward();
-          } else {
-            HapticFeedback.lightImpact();
-            widget.sendMessage.call();
-          }
-        },
-        onLongPress: () {
-          if (controller.isAnimating) {
-            controller.reset();
-          } else {
-            widget.onLongPress.call();
-          }
-        },
-        ),
-      )
-      )
+      ),
     );
   }
 }

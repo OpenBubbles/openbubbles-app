@@ -43,6 +43,8 @@ class HwInpState extends OptimizedState<HwInp> {
   final TextEditingController hostedCodeController = TextEditingController();
   final controller = Get.find<SetupViewController>();
   final FocusNode focusNode = FocusNode();
+  late final VoidCallback _codeListener;
+  late final VoidCallback _hostedCodeListener;
 
   bool loading = false;
   bool hosted = true;
@@ -118,12 +120,28 @@ class HwInpState extends OptimizedState<HwInp> {
   }
 
   String lastCheckedCode = "";
-  String relayHost = "https://registration-relay.beeper.com";
+  String relayHost = registrationRelayHost;
+
+  String normalizeRelayHost(String value) {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null ||
+        uri.scheme != "https" ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        (uri.path.isNotEmpty && uri.path != "/") ||
+        uri.query.isNotEmpty ||
+        uri.fragment.isNotEmpty) {
+      throw const FormatException(
+          "Relay server must be a secure HTTPS origin without credentials, a path, a query, or a fragment.");
+    }
+    return uri.toString().replaceFirst(RegExp(r"/+$"), "");
+  }
 
   Future<void> handleBeeper(String code) async {
     if (code == lastCheckedCode) return;
     lastCheckedCode = code;
     try {
+      relayHost = normalizeRelayHost(relayHost);
       if (staging == null) {
         FocusManager.instance.primaryFocus?.unfocus();
       }
@@ -134,7 +152,8 @@ class HwInpState extends OptimizedState<HwInp> {
         options: Options(
           headers: {
             // not a secret; burner account
-            "X-Beeper-Access-Token": "5c175851953ecaf5209185d897591badb6c3e712",
+            "X-Beeper-Access-Token":
+                registrationRelayAccessToken,
             "Authorization": "Bearer $code",
           },
         )
@@ -143,7 +162,10 @@ class HwInpState extends OptimizedState<HwInp> {
       api.JoinedOsConfig parsed;
       if (response2.data["versions"]["software_name"] == "iPhone OS") {
         Logger.debug("Using as iOS");
-        parsed = await api.configFromRelay(code: code, host: relayHost, token: "5c175851953ecaf5209185d897591badb6c3e712");
+        parsed = await api.configFromRelay(
+            code: code,
+            host: relayHost,
+            token: registrationRelayAccessToken);
         usingBeeper = false;
       } else {
         final response = await http.dio.post(
@@ -152,7 +174,8 @@ class HwInpState extends OptimizedState<HwInp> {
           options: Options(
             headers: {
               // not a secret; burner account
-              "X-Beeper-Access-Token": "5c175851953ecaf5209185d897591badb6c3e712",
+              "X-Beeper-Access-Token":
+                  registrationRelayAccessToken,
               "Authorization": "Bearer $code",
             },
           )
@@ -160,6 +183,7 @@ class HwInpState extends OptimizedState<HwInp> {
 
         if (response.statusCode == 404) {
           showSnackbar("Fetching validation data", "Mac Offline");
+          lastCheckedCode = "";
           return;
         }
         parsed = await api.configFromValidationData(data: base64Decode(response.data["data"]), extra: api.HwExtra(
@@ -172,10 +196,13 @@ class HwInpState extends OptimizedState<HwInp> {
         usingBeeper = true;
       }
       showSnackbar("Fetching validation data", "Done");
+      await ss.prefs.setString(
+          "registration-relay-host", relayHost);
       stagingNonInp = true;
       select(parsed, true);
     } catch (e) {
       showSnackbar("Fetching validation data", "Failed");
+      lastCheckedCode = "";
       rethrow;
     }
   }
@@ -331,13 +358,21 @@ class HwInpState extends OptimizedState<HwInp> {
     }
   }
 
+  Future<void> _checkCodeSafely(String text) async {
+    try {
+      await checkCode(text);
+    } catch (e, stack) {
+      Logger.error("Failed to check registration code", error: e, trace: stack);
+    }
+  }
+
   void updateInitial() async {
     Logger.debug("updating app link");
     final _appLinks = AppLinks();
     var link = await _appLinks.getLatestLink();
 
     if (link != null && link.toString().startsWith(rpApiRoot)) {
-      checkCode(link.toString());
+      unawaited(_checkCodeSafely(link.toString()));
     } else {
       if (controller.config != null) {
         // restore
@@ -432,8 +467,13 @@ class HwInpState extends OptimizedState<HwInp> {
 
   @override
   void dispose() {
-    super.dispose();
+    codeController.removeListener(_codeListener);
+    hostedCodeController.removeListener(_hostedCodeListener);
     subscription?.cancel();
+    codeController.dispose();
+    hostedCodeController.dispose();
+    focusNode.dispose();
+    super.dispose();
   }
 
   Future<bool> handlePurchases(PurchasesResultWrapper details) async {
@@ -442,7 +482,7 @@ class HwInpState extends OptimizedState<HwInp> {
       ss.settings.hostedToken.value = detail.purchaseToken;
       ss.saveSettings();
       await wrapSubscriptionPromise(handleSubscriptionToken(detail.purchaseToken));
-      Logger.info("Purchased token ${detail.purchaseToken}");
+      Logger.info("Hosted subscription purchase received");
       return true;
     }
     return false;
@@ -470,16 +510,18 @@ class HwInpState extends OptimizedState<HwInp> {
     }
 
     // Start listening to changes.
-    codeController.addListener(() async {
-      checkCode(codeController.text);
-    });
+    _codeListener = () {
+      unawaited(_checkCodeSafely(codeController.text));
+    };
+    codeController.addListener(_codeListener);
 
-    hostedCodeController.addListener(() async {
+    _hostedCodeListener = () {
       if (hostedCodeController.text.length == 36 || hostedCodeController.text.length == 9) {
         controller.currentWaitlist = hostedCodeController.text;
         controller.updateIAPState();
       }
-    });
+    };
+    hostedCodeController.addListener(_hostedCodeListener);
   }
 
   Widget materialButton(Widget inner, bool selected, void Function() onTap) {
@@ -737,7 +779,7 @@ class HwInpState extends OptimizedState<HwInp> {
                               textInputAction: TextInputAction.done,
                               onSubmitted: (value) {
                                 lastCheckedCode = "";
-                                checkCode(codeController.text);
+                                unawaited(_checkCodeSafely(codeController.text));
                               },
                               decoration: InputDecoration(
                                 enabledBorder: OutlineInputBorder(
@@ -785,10 +827,19 @@ class HwInpState extends OptimizedState<HwInp> {
                                           TextButton(
                                             child: Text("OK", style: Get.context!.theme.textTheme.bodyLarge!.copyWith(color: Get.context!.theme.colorScheme.primary)),
                                             onPressed: () async {
-                                              relayHost = server.text;
-                                              lastCheckedCode = "";
-                                              Get.back();
-                                              checkCode(codeController.text);
+                                               try {
+                                                 relayHost =
+                                                     normalizeRelayHost(
+                                                         server.text);
+                                                 lastCheckedCode = "";
+                                                 Get.back();
+                                                 unawaited(_checkCodeSafely(
+                                                     codeController.text));
+                                               } on FormatException catch (e) {
+                                                 showSnackbar(
+                                                     "Invalid relay URL",
+                                                     e.message);
+                                               }
                                             },
                                           ),
                                         ],

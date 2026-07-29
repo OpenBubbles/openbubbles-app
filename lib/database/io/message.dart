@@ -26,7 +26,6 @@ import 'package:telephony_plus/src/models/attachment.dart' as TelephonyAttachmen
 import 'package:bluebubbles/src/rust/api/api.dart' as api;
 import 'package:tuple/tuple.dart';
 import 'dart:typed_data';
-import 'package:convert/convert.dart';
 
 const IS_FINISHED               = 1 << 0; // this one probably, although there are some unset in db, all are set on local db
 const IS_EMOTE                  = 1 << 1;
@@ -400,19 +399,27 @@ class Message {
       var attachments = fetchAttachments()!;
       bool useMMS = chat.participants.length > 1 || attachments.isNotEmpty;
       int status;
-      if (useMMS) {
-        status = await TelephonyPlus().sendMMS(
-          addresses: chat.participants.map((e) => e.address).filter((e) => e.isPhoneNumber).toList(),
-          message: text?.trim() == "" ? null : text,
-          threadId: chat.telephonyId,
-          attachments: await Future.wait(attachments.map((e) => e!.toTelephony()).toList())
-        );
-      } else {
-        status = await TelephonyPlus().sendSMS(
-          address: chat.participants.first.address,
-          threadId: chat.telephonyId,
-          message: text!,
-        );
+      try {
+        if (useMMS) {
+          status = await TelephonyPlus().sendMMS(
+            addresses: chat.participants.map((e) => e.address).filter((e) => e.isPhoneNumber).toList(),
+            message: text?.trim() == "" ? null : text,
+            threadId: chat.telephonyId,
+            attachments: await Future.wait(attachments.map((e) => e!.toTelephony()).toList())
+          );
+        } else {
+          status = await TelephonyPlus().sendSMS(
+            address: chat.participants.first.address,
+            threadId: chat.telephonyId,
+            message: text!,
+          );
+        }
+      } catch (_) {
+        // No native status means the forwarding attempt did not complete. Let
+        // the transport retry instead of permanently suppressing forwarding.
+        hasBeenForwarded = false;
+        save(chat: chat);
+        rethrow;
       }
       if (status != -1) {
         await (backend as RustPushBackend).confirmSmsSent(this, chat, false);
@@ -1098,7 +1105,6 @@ class Message {
   }
 
   void applyFromCloud(api.CloudMessage c, String cloudkitId) {
-    Logger.info("item ${c.chatId}");
     Chat? chat;
     if (c.chatId.contains(";")) {
       final query = Database.chats.query(Chat_.chatIdentifier.equals(c.chatId.split(";")[2])).build();
@@ -1113,8 +1119,6 @@ class Message {
     }
 
     if (chat?.isRpSms ?? true) return;
-
-    Logger.info("Syncing new message");
 
     ckRecordId = cloudkitId;
 
@@ -1137,7 +1141,11 @@ class Message {
     try {
       payloadData = proto1.payloadData != null && !eraseBalloonBundle ? pushService.appToData(api.decodeExtensionApp(bp: gzip.encode(proto1.payloadData!), bid: proto1.balloonBundleId!)) : null;
     } catch (e, s) {
-      Logger.info("Failed item ${hex.encode(proto1.payloadData!)} ${proto1.balloonBundleId}", error: e, trace: s);
+      Logger.warn(
+        "Failed to decode extension payload for bundle ${proto1.balloonBundleId ?? "unknown"} (${proto1.payloadData?.length ?? 0} bytes)",
+        error: e,
+        trace: s,
+      );
     }
     hasApplePayloadData = proto1.payloadData != null && !eraseBalloonBundle;
 
@@ -1453,7 +1461,8 @@ class Message {
     return "$part:${run.range[0]}:${run.range[1]}";
   }
 
-  int get normalizedThreadPart => threadOriginatorPart == null ? 0 : int.parse(threadOriginatorPart![0]);
+  int get normalizedThreadPart =>
+      int.tryParse(threadOriginatorPart?.split(':').first ?? '') ?? 0;
 
   bool connectToUpper() => threadOriginatorGuid != null;
 

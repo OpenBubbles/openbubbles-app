@@ -9,7 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.bluebubbles.messaging.Constants
@@ -47,6 +49,9 @@ class SocketIOForegroundService : Service() {
     private var isBeingDestroyed: Boolean = false
 
     private var hasStarted: Boolean = false
+    private val reconnectHandler = Handler(Looper.getMainLooper())
+    private var reconnectRunnable: Runnable? = null
+    private var reconnectAttempt: Int = 0
 
     private val eventBlacklist: Array<String> = arrayOf(
         "typing-indicator",
@@ -102,6 +107,9 @@ class SocketIOForegroundService : Service() {
             Log.d(Constants.logTag, "Foreground Service is connecting to: $serverUrl")
 
             val opts = IO.Options()
+            // Reconnects are scheduled by this service so the Socket.IO manager
+            // cannot race a second retry loop with our URL/service lifecycle.
+            opts.reconnection = false
 
             try {
                 // Read the custom headers JSON string from preferences and parse it into a map
@@ -124,10 +132,12 @@ class SocketIOForegroundService : Service() {
             val encodedPw = URLEncoder.encode(storedPassword, "UTF-8")
             opts.query = "password=$encodedPw"
             mSocket = IO.socket(serverUrl, opts)
-            mSocket!!.connect()
 
             mSocket!!.on(Socket.EVENT_CONNECT) {
                 Log.d(Constants.logTag, "Socket.io connected to your server!")
+                reconnectAttempt = 0
+                reconnectRunnable?.let { reconnectHandler.removeCallbacks(it) }
+                reconnectRunnable = null
                 updateNotification(CONNECTED)
             }
 
@@ -135,6 +145,7 @@ class SocketIOForegroundService : Service() {
                 val error = args[0] as Exception
                 Log.d(Constants.logTag, "Socket.io failed to connect to $serverUrl! Error: ${error.message}")
                 updateNotification(CONNECT_FAILED + error.message)
+                tryReconnect()
             }
 
             // with reason, details args
@@ -148,6 +159,7 @@ class SocketIOForegroundService : Service() {
                 val details = args.getOrNull(1)
                 Log.d(Constants.logTag, "Socket.io disconnected from server! Reason: $reason, Details: $details")
                 updateNotification(DISCONNECTED + reason)
+                tryReconnect()
             }
 
             mSocket!!.on("reconnecting") {
@@ -165,15 +177,17 @@ class SocketIOForegroundService : Service() {
                     val event = args[0] as String
                     val message = args[1] as JSONObject
 
-                    Log.d(Constants.logTag, "Received event of type $event from Socket.io...")
                     if (!eventBlacklist.contains(event)) {
-                        Log.d(Constants.logTag, "Received event of type $event from Socket.io...")
                         DartWorkManager.createWorker(applicationContext, "socket-event", hashMapOf("event" to event, "data" to message.toString())) {}
                     } else {
                         Log.d(Constants.logTag, "Ignored event of type $event from Socket.io...")
                     }
                 }
             }
+
+            // Register every callback before opening the transport so an
+            // immediate connect or event cannot race listener setup.
+            mSocket!!.connect()
         } catch (e: Exception) {
             if (isBeingDestroyed) {
                 return
@@ -190,11 +204,18 @@ class SocketIOForegroundService : Service() {
 
     private fun tryReconnect() {
         if (mSocket != null && !mSocket!!.connected()) {
-            Log.e(Constants.logTag, "Waiting 30 seconds before reconnecting...")
-
-            // Sleep for 30 seconds before attempting to reconnect
-            Thread.sleep(30000)
-            mSocket!!.connect()
+            if (reconnectRunnable != null) return
+            val delaySeconds = 30L * (1L shl reconnectAttempt.coerceAtMost(3))
+            reconnectAttempt = (reconnectAttempt + 1).coerceAtMost(3)
+            Log.e(Constants.logTag, "Scheduling reconnect in ${delaySeconds}s...")
+            val runnable = Runnable {
+                reconnectRunnable = null
+                if (!isBeingDestroyed && mSocket != null && !mSocket!!.connected()) {
+                    mSocket!!.connect()
+                }
+            }
+            reconnectRunnable = runnable
+            reconnectHandler.postDelayed(runnable, delaySeconds * 1000L)
         }
     }
 
@@ -261,6 +282,8 @@ class SocketIOForegroundService : Service() {
     override fun onDestroy() {
         isBeingDestroyed = true
         hasStarted = false
+        reconnectRunnable?.let { reconnectHandler.removeCallbacks(it) }
+        reconnectRunnable = null
         Log.d(Constants.logTag, "BlueBubbles Service is being destroyed!")
 
         super.onDestroy()

@@ -12,7 +12,6 @@ import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/app/wrappers/scrollbar_wrapper.dart';
-import 'package:bluebubbles/app/components/avatars/contact_avatar_widget.dart';
 import 'package:bluebubbles/app/wrappers/theme_switcher.dart';
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/database/models.dart';
@@ -46,14 +45,14 @@ class MessagesView extends StatefulWidget {
 class MessagesViewState extends OptimizedState<MessagesView> {
   bool initialized = false;
   bool fetching = false;
+  bool _refreshing = false;
   late bool noMoreMessages = widget.customService != null;
   List<Message> _messages = <Message>[];
 
   RxList<Widget> smartReplies = <Widget>[].obs;
   RxMap<String, Widget> internalSmartReplies = <String, Widget>{}.obs;
 
-  late final messageService = widget.customService ?? ms(chat.guid)
-    ..init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
+  late MessagesService messageService;
   final smartReply = GoogleMlKit.nlp.smartReply();
   final listKey = GlobalKey<SliverAnimatedListState>();
   final RxBool dragging = false.obs;
@@ -61,6 +60,8 @@ class MessagesViewState extends OptimizedState<MessagesView> {
   final RxBool latestMessageDeliveredState = false.obs;
   final RxBool jumpingToOldestUnread = false.obs;
   final Map<String, FocusNode> messageFocusNodes = {};
+  StreamSubscription? _eventSubscription;
+  int _lifecycleGeneration = 0;
 
   ConversationViewController get controller => widget.controller;
 
@@ -134,16 +135,13 @@ class MessagesViewState extends OptimizedState<MessagesView> {
   @override
   void initState() {
     super.initState();
+    messageService = widget.customService ?? ms(chat.guid);
+    messageService.init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
 
-    eventDispatcher.stream.listen((e) async {
+    _eventSubscription = eventDispatcher.stream.listen((e) async {
+      if (!mounted) return;
       if (e.item1 == "refresh-messagebloc" && e.item2 == chat.guid) {
-        // Clear state items
-        noMoreMessages = false;
-        _messages = [];
-        // Reload the state after refreshing
-        messageService.reload();
-        messageService.init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
-        setState(() {});
+        await _refreshMessageBloc();
       } else if (e.item1 == "add-custom-smartreply") {
         if (e.item2 != null && internalSmartReplies['attach-recent'] == null) {
           internalSmartReplies['attach-recent'] = _buildReply("Attach recent photo", onTap: () async {
@@ -155,29 +153,34 @@ class MessagesViewState extends OptimizedState<MessagesView> {
     });
 
     updateObx(() async {
+      if (!mounted) return;
+      final generation = _lifecycleGeneration;
       if (chat.isIMessage && !chat.isGroup) {
         getFocusState();
       }
-      final searchMessage = (messageService.method == null) ? null : messageService.struct.messages.firstOrNull;
-      if (messageService.method != null) {
-        await messageService.loadSearchChunk(
-            messageService.struct.messages.first, messageService.method == "local" ? SearchMethod.local : SearchMethod.network);
-      } else if (messageService.struct.isEmpty) {
-        await messageService.loadChunk(0, controller);
+      final initialService = messageService;
+      final searchMessage = (initialService.method == null) ? null : initialService.struct.messages.firstOrNull;
+      if (initialService.method != null) {
+        await initialService.loadSearchChunk(
+            initialService.struct.messages.first, initialService.method == "local" ? SearchMethod.local : SearchMethod.network);
+      } else if (initialService.struct.isEmpty) {
+        await initialService.loadChunk(0, controller);
       }
-      _messages = messageService.struct.messages;
+      if (!mounted || generation != _lifecycleGeneration || !identical(messageService, initialService)) return;
+      _messages = initialService.struct.messages;
       _messages.sort(Message.sort);
       setState(() {});
       _messages.forEachIndexed((i, m) {
         final c = mwc(m);
         c.cvController = controller;
-        listKey.currentState!.insertItem(i, duration: const Duration(milliseconds: 0));
+        listKey.currentState?.insertItem(i, duration: const Duration(milliseconds: 0));
       });
       _syncBottomMessageFocusNode();
       // scroll to message if needed
       if (searchMessage != null) {
         final index = _messages.indexWhere((element) => element.guid == searchMessage.guid);
         await scrollController.scrollToIndex(index, preferPosition: AutoScrollPosition.middle);
+        if (!mounted || generation != _lifecycleGeneration) return;
         scrollController.highlight(index, highlightDuration: const Duration(milliseconds: 500));
       } else if (!(_messages.firstOrNull?.isFromMe ?? true)) {
         updateReplies();
@@ -198,11 +201,81 @@ class MessagesViewState extends OptimizedState<MessagesView> {
     });
   }
 
+  void _closeMessageControllers(Iterable<Message> messages) {
+    for (final message in messages) {
+      final guid = message.guid;
+      if (guid != null) getActiveMwc(guid)?.close();
+    }
+  }
+
+  void _bindMessageControllers(Iterable<Message> messages) {
+    if (!mounted) return;
+    for (final message in messages) {
+      if (message.guid == null) continue;
+      final messageController = mwc(message);
+      messageController.cvController = controller;
+    }
+  }
+
+  Future<void> _refreshMessageBloc() async {
+    if (_refreshing) return;
+    if (widget.customService != null) {
+      Logger.info("message_refresh skipped_custom_service");
+      return;
+    }
+    _refreshing = true;
+    final generation = ++_lifecycleGeneration;
+    try {
+      final staleMessages = List<Message>.from(_messages);
+      _closeMessageControllers(staleMessages);
+      for (var index = _messages.length - 1; index >= 0; index--) {
+        listKey.currentState?.removeItem(
+          index,
+          (context, animation) => const SizedBox.shrink(),
+          duration: Duration.zero,
+        );
+      }
+      for (final node in messageFocusNodes.values) {
+        node.dispose();
+      }
+      messageFocusNodes.clear();
+
+      noMoreMessages = false;
+      fetching = false;
+      _messages = [];
+
+      // Get.reload rebuilds the original Get.put instance. Close it instead
+      // so its subscriptions and in-memory message structure are flushed
+      // before registering a genuinely new service for this transcript.
+      messageService.close(force: true);
+      final refreshedService = ms(chat.guid);
+      messageService = refreshedService;
+      refreshedService.init(chat, handleNewMessage, handleUpdatedMessage, handleDeletedMessage, jumpToMessage);
+      await refreshedService.loadChunk(0, controller);
+      if (!mounted || generation != _lifecycleGeneration || !identical(messageService, refreshedService)) return;
+
+      _messages = List<Message>.from(refreshedService.struct.messages);
+      _messages.sort(Message.sort);
+      _bindMessageControllers(_messages);
+      _syncBottomMessageFocusNode();
+      setState(() {});
+      for (var index = 0; index < _messages.length; index++) {
+        listKey.currentState?.insertItem(index, duration: Duration.zero);
+      }
+    } finally {
+      _refreshing = false;
+    }
+  }
+
   @override
   void dispose() {
+    _lifecycleGeneration++;
+    _eventSubscription?.cancel();
     if (!kIsWeb && !kIsDesktop) smartReply.close();
-    chat.lastReadMessageGuid = _messages.first.guid;
-    chat.save(updateLastReadMessageGuid: true);
+    if (_messages.isNotEmpty) {
+      chat.lastReadMessageGuid = _messages.first.guid;
+      chat.save(updateLastReadMessageGuid: true);
+    }
     messageService.close(force: widget.customService != null);
     if (controller.bottomMessageFocusNode != null && messageFocusNodes.containsValue(controller.bottomMessageFocusNode)) {
       controller.bottomMessageFocusNode = null;
@@ -288,28 +361,35 @@ class MessagesViewState extends OptimizedState<MessagesView> {
     if (noMoreMessages || fetching) return;
     fetching = true;
 
-    // Start loading the next chunk of messages
-    noMoreMessages = !(await messageService.loadChunk(_messages.length, controller, limit: limit).catchError((e, stack) {
-      Logger.error("Failed to fetch message chunk!", error: e, trace: stack);
-      return true;
-    }));
+    try {
+      // Start loading the next chunk of messages
+      noMoreMessages = !(await messageService.loadChunk(_messages.length, controller, limit: limit).catchError((e, stack) {
+        Logger.error("Failed to fetch message chunk!", error: e, trace: stack);
+        return true;
+      }));
 
-    if (noMoreMessages) return setState(() {});
-
-    final oldLength = _messages.length;
-    _messages = messageService.struct.messages;
-    _messages.sort(Message.sort);
-    fetching = false;
-    _messages.sublist(max(oldLength - 1, 0)).forEachIndexed((i, m) {
       if (!mounted) return;
-      final c = mwc(m);
-      c.cvController = controller;
-      listKey.currentState!.insertItem(i, duration: const Duration(milliseconds: 0));
-    });
-    _syncBottomMessageFocusNode();
-    // should only happen when a reaction is the most recent message
-    if (oldLength == 0) {
-      setState(() {});
+
+      if (noMoreMessages) {
+        setState(() {});
+        return;
+      }
+
+      final oldLength = _messages.length;
+      _messages = messageService.struct.messages;
+      _messages.sort(Message.sort);
+      _messages.sublist(max(oldLength - 1, 0)).forEachIndexed((i, m) {
+        final c = mwc(m);
+        c.cvController = controller;
+        listKey.currentState!.insertItem(i, duration: const Duration(milliseconds: 0));
+      });
+      _syncBottomMessageFocusNode();
+      // should only happen when a reaction is the most recent message
+      if (oldLength == 0) {
+        setState(() {});
+      }
+    } finally {
+      fetching = false;
     }
   }
 
@@ -678,7 +758,7 @@ class MessagesViewState extends OptimizedState<MessagesView> {
                                                                 .copyWith(color: Colors.deepPurple)),
                                                         style: TextButton.styleFrom(
                                                           padding: EdgeInsets.zero,
-                                                          minimumSize: Size(50, 30),
+                                                          minimumSize: const Size(50, 30),
                                                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                                           alignment: Alignment.centerLeft),
                                                         onPressed: () async {

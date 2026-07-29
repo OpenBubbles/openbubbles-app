@@ -43,12 +43,14 @@ class _InteractiveHolderState extends CustomState<InteractiveHolder, void, Messa
 
   bool hasImage = false;
   Uint8List? appIcon;
+  Worker? _selectionWorker;
 
   @override
   void initState() {
     forceDelete = false;
     if (controller.cvController != null && !iOS) {
-      ever<List<Message>>(controller.cvController!.selected, (event) {
+      _selectionWorker = ever<List<Message>>(controller.cvController!.selected, (event) {
+        if (!mounted) return;
         if (controller.cvController!.isSelected(message.guid!) && !selected) {
           setState(() {
             selected = true;
@@ -84,6 +86,12 @@ class _InteractiveHolderState extends CustomState<InteractiveHolder, void, Messa
     });
 
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _selectionWorker?.dispose();
+    super.dispose();
   }
 
   @override

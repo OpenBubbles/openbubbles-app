@@ -1,6 +1,6 @@
 [submodule "rustpush"]
 	path = rustpush
-	url = git@github.com:OpenBubbles/rustpush.git
+	url = https://github.com/OpenBubbles/rustpush.git
 [submodule "telephony_plus"]
 	path = telephony_plus
-	url = git@github.com:OpenBubbles/telephony_plus.git
+	url = https://github.com/OpenBubbles/telephony_plus.git

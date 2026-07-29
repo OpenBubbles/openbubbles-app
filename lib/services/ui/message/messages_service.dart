@@ -19,7 +19,7 @@ String? lastReloadedChat() => Get.isRegistered<String>(tag: 'lastReloadedChat') 
 class MessagesService extends GetxController {
   static final Map<String, Size> cachedBubbleSizes = {};
   late Chat chat;
-  late StreamSubscription countSub;
+  StreamSubscription? countSub;
   final ChatMessages struct = ChatMessages();
   late Function(Message) newFunc;
   late Function(Message, {String? oldGuid}) updateFunc;
@@ -85,7 +85,7 @@ class MessagesService extends GetxController {
   @override
   void onClose() {
     if (_init) {
-      countSub.cancel();
+      countSub?.cancel();
     }
     _init = false;
     super.onClose();
@@ -120,15 +120,26 @@ class MessagesService extends GetxController {
     if (message.amkSessionId != null) {
       message.fetchAssociatedMessages();
     }
-    // add this as a reaction if needed, update thread originators and associated messages
+    // Add this as a reaction if needed, update thread originators and
+    // associated messages. ChatMessages retains a bounded pending set when a
+    // reaction arrives before its base message.
     if (message.associatedMessageGuid != null) {
-      struct.getMessage(message.associatedMessageGuid!)?.associatedMessages.add(message);
-      getActiveMwc(message.associatedMessageGuid!)?.updateAssociatedMessage(message);
+      final parent = struct.getMessage(message.associatedMessageGuid!);
+      if (parent != null) {
+        getActiveMwc(message.associatedMessageGuid!)?.updateAssociatedMessage(message);
+      }
     }
     if (message.threadOriginatorGuid != null) {
       getActiveMwc(message.threadOriginatorGuid!)?.updateThreadOriginator(message);
     }
     struct.addMessages([message]);
+    if (message.associatedMessageGuid == null) {
+      // ChatMessages attaches any reactions that arrived before this message;
+      // refresh the active bubble after the parent is present in the struct.
+      for (final reaction in message.associatedMessages) {
+        getActiveMwc(message.guid!)?.updateAssociatedMessage(reaction);
+      }
+    }
     if (message.associatedMessageGuid == null) {
       newFunc.call(message);
     }
@@ -182,7 +193,11 @@ class MessagesService extends GetxController {
     for (Message m in _messages.where((e) => e.threadOriginatorGuid != null)) {
       // see if the originator is already loaded
       final guid = m.threadOriginatorGuid!;
-      if (struct.getMessage(guid) != null) continue;
+      final loadedOriginator = struct.getMessage(guid);
+      if (loadedOriginator != null) {
+        struct.addThreadOriginator(loadedOriginator);
+        continue;
+      }
       // if not, fetch local and add to data
       final threadOriginator = Message.findOne(guid: guid);
       if (threadOriginator != null) {

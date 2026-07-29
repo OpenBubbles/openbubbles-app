@@ -42,7 +42,9 @@ class BaseLogger extends GetxService {
     return LoggerFactory.AdvancedFileOutput(
         path: logDir,
         maxFileSizeKB: 1024, // 1 MB
-        
+        // Prevent a large sync from retaining thousands of formatted log
+        // messages while the UI is also decoding and storing messages.
+        maxBufferSize: 200,
         maxRotatedFilesCount: 5,
         maxDelay: const Duration(seconds: 5),
         latestFileName: latestLogName,

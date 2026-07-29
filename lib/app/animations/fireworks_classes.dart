@@ -23,7 +23,7 @@ class FireworkController implements Listenable {
   Size windowSize;
   double globalHue = 42;
 
-  late Ticker ticker;
+  Ticker? ticker;
 
   bool hasCreatedParticles = false;
   bool isPlaying = false;
@@ -41,6 +41,7 @@ class FireworkController implements Listenable {
     isPlaying = true;
     autoLaunchDuration = const Duration(milliseconds: 100);
     lastAutoLaunch = Duration.zero;
+    ticker?.dispose();
     ticker = vsync.createTicker(update)..start();
   }
 
@@ -66,7 +67,8 @@ class FireworkController implements Listenable {
 
   void dispose() {
     listeners.clear();
-    ticker.dispose();
+    ticker?.dispose();
+    ticker = null;
   }
 
   void update(Duration elapsedDuration) {
@@ -113,8 +115,9 @@ class FireworkController implements Listenable {
     });
     particles.removeWhere((element) => element.alpha <= 0);
     if (particles.isEmpty && requestedToStop && hasCreatedParticles) {
-      ticker.stop();
-      ticker.dispose();
+      ticker?.stop();
+      ticker?.dispose();
+      ticker = null;
       isPlaying = false;
       requestedToStop = false;
       hasCreatedParticles = false;

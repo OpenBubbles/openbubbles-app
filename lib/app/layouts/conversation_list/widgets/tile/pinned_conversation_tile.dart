@@ -39,6 +39,7 @@ class PinnedConversationTile extends CustomStateful<ConversationTileController> 
 class _PinnedConversationTileState extends CustomState<PinnedConversationTile, void, ConversationTileController> {
   ConversationListController get listController => controller.listController;
   Offset? longPressPosition;
+  StreamSubscription? _highlightSubscription;
 
   @override
   void initState() {
@@ -53,7 +54,8 @@ class _PinnedConversationTileState extends CustomState<PinnedConversationTile, v
       controller.shouldHighlight.value = cm.activeChat?.chat.guid == controller.chat.guid;
     }
 
-    eventDispatcher.stream.listen((event) {
+    _highlightSubscription = eventDispatcher.stream.listen((event) {
+      if (!mounted) return;
       if (event.item1 == 'update-highlight' && mounted) {
         if ((kIsDesktop || kIsWeb) && event.item2 == controller.chat.guid) {
           controller.shouldHighlight.value = true;
@@ -62,6 +64,12 @@ class _PinnedConversationTileState extends CustomState<PinnedConversationTile, v
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _highlightSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -263,7 +271,7 @@ class ChatTitle extends CustomStateful<ConversationTileController> {
 
 class _ChatTitleState extends CustomState<ChatTitle, void, ConversationTileController> {
   String title = "Unknown";
-  late final StreamSubscription sub;
+  StreamSubscription? sub;
   String? cachedDisplayName = "";
   List<Handle> cachedParticipants = [];
 
@@ -323,7 +331,7 @@ class _ChatTitleState extends CustomState<ChatTitle, void, ConversationTileContr
 
   @override
   void dispose() {
-    sub.cancel();
+    sub?.cancel();
     super.dispose();
   }
 

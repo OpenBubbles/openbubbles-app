@@ -14,7 +14,7 @@ class BalloonController implements Listenable {
   final Random random = Random();
   Size windowSize;
 
-  late Ticker ticker;
+  Ticker? ticker;
 
   bool isPlaying = false;
   bool requestedToStop = false;
@@ -28,6 +28,7 @@ class BalloonController implements Listenable {
     isPlaying = true;
     autoLaunchDuration = const Duration(milliseconds: 100);
     lastAutoLaunch = Duration.zero;
+    ticker?.dispose();
     ticker = vsync.createTicker(update)..start();
   }
 
@@ -53,7 +54,8 @@ class BalloonController implements Listenable {
 
   void dispose() {
     listeners.clear();
-    ticker.dispose();
+    ticker?.dispose();
+    ticker = null;
   }
 
   void update(Duration elapsedDuration) {
@@ -82,8 +84,9 @@ class BalloonController implements Listenable {
       return element.position.y < -100 || element.position.x < -100;
     });
     if (balloons.isEmpty && requestedToStop) {
-      ticker.stop();
-      ticker.dispose();
+      ticker?.stop();
+      ticker?.dispose();
+      ticker = null;
       isPlaying = false;
       requestedToStop = false;
       stopFunc?.call();

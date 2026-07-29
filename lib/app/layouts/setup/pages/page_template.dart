@@ -181,6 +181,11 @@ class PageButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAndroid = Theme.of(context).platform == TargetPlatform.android;
+    final navigationButtonHeight = isAndroid ? 48.0 : 40.0;
+    final navigationButtonPadding = isAndroid ? EdgeInsets.zero : const EdgeInsets.all(2);
+    final navigationButtonContentHeight = isAndroid ? 48.0 : 36.0;
+    final navigationButtonMinimumWidth = isAndroid ? 48.0 : 30.0;
     return customButton ?? Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -192,8 +197,8 @@ class PageButtons extends StatelessWidget {
               colors: [HexColor('2772C3'), HexColor('5CA7F8').darkenPercent(5)],
             ),
           ),
-          height: 40,
-          padding: const EdgeInsets.all(2),
+          height: navigationButtonHeight,
+          padding: navigationButtonPadding,
           child: ElevatedButton(
             style: ButtonStyle(
               shape: WidgetStateProperty.all<RoundedRectangleBorder>(
@@ -203,8 +208,8 @@ class PageButtons extends StatelessWidget {
               ),
               backgroundColor: WidgetStateProperty.all(context.theme.colorScheme.background),
               shadowColor: WidgetStateProperty.all(context.theme.colorScheme.background),
-              maximumSize: WidgetStateProperty.all(const Size(200, 36)),
-              minimumSize: WidgetStateProperty.all(const Size(30, 30)),
+              maximumSize: WidgetStateProperty.all(Size(200, navigationButtonContentHeight)),
+              minimumSize: WidgetStateProperty.all(Size(navigationButtonMinimumWidth, navigationButtonContentHeight)),
             ),
             onPressed: () async {
               previousPage();
@@ -227,7 +232,7 @@ class PageButtons extends StatelessWidget {
               colors: [HexColor('2772C3'), HexColor('5CA7F8').darkenPercent(5)],
             ),
           ),
-          height: 40,
+          height: navigationButtonHeight,
           child: ElevatedButton(
             style: ButtonStyle(
               shape: WidgetStateProperty.all<RoundedRectangleBorder>(
@@ -237,8 +242,8 @@ class PageButtons extends StatelessWidget {
               ),
               backgroundColor: WidgetStateProperty.all(Colors.transparent),
               shadowColor: WidgetStateProperty.all(Colors.transparent),
-              maximumSize: WidgetStateProperty.all(const Size(200, 36)),
-              minimumSize: WidgetStateProperty.all(const Size(30, 30)),
+              maximumSize: WidgetStateProperty.all(Size(200, navigationButtonContentHeight)),
+              minimumSize: WidgetStateProperty.all(Size(navigationButtonMinimumWidth, navigationButtonContentHeight)),
             ),
             onPressed: () async {
               final proceed = (await onNextPressed?.call()) ?? true;

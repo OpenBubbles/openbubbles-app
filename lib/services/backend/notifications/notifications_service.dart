@@ -51,10 +51,13 @@ class NotificationsService extends GetxService {
   final FlutterLocalNotificationsPlugin flnp = FlutterLocalNotificationsPlugin();
   StreamSubscription? countSub;
   int currentCount = 0;
+  Timer? relayReminderTimer;
+  Future<void>? _initializationFuture;
 
   /// For desktop use only
   static LocalNotification? allToast;
   static LocalNotification? failedToast;
+  static LocalNotification? relayToast;
   static LocalNotification? socketToast;
   static LocalNotification? aliasesToast;
   static Map<String, List<LocalNotification>> notifications = {};
@@ -68,7 +71,11 @@ class NotificationsService extends GetxService {
 
   bool get hideContent => ss.settings.hideTextPreviews.value;
 
-  Future<void> init() async {
+  Future<void> init() {
+    return _initializationFuture ??= _init();
+  }
+
+  Future<void> _init() async {
     if (!kIsWeb && !kIsDesktop) {
       const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('ic_stat_icon');
       const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
@@ -169,6 +176,8 @@ class NotificationsService extends GetxService {
   @override
   void onClose() {
     countSub?.cancel();
+    relayReminderTimer?.cancel();
+    relayReminderTimer = null;
     super.onClose();
   }
 
@@ -1067,6 +1076,77 @@ class NotificationsService extends GetxService {
         ),
       ),
       payload: loggedOut ? "" : "-51"
+    );
+  }
+
+  Future<void> cancelRelayCheckReminder() async {
+    relayReminderTimer?.cancel();
+    relayReminderTimer = null;
+
+    if (kIsDesktop) {
+      await relayToast?.close();
+      relayToast = null;
+      return;
+    }
+    if (!kIsWeb) {
+      await flnp.cancel(-7 - 50);
+    }
+  }
+
+  Future<void> scheduleRelayCheckReminder(DateTime time) async {
+    // Relay registration can finish before startup notification tasks.
+    await init();
+    await cancelRelayCheckReminder();
+
+    const title = "Check your iPhone relay";
+    const subtitle =
+        "Phone number registration renews soon. Tap to verify that the relay is online.";
+    if (kIsDesktop) {
+      final delay = time.difference(DateTime.now());
+      relayReminderTimer =
+          Timer(delay.isNegative ? Duration.zero : delay, () async {
+        relayToast = LocalNotification(
+          title: title,
+          body: subtitle,
+          actions: [],
+        );
+
+        relayToast!.onClick = () async {
+          relayToast = null;
+          await windowManager.show();
+          if (ss.settings.finishedSetup.value) {
+            ns.pushLeft(Get.context!, ProfilePanel());
+          }
+        };
+
+        await relayToast!.show();
+      });
+      return;
+    }
+    if (kIsWeb) {
+      return;
+    }
+
+    await flnp.zonedSchedule(
+      -7 - 50,
+      title,
+      subtitle,
+      TZDateTime.from(time, local),
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          ERROR_CHANNEL,
+          "Errors",
+          channelDescription:
+              "Displays message send failures, connection failures, and more",
+          priority: Priority.max,
+          importance: Importance.max,
+          color: HexColor("4990de"),
+        ),
+      ),
+      payload: "-51",
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 

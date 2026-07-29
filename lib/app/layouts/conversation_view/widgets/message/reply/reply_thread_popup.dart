@@ -5,7 +5,6 @@ import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/services.dart';
-import 'package:collection/collection.dart';
 import 'package:defer_pointer/defer_pointer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,9 +12,36 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 
-void showReplyThread(BuildContext context, Message message, MessagePart part, MessagesService service, ConversationViewController cvController) {
+Future<void> showReplyThread(BuildContext context, Message message, MessagePart part, MessagesService service, ConversationViewController cvController) async {
+  cvController.dismissKeyboard();
   final originatorPart = message.threadOriginatorGuid != null ? message.normalizedThreadPart : part.part;
-  final _messages = service.struct.threads(message.threadOriginatorGuid ?? message.guid!, originatorPart);
+  final originatorGuid = message.threadOriginatorGuid ?? message.guid!;
+  final messagesByGuid = <String, Message>{};
+
+  if (!kIsWeb) {
+    final originator = Message.findOne(guid: originatorGuid);
+    final query = Database.messages.query(Message_.threadOriginatorGuid.equals(originatorGuid)).build();
+    final storedReplies = query.find();
+    query.close();
+
+    for (final stored in [
+      if (originator != null) originator,
+      ...storedReplies,
+    ]) {
+      if (stored.guid == null || stored.associatedMessageGuid != null) continue;
+      if (stored.guid != originatorGuid && stored.normalizedThreadPart != originatorPart) continue;
+      stored.fetchAttachments();
+      stored.fetchAssociatedMessages(service: service);
+      stored.handle = stored.getHandle();
+      messagesByGuid[stored.guid!] = stored;
+    }
+  }
+
+  // Prefer live in-memory messages when both sources contain the same item.
+  for (final live in service.struct.threads(originatorGuid, originatorPart)) {
+    if (live.guid != null) messagesByGuid[live.guid!] = live;
+  }
+  final _messages = messagesByGuid.values.toList();
   _messages.sort((a, b) => Message.sort(a, b, descending: false));
   _buildThreadView(_messages, originatorPart, cvController, context);
 }
@@ -92,39 +118,40 @@ void _buildThreadView(List<Message> _messages, int? originatorPart, Conversation
                           ),
                           Container(
                             child: SafeArea(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                child: Center(
-                                  child: SingleChildScrollView(
-                                    controller: controller,
-                                    child: Column(
-                                      children: _messages.mapIndexed((index, e) => GestureDetector(
-                                        onTap: () {
-                                          Navigator.of(context).pop();
-                                          if (originatorPart == null && ss.settings.skin.value == Skins.iOS) {
-                                            // pop twice to remove convo details page
-                                            Navigator.of(context).pop();
-                                          }
-                                          ms(cvController.chat.guid).jumpToMessage.call(e.guid!);
-                                        },
-                                        child: AbsorbPointer(
-                                          absorbing: true,
-                                          child: Padding(
-                                              padding: const EdgeInsets.only(left: 5.0, right: 5.0),
-                                              child: MessageHolder(
-                                                cvController: cvController,
-                                                message: _messages[index],
-                                                oldMessageGuid: index > 0 ? _messages[index - 1].guid : null,
-                                                newMessageGuid: index < _messages.length - 1 ? _messages[index + 1].guid : null,
-                                                isReplyThread: true,
-                                                replyPart: index == 0 ? originatorPart : null,
-                                              ),
-                                          ),
+                              child: ListView.builder(
+                                controller: controller,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                                itemCount: _messages.length,
+                                itemBuilder: (context, index) {
+                                  final threadMessage = _messages[index];
+                                  final messageController = getActiveMwc(threadMessage.guid!) ?? mwc(threadMessage);
+                                  messageController.cvController = cvController;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      if (originatorPart == null && ss.settings.skin.value == Skins.iOS) {
+                                        // pop twice to remove convo details page
+                                        Navigator.of(context).pop();
+                                      }
+                                      ms(cvController.chat.guid).jumpToMessage.call(threadMessage.guid!);
+                                    },
+                                    child: AbsorbPointer(
+                                      absorbing: true,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                                        child: MessageHolder(
+                                          cvController: cvController,
+                                          message: threadMessage,
+                                          oldMessageGuid: index > 0 ? _messages[index - 1].guid : null,
+                                          newMessageGuid: index < _messages.length - 1 ? _messages[index + 1].guid : null,
+                                          isReplyThread: true,
+                                          replyPart: index == 0 ? originatorPart : null,
                                         ),
-                                      )).toList(),
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
                             ),
                           ),
