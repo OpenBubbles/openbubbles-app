@@ -6,6 +6,7 @@ import 'package:bluebubbles/app/layouts/settings/pages/profile/poster_edit.dart'
 import 'package:bluebubbles/app/layouts/settings/pages/profile/posterkit.dart';
 import 'package:bluebubbles/app/wrappers/stateful_boilerplate.dart';
 import 'package:bluebubbles/app/wrappers/theme_switcher.dart';
+import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/app/layouts/settings/widgets/settings_widgets.dart';
 import 'package:bluebubbles/app/layouts/settings/pages/theming/avatar/avatar_crop.dart';
@@ -37,6 +38,69 @@ class ChatOptions extends StatefulWidget {
 class _ChatOptionsState extends OptimizedState<ChatOptions> {
   Chat get chat => widget.chat;
 
+  Future<void> _linkConversation() async {
+    final query = Database.chats.query(Chat_.dateDeleted.isNull()).build();
+    final candidates = query.find()
+      ..removeWhere((candidate) => candidate.guid == chat.guid || candidate.isGroup || candidate.isRoutingStub
+          || chats.primaryGuidFor(candidate.guid) == chats.primaryGuidFor(chat.guid));
+    query.close();
+    candidates.sort(Chat.sort);
+
+    if (!mounted) return;
+    final selected = await showDialog<Chat>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Link conversation'),
+        content: SizedBox(
+          width: 420,
+          height: 420,
+          child: candidates.isEmpty
+              ? const Center(child: Text('No other one-to-one conversations are available.'))
+              : ListView.builder(
+                  itemCount: candidates.length,
+                  itemBuilder: (context, index) {
+                    final candidate = candidates[index];
+                    return ListTile(
+                      title: Text(candidate.getTitle()),
+                      subtitle: Text(candidate.participants.map((handle) => handle.address).join(', ')),
+                      onTap: () => Navigator.of(context).pop(candidate),
+                    );
+                  },
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel'))],
+      ),
+    );
+    if (selected == null) return;
+
+    await chats.linkChats(chat, selected);
+    eventDispatcher.emit('refresh-messagebloc', chat.guid);
+    if (!mounted) return;
+    setState(() {});
+    showSnackbar('Conversations linked', 'Both histories now appear in this conversation.');
+  }
+
+  Future<void> _unlinkConversation() async {
+    final shouldUnlink = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unlink conversations?'),
+        content: const Text('Each original conversation will appear separately again. No messages will be moved or deleted.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Unlink')),
+        ],
+      ),
+    );
+    if (shouldUnlink != true) return;
+
+    await chats.unlinkChats(chat.guid);
+    eventDispatcher.emit('refresh-messagebloc', chat.guid);
+    if (!mounted) return;
+    setState(() {});
+    showSnackbar('Conversations unlinked', 'The original conversations are visible again.');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Theme(
@@ -54,6 +118,28 @@ class _ChatOptionsState extends OptimizedState<ChatOptions> {
             SettingsSection(
               backgroundColor: tileColor,
               children: [
+                if (!kIsWeb && !chat.isGroup && chats.linkedGuidsFor(chat.guid).length == 1)
+                  SettingsTile(
+                    title: 'Link Conversation',
+                    subtitle: 'Show another conversation as one combined history',
+                    isThreeLine: true,
+                    trailing: Padding(
+                      padding: const EdgeInsets.only(right: 15.0),
+                      child: Icon(iOS ? CupertinoIcons.link : Icons.link),
+                    ),
+                    onTap: _linkConversation,
+                  ),
+                if (!kIsWeb && !chat.isGroup && chats.linkedGuidsFor(chat.guid).length > 1)
+                  SettingsTile(
+                    title: 'Unlink Conversations',
+                    subtitle: 'Restore the original separate conversations without deleting data',
+                    isThreeLine: true,
+                    trailing: Padding(
+                      padding: const EdgeInsets.only(right: 15.0),
+                      child: Icon(iOS ? CupertinoIcons.link : Icons.link_off),
+                    ),
+                    onTap: _unlinkConversation,
+                  ),
                 if (!kIsWeb && !kIsDesktop && (fs.androidInfo?.version.sdkInt ?? 0) >= 30)
                   SettingsTile(
                     title: "Notification Settings",

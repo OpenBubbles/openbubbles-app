@@ -19,7 +19,8 @@ String? lastReloadedChat() => Get.isRegistered<String>(tag: 'lastReloadedChat') 
 class MessagesService extends GetxController {
   static final Map<String, Size> cachedBubbleSizes = {};
   late Chat chat;
-  late StreamSubscription countSub;
+  final List<StreamSubscription> countSubs = [];
+  final Map<int, int> currentCounts = {};
   final ChatMessages struct = ChatMessages();
   late Function(Message) newFunc;
   late Function(Message, {String? oldGuid}) updateFunc;
@@ -55,28 +56,34 @@ class MessagesService extends GetxController {
     // watch for new messages
     if (!_init) {
       if (chat.id != null) {
-        final countQuery = (Database.messages.query(Message_.dateDeleted.isNull())
-          ..link(Message_.chat, Chat_.id.equals(chat.id!))
-          ..order(Message_.id, flags: Order.descending)).watch(triggerImmediately: true);
-        countSub = countQuery.listen((event) async {
-          if (!ss.settings.finishedSetup.value) return;
-          final newCount = event.count();
-          if (!isFetching && newCount > currentCount && currentCount != 0) {
-            event.limit = newCount - currentCount;
-            final messages = event.find();
-            event.limit = 0;
-            for (Message message in messages) {
-              await _handleNewMessage(message);
+        for (final linkedChat in chats.linkedChatsFor(chat.guid)) {
+          final chatId = linkedChat.id;
+          if (chatId == null) continue;
+          final countQuery = (Database.messages.query(Message_.dateDeleted.isNull())
+            ..link(Message_.chat, Chat_.id.equals(chatId))
+            ..order(Message_.id, flags: Order.descending)).watch(triggerImmediately: true);
+          countSubs.add(countQuery.listen((event) async {
+            if (!ss.settings.finishedSetup.value) return;
+            final newCount = event.count();
+            final oldCount = currentCounts[chatId] ?? 0;
+            if (!isFetching && newCount > oldCount && oldCount != 0) {
+              event.limit = newCount - oldCount;
+              final messages = event.find();
+              event.limit = 0;
+              for (Message message in messages) {
+                await _handleNewMessage(message);
+              }
             }
-          }
-          currentCount = newCount;
-        });
+            currentCounts[chatId] = newCount;
+            currentCount = currentCounts.values.fold(0, (total, count) => total + count);
+          }));
+        }
       } else if (kIsWeb) {
-        countSub = WebListeners.newMessage.listen((tuple) {
+        countSubs.add(WebListeners.newMessage.listen((tuple) {
           if (tuple.item2?.guid == chat.guid) {
             _handleNewMessage(tuple.item1);
           }
-        });
+        }));
       }
     }
     _init = true;
@@ -85,7 +92,11 @@ class MessagesService extends GetxController {
   @override
   void onClose() {
     if (_init) {
-      countSub.cancel();
+      for (final subscription in countSubs) {
+        subscription.cancel();
+      }
+      countSubs.clear();
+      currentCounts.clear();
     }
     _init = false;
     super.onClose();
@@ -155,7 +166,21 @@ class MessagesService extends GetxController {
     List<Message> _messages = [];
     offset = offset + struct.reactions.length;
     try {
-      _messages = await Chat.getMessagesAsync(chat, offset: offset, limit: limit);
+      final linkedChats = chats.linkedChatsFor(chat.guid);
+      if (linkedChats.length <= 1) {
+        _messages = await Chat.getMessagesAsync(chat, offset: offset, limit: limit);
+      } else {
+        final requested = offset + limit;
+        final combined = <String, Message>{};
+        for (final linkedChat in linkedChats) {
+          final messages = await Chat.getMessagesAsync(linkedChat, offset: 0, limit: requested);
+          for (final message in messages) {
+            if (message.guid != null) combined[message.guid!] = message;
+          }
+        }
+        final ordered = combined.values.toList()..sort(Message.sort);
+        _messages = ordered.skip(offset).take(limit).toList();
+      }
       if (_messages.isEmpty) {
         // get from server and save
         final fromServer = await cm.getMessages(chat.guid, offset: offset, limit: limit);

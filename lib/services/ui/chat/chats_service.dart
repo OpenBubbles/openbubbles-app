@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:app_links/app_links.dart';
@@ -17,11 +18,11 @@ import 'package:get/get.dart' hide Response;
 import 'package:tuple/tuple.dart';
 import 'package:universal_io/io.dart';
 import 'package:bluebubbles/database/database.dart';
-import 'package:bluebubbles/src/rust/api/api.dart' as api;
 
 ChatsService chats = Get.isRegistered<ChatsService>() ? Get.find<ChatsService>() : Get.put(ChatsService());
 
 class ChatsService extends GetxService {
+  static const _linkedChatsPreferenceKey = 'linked-chats-v1';
   static const batchSize = 15;
   int currentCount = 0;
   late final StreamSubscription countSub;
@@ -30,6 +31,7 @@ class ChatsService extends GetxService {
   Completer<void> loadedAllChats = Completer();
   final RxBool loadedChatBatch = false.obs;
   final RxList<Chat> chats = <Chat>[].obs;
+  final RxMap<String, String> linkedChatParents = <String, String>{}.obs;
 
   bool restoring = false;
 
@@ -38,6 +40,7 @@ class ChatsService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+    _loadLinkedChats();
     if (!kIsWeb) {
       // watch for new chats
       (() async {
@@ -65,6 +68,86 @@ class ChatsService extends GetxService {
         await addChat(chat);
       });
     }
+  }
+
+  void _loadLinkedChats() {
+    final encoded = ss.prefs.getString(_linkedChatsPreferenceKey);
+    if (encoded == null) return;
+    try {
+      final decoded = (jsonDecode(encoded) as Map).cast<String, dynamic>();
+      linkedChatParents.assignAll(decoded.map((key, value) => MapEntry(key, value as String)));
+    } catch (error, trace) {
+      Logger.warn('Ignoring invalid linked-chat preferences', error: error, trace: trace);
+    }
+  }
+
+  Future<void> _saveLinkedChats() async {
+    await ss.prefs.setString(_linkedChatsPreferenceKey, jsonEncode(linkedChatParents));
+  }
+
+  String primaryGuidFor(String guid) {
+    var current = guid;
+    final visited = <String>{};
+    while (linkedChatParents[current] != null && visited.add(current)) {
+      current = linkedChatParents[current]!;
+    }
+    return current;
+  }
+
+  bool isLinkedSecondary(String guid) => primaryGuidFor(guid) != guid;
+
+  List<String> linkedGuidsFor(String guid) {
+    final primary = primaryGuidFor(guid);
+    return <String>{primary, ...linkedChatParents.keys.where((candidate) => primaryGuidFor(candidate) == primary)}.toList();
+  }
+
+  List<Chat> linkedChatsFor(String guid) => linkedGuidsFor(guid)
+      .map((chatGuid) => Chat.findOne(guid: chatGuid))
+      .whereType<Chat>()
+      .toList();
+
+  void _applyLinkedPresentation(List<Chat> allChats) {
+    final byGuid = {for (final chat in allChats) chat.guid: chat};
+    for (final entry in linkedChatParents.entries) {
+      final secondary = byGuid[entry.key];
+      final primary = byGuid[primaryGuidFor(entry.value)];
+      if (secondary == null || primary == null) continue;
+      if ((secondary.latestMessage.dateCreated ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .isAfter(primary.latestMessage.dateCreated ?? DateTime.fromMillisecondsSinceEpoch(0))) {
+        primary.latestMessage = secondary.latestMessage;
+      }
+      primary.hasUnreadMessage = (primary.hasUnreadMessage ?? false) || (secondary.hasUnreadMessage ?? false);
+    }
+  }
+
+  Future<void> linkChats(Chat primary, Chat secondary) async {
+    final primaryGuid = primaryGuidFor(primary.guid);
+    for (final guid in linkedGuidsFor(secondary.guid)) {
+      if (guid != primaryGuid) linkedChatParents[guid] = primaryGuid;
+    }
+    linkedChatParents.remove(primaryGuid);
+    await _saveLinkedChats();
+    _applyLinkedPresentation([primary, secondary]);
+    chats.removeWhere((chat) => isLinkedSecondary(chat.guid));
+    sort();
+  }
+
+  Future<void> unlinkChats(String guid) async {
+    final primary = primaryGuidFor(guid);
+    final linkedGuids = linkedGuidsFor(primary).where((item) => item != primary).toList();
+    for (final linkedGuid in linkedGuids) {
+      linkedChatParents.remove(linkedGuid);
+      final linked = Chat.findOne(guid: linkedGuid);
+      if (linked != null && !chats.any((chat) => chat.guid == linked.guid)) {
+        chats.add(linked);
+        cm.createChatController(linked);
+      }
+    }
+    final freshPrimary = Chat.findOne(guid: primary);
+    final primaryIndex = chats.indexWhere((chat) => chat.guid == primary);
+    if (freshPrimary != null && primaryIndex != -1) chats[primaryIndex] = freshPrimary;
+    await _saveLinkedChats();
+    sort();
   }
 
   RxList<Handle> suggestedHandles = <Handle>[].obs;
@@ -128,8 +211,9 @@ class ChatsService extends GetxService {
         cm.createChatController(c, active: cm.activeChat?.chat.guid == c.guid);
       }
       newChats.addAll(temp);
+      _applyLinkedPresentation(newChats);
       newChats.sort(Chat.sort);
-      chats.value = newChats;
+      chats.value = newChats.where((chat) => !isLinkedSecondary(chat.guid)).toList();
       loadedChatBatch.value = true;
     }
     loadChatSuggestions();
@@ -197,6 +281,19 @@ class ChatsService extends GetxService {
   }
 
   bool updateChat(Chat updated, {bool shouldSort = false, bool override = false}) {
+    if (isLinkedSecondary(updated.guid)) {
+      final primaryIndex = chats.indexWhere((chat) => chat.guid == primaryGuidFor(updated.guid));
+      if (primaryIndex == -1) return false;
+      final primary = chats[primaryIndex];
+      if ((updated.latestMessage.dateCreated ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .isAfter(primary.latestMessage.dateCreated ?? DateTime.fromMillisecondsSinceEpoch(0))) {
+        primary.latestMessage = updated.latestMessage;
+      }
+      primary.hasUnreadMessage = (primary.hasUnreadMessage ?? false) || (updated.hasUnreadMessage ?? false);
+      chats.refresh();
+      if (shouldSort) sort();
+      return true;
+    }
     final index = chats.indexWhere((e) => updated.guid == e.guid);
     if (index != -1) {
       // delete
@@ -215,7 +312,8 @@ class ChatsService extends GetxService {
   }
 
   Future<void> addChat(Chat toAdd) async {
-    if (toAdd.isRoutingStub) return;
+    if (toAdd.isRoutingStub || isLinkedSecondary(toAdd.guid)) return;
+    if (updateChat(toAdd, shouldSort: true)) return;
     chats.add(toAdd);
     cm.createChatController(toAdd);
     sort();
