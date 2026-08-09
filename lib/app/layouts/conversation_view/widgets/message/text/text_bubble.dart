@@ -179,6 +179,7 @@ class _TextBubbleState extends CustomState<TextBubble, void, MessageWidgetContro
                     );
                   },
                   child: RichText(
+                    textDirection: getTextDirection(part.fullText),
                     text: TextSpan(
                       children: snapshot.data!,
                     ),
@@ -190,6 +191,7 @@ class _TextBubbleState extends CustomState<TextBubble, void, MessageWidgetContro
                 child: Padding(
                   padding: message.fullText.length == 1 ? const EdgeInsets.only(left: 3, right: 3) : EdgeInsets.zero,
                   child: RichText(
+                    textDirection: getTextDirection(part.fullText),
                     text: TextSpan(
                       children: snapshot.data!,
                     ),

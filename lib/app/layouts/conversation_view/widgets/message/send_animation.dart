@@ -219,6 +219,7 @@ class _SendAnimationState
                         child: Padding(
                           padding: message!.fullText.length == 1 ? const EdgeInsets.only(left: 3, right: 3) : EdgeInsets.zero,
                           child: RichText(
+                            textDirection: getTextDirection(message!.fullText),
                             text: TextSpan(
                               children: buildMessageSpans(
                                 context,
