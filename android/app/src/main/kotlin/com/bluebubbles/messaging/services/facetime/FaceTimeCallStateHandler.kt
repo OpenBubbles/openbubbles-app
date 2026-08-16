@@ -36,6 +36,7 @@ class FaceTimeCallStateHandler: MethodCallHandlerImpl() {
             }
             // cancel any unused webview
             FaceTimeActivity.cachedWebview?.let {
+                it.cancelCallbacks()
                 it.webView.destroy()
                 FaceTimeActivity.cachedWebview = null
             }

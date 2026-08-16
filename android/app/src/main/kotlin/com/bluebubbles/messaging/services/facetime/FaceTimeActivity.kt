@@ -43,6 +43,12 @@ import com.google.android.material.math.MathUtils
 import kotlin.math.roundToInt
 
 class FaceTimeActivity : Activity() {
+    companion object {
+        private const val diagnosticTag = "FaceTimeDiag"
+        var activeFaceTimeActivity: FaceTimeActivity? = null
+        var cachedWebview: CachedWebview? = null
+    }
+
     private lateinit var binding: ActivityFaceTimeBinding
 
     private var permissionRequests = ArrayList<PermissionRequest>()
@@ -59,14 +65,108 @@ class FaceTimeActivity : Activity() {
 
     private lateinit var webView: WebView
     private var initialMediaVolume: Int? = null;
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val joinPolicy = FaceTimeJoinPolicy()
+    private var joinRetryRunnable: Runnable? = null
+    private var manualRecoveryRunnable: Runnable? = null
+    private var endFallbackRunnable: Runnable? = null
+    private var callEnding = false
 
-    companion object {
-        var activeFaceTimeActivity: FaceTimeActivity? = null
-        var cachedWebview: CachedWebview? = null
+    private val joinButtonScript = """
+        (() => {
+            const visible = (element) => !!element && element.offsetParent !== null;
+            const label = (element) => (element?.innerText || element?.textContent || element?.getAttribute?.("aria-label") || "").trim();
+            const buttons = Array.from(document.querySelectorAll("button"));
+            const leave = document.getElementById("callcontrols-leave-button-session-banner") ||
+                buttons.find((button) => /^(leave|end call)$/i.test(label(button)));
+            if (visible(leave)) return "already-joined";
+            const join = document.getElementById("callcontrols-join-button-session-banner") ||
+                buttons.find((button) => /^(join|rejoin)$/i.test(label(button)));
+            if (!join) return "missing";
+            if (join.disabled || join.getAttribute("aria-disabled") === "true") return "disabled";
+            if (!visible(join)) return "hidden";
+            join.click();
+            return "clicked";
+        })()
+    """.trimIndent()
+
+    private fun logJoinButtonState(reason: String) {
+        webView.evaluateJavascript(
+            """(() => { const button = document.getElementById("callcontrols-join-button-session-banner"); return button ? "present:" + (!button.disabled) + ":" + (button.offsetParent !== null) : "missing"; })()"""
+        ) { result ->
+            Log.i(diagnosticTag, "join button state reason=$reason result=$result mirrorReady=$mirrorReady answered=$answered")
+        }
+    }
+
+    private fun showCallUi(joined: Boolean) {
+        binding.mainFrame.visibility = View.VISIBLE
+        binding.splashLayout.visibility = View.GONE
+        binding.nativeCallControls.visibility = View.VISIBLE
+        binding.connectionStatus.visibility = if (joined) View.GONE else View.VISIBLE
+        if (!joined) {
+            binding.connectionStatus.text = "Finishing FaceTime connection..."
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            window.setBackgroundBlurRadius(0)
+        }
+    }
+
+    private fun scheduleJoinAttempt(reason: String, delayMillis: Long = 0) {
+        if (!answered || callEnding || joinPolicy.joined || isFinishing || isDestroyed) return
+        joinRetryRunnable?.let(mainHandler::removeCallbacks)
+        val runnable = Runnable { attemptJoin(reason) }
+        joinRetryRunnable = runnable
+        mainHandler.postDelayed(runnable, delayMillis)
+    }
+
+    private fun attemptJoin(reason: String) {
+        if (!answered || callEnding || joinPolicy.joined || isFinishing || isDestroyed) return
+        webView.evaluateJavascript(joinButtonScript) { result ->
+            if (callEnding || isFinishing || isDestroyed) return@evaluateJavascript
+            val decision = joinPolicy.record(result)
+            Log.i(
+                diagnosticTag,
+                "join attempt reason=$reason attempt=${joinPolicy.attempts} outcome=${decision.outcome} mirrorReady=$mirrorReady answered=$answered"
+            )
+            if (decision.joined) {
+                showCallUi(joined = true)
+                return@evaluateJavascript
+            }
+            if (decision.revealManualRecovery) {
+                showCallUi(joined = false)
+            }
+            if (decision.retry) {
+                scheduleJoinAttempt("retry-${decision.outcome}", 750)
+            } else {
+                showCallUi(joined = false)
+                binding.connectionStatus.text = "Tap Join or Rejoin to connect"
+                Log.w(diagnosticTag, "automatic join attempts exhausted")
+            }
+        }
     }
 
     fun endCall() {
-        webView.loadUrl("javascript:document.getElementById(\"callcontrols-leave-button-session-banner\").click()")
+        if (callEnding) return
+        callEnding = true
+        joinRetryRunnable?.let(mainHandler::removeCallbacks)
+        binding.connectionStatus.text = "Ending FaceTime..."
+        binding.connectionStatus.visibility = View.VISIBLE
+        binding.endCall.isEnabled = false
+        val fallback = Runnable {
+            if (!isFinishing && !isDestroyed) {
+                Log.w(diagnosticTag, "native end call fallback finishing activity")
+                finishAndRemoveTask()
+            }
+        }
+        endFallbackRunnable = fallback
+        mainHandler.postDelayed(fallback, 1500)
+        webView.evaluateJavascript(
+            """(() => { const buttons = Array.from(document.querySelectorAll("button")); const label = (element) => (element?.innerText || element?.textContent || element?.getAttribute?.("aria-label") || "").trim(); const button = document.getElementById("callcontrols-leave-button-session-banner") || buttons.find((item) => /^(leave|end call)$/i.test(label(item))); if (!button) return "missing"; button.click(); return "clicked"; })()"""
+        ) { result ->
+            Log.i(diagnosticTag, "native end call result=$result")
+            mainHandler.removeCallbacks(fallback)
+            mainHandler.postDelayed(fallback, 500)
+        }
     }
 
     private fun hideControlsForPIP() {
@@ -165,6 +265,8 @@ class FaceTimeActivity : Activity() {
     private fun answerCall() {
         answered = true
 
+        Log.i(diagnosticTag, "answer requested mirrorReady=$mirrorReady deferredPermissions=${cached.deferredRequests.size}")
+
         handlePermissionRequests()
 
         if (notificationId != 0) {
@@ -172,12 +274,8 @@ class FaceTimeActivity : Activity() {
         }
 
         if (mirrorReady) {
-            binding.mainFrame.visibility = View.VISIBLE
-            binding.splashLayout.visibility = View.GONE
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                window.setBackgroundBlurRadius(0)
-            }
-            webView.loadUrl("javascript:document.getElementById(\"callcontrols-join-button-session-banner\").click()")
+            logJoinButtonState("answer-ready")
+            scheduleJoinAttempt("answer-ready")
         } else {
             connecting()
         }
@@ -220,6 +318,10 @@ class FaceTimeActivity : Activity() {
 
         binding.reject.setOnClickListener {
             decline()
+        }
+
+        binding.endCall.setOnClickListener {
+            endCall()
         }
 
 
@@ -281,6 +383,10 @@ class FaceTimeActivity : Activity() {
 
     fun handlePermissionRequest(request: PermissionRequest) {
         val permissions = request.resources.flatMap { i -> permissionMap[i] ?: listOf() }
+        Log.i(
+            diagnosticTag,
+            "handling WebView permission resources=${request.resources.sorted().joinToString()} androidPermissions=${permissions.joinToString()} alreadyGranted=${permissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }}"
+        )
         if (permissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
             request.grant(request.resources)
             startService()
@@ -291,26 +397,36 @@ class FaceTimeActivity : Activity() {
     }
 
     override fun onDestroy() {
-        webView.destroy()
-        activeFaceTimeActivity = null
+        joinRetryRunnable?.let(mainHandler::removeCallbacks)
+        manualRecoveryRunnable?.let(mainHandler::removeCallbacks)
+        endFallbackRunnable?.let(mainHandler::removeCallbacks)
+        if (::cached.isInitialized) {
+            cached.cancelCallbacks()
+        }
 
-        val intent = Intent(this, FaceTimeInCallService::class.java)
-        stopService(intent)
-        serviceStarted = false
+        val isCurrentActivity = activeFaceTimeActivity === this
+        if (isCurrentActivity) {
+            activeFaceTimeActivity = null
+            val intent = Intent(this, FaceTimeInCallService::class.java)
+            stopService(intent)
+            serviceStarted = false
 
-        // restore default media volume
-        initialMediaVolume?.let {
-            try {
-                val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-                audioManager.setStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    it,
-                    0
-                )
-            } catch (e: SecurityException) {
-                Log.w("FaceTime", "Unable to set stream volume!")
+            // An older FaceTime activity must not mute or reroute a newer call.
+            initialMediaVolume?.let {
+                try {
+                    val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+                    audioManager.setStreamVolume(
+                        AudioManager.STREAM_MUSIC,
+                        it,
+                        0
+                    )
+                } catch (e: SecurityException) {
+                    Log.w("FaceTime", "Unable to set stream volume!")
+                }
             }
         }
+
+        if (::webView.isInitialized) webView.destroy()
 
         contentObserver?.let {
             applicationContext.contentResolver.unregisterContentObserver(it)
@@ -325,6 +441,10 @@ class FaceTimeActivity : Activity() {
         grantResults: IntArray
     ) {
         if (requestCode != 1) return
+        Log.i(
+            diagnosticTag,
+            "Android permission result ${permissions.zip(grantResults.toTypedArray()).joinToString { (permission, result) -> "$permission=${result == PackageManager.PERMISSION_GRANTED}" }}"
+        )
         for (request in permissionRequests) {
             request.grant(request.resources.filter { i ->
                 (permissionMap[i] ?: listOf()).all {
@@ -338,15 +458,18 @@ class FaceTimeActivity : Activity() {
     }
 
     private fun connecting() {
+        Log.i(diagnosticTag, "waiting for mirrorReady")
         binding.acceptButtons.visibility = View.GONE
         binding.loadingBanner.text = "Connecting..."
-        Handler(Looper.getMainLooper()).postDelayed({
-            binding.mainFrame.visibility = View.VISIBLE
-            binding.splashLayout.visibility = View.GONE
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                window.setBackgroundBlurRadius(0)
-            }
-        }, 15000)
+        scheduleJoinAttempt("connecting")
+        val recoveryRunnable = Runnable {
+            if (callEnding || isFinishing || isDestroyed || joinPolicy.joined) return@Runnable
+            Log.w(diagnosticTag, "mirrorReady timeout reached mirrorReady=$mirrorReady answered=$answered")
+            logJoinButtonState("mirror-timeout")
+            showCallUi(joined = false)
+        }
+        manualRecoveryRunnable = recoveryRunnable
+        mainHandler.postDelayed(recoveryRunnable, 15000)
     }
 
     private fun handleConfig(extras: Bundle) {
@@ -368,13 +491,10 @@ class FaceTimeActivity : Activity() {
         mirrorReady = cached.mirrorReady
         cached.mirrorReadyCall = {
             mirrorReady = true
+            Log.i(diagnosticTag, "mirrorReady callback answered=$answered")
             if (answered) {
-                binding.mainFrame.visibility = View.VISIBLE
-                binding.splashLayout.visibility = View.GONE
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    window.setBackgroundBlurRadius(0)
-                }
-                webView.loadUrl("javascript:document.getElementById(\"callcontrols-join-button-session-banner\").click()")
+                logJoinButtonState("mirror-ready")
+                scheduleJoinAttempt("mirror-ready")
             }
         }
 
@@ -413,6 +533,7 @@ class FaceTimeActivity : Activity() {
         } else {
             binding.splashLayout.visibility = View.GONE
             binding.mainFrame.visibility = View.VISIBLE
+            binding.nativeCallControls.visibility = View.VISIBLE
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 window.setBackgroundBlurRadius(0)
             }

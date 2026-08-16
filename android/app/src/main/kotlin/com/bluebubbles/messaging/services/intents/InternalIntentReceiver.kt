@@ -49,6 +49,7 @@ class InternalIntentReceiver: BroadcastReceiver() {
                 val notificationId: Int = intent.getIntExtra("notificationId", 0)
                 DeleteNotificationHandler().deleteNotification(context, notificationId, null)
                 FaceTimeActivity.cachedWebview?.let {
+                    it.cancelCallbacks()
                     it.webView.destroy()
                     FaceTimeActivity.cachedWebview = null
                 }
