@@ -794,7 +794,15 @@ class Message {
       try {
         if (chat != null) this.chat.target = chat;
         id = Database.messages.put(this);
-      } on UniqueViolationException catch (_) {}
+      } on UniqueViolationException catch (ex, stack) {
+        // Still swallowed, because callers rely on save() not throwing. But no
+        // longer silent: on this path `id` stays null and the message is
+        // returned as though it had been persisted, so nothing downstream can
+        // distinguish a saved message from a dropped one. replaceMessage
+        // already logs this exact constraint below; these two sites did not.
+        Logger.error('Failed to save message! This is likely due to a unique constraint being violated.',
+            error: ex, trace: stack);
+      }
     });
     return this;
   }
@@ -860,7 +868,13 @@ class Message {
         for (int i = 0; i < messages.length; i++) {
           messages[i].id = ids[i];
         }
-      } on UniqueViolationException catch (_) {}
+      } on UniqueViolationException catch (ex, stack) {
+        // The reaction-linking pass above did not persist. The ids assigned by
+        // the earlier putMany still stand, so this is narrower than the save()
+        // case, but it is the same invisible failure and worth seeing.
+        Logger.error('Failed to bulk save messages! This is likely due to a unique constraint being violated.',
+            error: ex, trace: stack);
+      }
     });
     return messages;
   }
