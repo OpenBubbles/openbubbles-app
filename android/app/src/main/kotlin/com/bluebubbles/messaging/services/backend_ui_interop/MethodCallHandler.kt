@@ -54,6 +54,7 @@ import com.bluebubbles.messaging.services.system.GetZenMode
 import com.bluebubbles.messaging.services.system.HeifDecoder
 import com.bluebubbles.messaging.services.system.HeifEncoder
 import com.bluebubbles.messaging.services.system.NativeSyncIsolateHandler
+import com.bluebubbles.messaging.services.system.NearbyFindMyAccessoryHandler
 import com.bluebubbles.messaging.services.system.OpenSMSAppHandler
 import com.bluebubbles.messaging.services.system.RecentContactsRequestHandler
 import com.bluebubbles.messaging.services.system.ShizukuGrantPermissionHandler
@@ -138,6 +139,8 @@ class MethodCallHandler {
             CircleProximitySessionHandler.tag -> CircleProximitySessionHandler().handleMethodCall(call, result, context)
             EnableBTHandler.tag -> EnableBTHandler().handleMethodCall(call, result, context)
             NativeSyncIsolateHandler.tag -> NativeSyncIsolateHandler().handleMethodCall(call, result, context)
+            NearbyFindMyAccessoryHandler.scanTag,
+            NearbyFindMyAccessoryHandler.playTag -> NearbyFindMyAccessoryHandler.instance.handleMethodCall(call, result, context)
             SMSLessAuthGateway.tag -> SMSLessAuthGateway().handleMethodCall(call, result, context)
             ShizukuGrantPermissionHandler.tag -> ShizukuGrantPermissionHandler().handleMethodCall(call, result, context)
             ProvisionNative.tag -> ProvisionNative().handleMethodCall(call, result, context)
