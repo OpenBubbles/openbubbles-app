@@ -12,10 +12,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 class LegacyUrlPreview extends StatefulWidget {
   final Message message;
+  final String? previewUrl;
 
   LegacyUrlPreview({
     super.key,
     required this.message,
+    this.previewUrl,
   });
 
   @override
@@ -25,7 +27,15 @@ class LegacyUrlPreview extends StatefulWidget {
 class _LegacyUrlPreviewState extends OptimizedState<LegacyUrlPreview> with AutomaticKeepAliveClientMixin {
   Message get message => widget.message;
 
-  late Metadata? metadata = MetadataHelper.mapIsNotEmpty(message.metadata) ? Metadata.fromJson(message.metadata!) : null;
+  String? get effectiveUrl => widget.previewUrl ?? message.url ?? message.text;
+
+  // message.metadata stores one preview, so only the primary URL may use or
+  // update it. Other links keep their metadata local to their preview widget.
+  bool get isPrimaryUrl => widget.previewUrl == null || widget.previewUrl == message.url;
+
+  late Metadata? metadata = isPrimaryUrl && MetadataHelper.mapIsNotEmpty(message.metadata)
+      ? Metadata.fromJson(message.metadata!)
+      : null;
 
   @override
   void initState() {
@@ -33,13 +43,13 @@ class _LegacyUrlPreviewState extends OptimizedState<LegacyUrlPreview> with Autom
     updateObx(() async {
       if (metadata == null) {
         try {
-          metadata = await MetadataHelper.fetchMetadata(message);
+          metadata = await MetadataHelper.fetchMetadata(message, previewUrl: widget.previewUrl);
         } catch (ex, stack) {
           Logger.error("Failed to fetch metadata!", error: ex, trace: stack);
           return;
         }
         // If the data isn't empty, save/update it in the DB
-        if (MetadataHelper.isNotEmpty(metadata)) {
+        if (isPrimaryUrl && MetadataHelper.isNotEmpty(metadata)) {
           message.updateMetadata(metadata);
         }
         setState(() {});
@@ -53,12 +63,14 @@ class _LegacyUrlPreviewState extends OptimizedState<LegacyUrlPreview> with Autom
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final siteText = Uri.tryParse(metadata?.url ?? message.text ?? "")?.host;
+    final siteText = Uri.tryParse(metadata?.url ?? effectiveUrl ?? "")?.host;
     return InkWell(
       onTap: () async {
-        if ((metadata?.url ?? message.text) != null) {
+        final target = metadata?.url ?? effectiveUrl;
+        final parsed = target == null ? null : Uri.tryParse(target);
+        if (parsed != null) {
           await launchUrl(
-            Uri.parse((metadata?.url ?? message.text)!),
+            parsed,
             mode: LaunchMode.externalApplication,
           );
         }

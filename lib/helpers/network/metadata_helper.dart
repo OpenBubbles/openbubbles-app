@@ -21,22 +21,24 @@ class MetadataHelper {
 
   static final Map<String, Completer<Metadata?>> _metaCache = {};
 
-  static Future<Metadata?> fetchMetadata(Message message) async {
+  static Future<Metadata?> fetchMetadata(Message message, {String? previewUrl}) async {
     Metadata? data;
-    // If we have a cached item for this already, return that future
-    if (_metaCache.containsKey(message.guid)) {
-      return _metaCache[message.guid]!.future;
-    }
-
-    // Create a new completer for this request
-    Completer<Metadata?> completer = Completer();
-    _metaCache[message.guid!] = completer;
 
     // Get the URL
-    String url = message.url!;
+    String url = previewUrl ?? message.url!;
     if (!url.startsWith("http")) {
       url = "https://$url";
     }
+
+    // A message may contain multiple links, so each URL needs its own cache
+    // entry and in-flight request.
+    final cacheKey = "${message.guid}|$url";
+    if (_metaCache.containsKey(cacheKey)) {
+      return _metaCache[cacheKey]!.future;
+    }
+
+    Completer<Metadata?> completer = Completer();
+    _metaCache[cacheKey] = completer;
     try {
       data = await MetadataFetch.extract(url);
     } catch (ex, stack) {
@@ -49,9 +51,11 @@ class MetadataHelper {
     }
 
     // If the URL is supposedly to an actual image, set the image to the URL manually
-    RegExp exp = RegExp(r"(.png|.jpg|.gif|.tiff|.jpeg)$");
-    if (data?.image == null && data?.title == null && data!.url != null && exp.hasMatch(data.url!)) {
-      data.image = data.url;
+    final urlPath = Uri.tryParse(url)?.path ?? url;
+    final imageExtension = RegExp(r"\.(png|jpe?g|gif|tiff?|webp|heic|bmp)$", caseSensitive: false);
+    if (data?.image == null && data?.title == null && imageExtension.hasMatch(urlPath)) {
+      data ??= Metadata();
+      data.image = url;
       data.title = "Image Preview";
     }
 
@@ -75,9 +79,7 @@ class MetadataHelper {
 
     // Delete from the cache after 15 seconds (arbitrary)
     Future.delayed(const Duration(seconds: 15), () {
-      if (_metaCache.containsKey(message.guid)) {
-        _metaCache.remove(message.guid);
-      }
+      _metaCache.remove(cacheKey);
     });
 
     // Tell everyone that it's complete

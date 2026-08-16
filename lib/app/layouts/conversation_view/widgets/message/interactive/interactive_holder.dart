@@ -202,6 +202,7 @@ class _InteractiveHolderState extends CustomState<InteractiveHolder, void, Messa
                                 if (payloadData == null) {
                                   return LegacyUrlPreview(
                                     message: message,
+                                    previewUrl: part.url,
                                   );
                                 }
                                 return UrlPreview(

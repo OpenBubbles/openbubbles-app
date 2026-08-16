@@ -13,6 +13,39 @@ import 'package:maps_launcher/maps_launcher.dart';
 import 'package:tuple/tuple.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+@visibleForTesting
+List<RegExpMatch> messageUrlMatches(String text) =>
+    urlRegex.allMatches(text).toList(growable: false);
+
+@visibleForTesting
+void markEnrichedMessageRange(
+    List<Annotation> annotations, Tuple3<String, List<int>, List?> annotation) {
+  final range = annotation.item2;
+  final extras = <Annotation>[];
+  for (final existing in annotations) {
+    if (existing.range[0] < range[0] && existing.range[1] > range[0]) {
+      final duplicate = existing.copy();
+      duplicate.range[1] = range[0];
+      extras.add(duplicate);
+      existing.range[0] = range[0];
+    }
+
+    if (existing.range[0] < range[1] && existing.range[1] > range[1]) {
+      final duplicate = existing.copy();
+      duplicate.range[0] = range[1];
+      extras.add(duplicate);
+      existing.range[1] = range[1];
+    }
+  }
+  annotations.addAll(extras);
+
+  for (final existing in annotations) {
+    if (existing.range[0] >= range[0] && existing.range[1] <= range[1]) {
+      existing.renderExtras.add(annotation);
+    }
+  }
+}
+
 List<InlineSpan> buildMessageSpans(BuildContext context, MessagePart part, Message message, {Color? colorOverride, bool hideBodyText = false}) {
   final textSpans = <InlineSpan>[];
   final textStyle = (context.theme.extensions[BubbleText] as BubbleText).bubbleText.apply(
@@ -79,44 +112,16 @@ Future<List<InlineSpan>> buildEnrichedMessageSpans(BuildContext context, Message
     color: colorOverride ?? (message.isFromMe! ? context.theme.colorScheme.onPrimary : context.theme.colorScheme.properOnSurface),
     fontSizeFactor: message.isBigEmoji ? 3 : 1,
   );
-  // extract rich content
-  final urlRegex = RegExp(r'((https?://)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}([-a-zA-Z0-9/()@:%_.~#?&=*\[\]]*)\b');
-
   List<Annotation> annotations = part.annotations.map((a) => a.copy()).toList();
-  void markRange(Tuple3<String, List<int>, List?> annotation) {
-    var range = annotation.item2;
-    List<Annotation> extras = [];
-    // split em up correctly
-    for (var a in annotations) {
-      if (a.range[0] < range[0] && a.range[1] > range[0]) {
-        var dup = a.copy();
-        dup.range[1] = range[0];
-        extras.add(dup);
-
-        // end this range at the start of my new range
-        a.range[0] = range[0];
-      }
-
-      if (a.range[0] < range[1] && a.range[1] > range[1]) {
-        var dup = a.copy();
-        dup.range[0] = range[1];
-        extras.add(dup);
-
-        // end this range at the start of my new range
-        a.range[1] = range[1];
-      }
-    }
-    annotations.addAll(extras);
-
-    for (var a in annotations) {
-      if (a.range[0] >= range[0] && a.range[1] <= range[1]) {
-        a.renderExtras.add(annotation);
-      }
-    }
-  }
 
   final controller = cvc(message.chat.target ?? cm.activeChat!.chat);
   if (!isNullOrEmpty(part.text)) {
+    // Apply complete URL ranges before ML Kit can shorten them.
+    for (final match in messageUrlMatches(part.text!)) {
+      markEnrichedMessageRange(
+          annotations, Tuple3("link", [match.start, match.end], null));
+    }
+
     if (!kIsWeb && !kIsDesktop && ss.settings.smartReply.value) {
       if (controller.mlKitParsedText["${message.guid!}-${part.part}"] == null) {
         try {
@@ -129,31 +134,38 @@ Future<List<InlineSpan>> buildEnrichedMessageSpans(BuildContext context, Message
       final entities = controller.mlKitParsedText["${message.guid!}-${part.part}"] ?? [];
       for (EntityAnnotation element in entities) {
         if (element.entities.first is AddressEntity) {
-          markRange(Tuple3("map", [element.start, element.end], null));
+          markEnrichedMessageRange(
+              annotations, Tuple3("map", [element.start, element.end], null));
         } else if (element.entities.first is PhoneEntity) {
-          markRange(Tuple3("phone", [element.start, element.end], null));
+          markEnrichedMessageRange(
+              annotations, Tuple3("phone", [element.start, element.end], null));
         } else if (element.entities.first is EmailEntity) {
-          markRange(Tuple3("email", [element.start, element.end], null));
+          markEnrichedMessageRange(
+              annotations, Tuple3("email", [element.start, element.end], null));
         } else if (element.entities.first is UrlEntity) {
-          markRange(Tuple3("link", [element.start, element.end], null));
+          markEnrichedMessageRange(
+              annotations, Tuple3("link", [element.start, element.end], null));
         } else if (element.entities.first is DateTimeEntity) {
           final ent = (element.entities.first as DateTimeEntity);
           if (part.text?.substring(element.start, element.end).toLowerCase() == "now") {
             continue;
           }
-          markRange(Tuple3("date", [element.start, element.end], [ent.timestamp]));
+          markEnrichedMessageRange(
+              annotations,
+              Tuple3("date", [element.start, element.end], [ent.timestamp]));
         } else if (element.entities.first is TrackingNumberEntity) {
           final ent = (element.entities.first as TrackingNumberEntity);
-          markRange(Tuple3("tracking", [element.start, element.end], [ent.carrier, ent.number]));
+          markEnrichedMessageRange(
+              annotations,
+              Tuple3("tracking", [element.start, element.end],
+                  [ent.carrier, ent.number]));
         } else if (element.entities.first is FlightNumberEntity) {
           final ent = (element.entities.first as FlightNumberEntity);
-          markRange(Tuple3("flight", [element.start, element.end], [ent.airlineCode, ent.flightNumber]));
+          markEnrichedMessageRange(
+              annotations,
+              Tuple3("flight", [element.start, element.end],
+                  [ent.airlineCode, ent.flightNumber]));
         }
-      }
-    } else {
-      List<RegExpMatch> matches = urlRegex.allMatches(part.text!).toList();
-      for (RegExpMatch match in matches) {
-        markRange(Tuple3("link", [match.start, match.end], null));
       }
     }
   }
@@ -214,7 +226,7 @@ Future<List<InlineSpan>> buildEnrichedMessageSpans(BuildContext context, Message
               ..onTap = () async {
                 if (type == "link") {
                   String url = text;
-                  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                  if (Uri.tryParse(url)?.hasScheme != true) {
                     url = "http://$url";
                   }
                   await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
