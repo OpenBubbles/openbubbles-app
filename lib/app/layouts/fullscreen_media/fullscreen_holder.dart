@@ -14,6 +14,7 @@ import "package:flutter/material.dart";
 import 'package:flutter/services.dart';
 import 'package:gesture_x_detector/gesture_x_detector.dart';
 import 'package:get/get.dart';
+import 'package:photo_view/photo_view.dart' show PhotoViewGestureDetectorScope;
 
 class FullscreenMediaHolder extends StatefulWidget {
   FullscreenMediaHolder({
@@ -151,7 +152,12 @@ class FullscreenMediaHolderState extends OptimizedState<FullscreenMediaHolder> {
                   }
                   return KeyEventResult.ignored;
                 },
-                child: PageView.builder(
+                child: PhotoViewGestureDetectorScope(
+                  // Lets a contained image yield horizontal drags to the
+                  // PageView. A zoomed image keeps its own pan gesture, and
+                  // FullscreenImage disables this PageView while zoomed.
+                  axis: Axis.horizontal,
+                  child: PageView.builder(
                   physics: physics ??
                       (attachments.length == 1
                           ? const NeverScrollableScrollPhysics()
@@ -302,6 +308,7 @@ class FullscreenMediaHolderState extends OptimizedState<FullscreenMediaHolder> {
                       );
                     }
                   },
+                  ),
                 ),
               ),
             ),
