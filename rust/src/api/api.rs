@@ -1895,11 +1895,11 @@ pub async fn download_attachment(sink: StreamSink<TransferProgress>, aps: &APSCo
         let mut file = std::fs::File::create(path)?;
         attachment.get_attachment(aps, &mut file, |prog, total| {
             println!("donwloading file {} of {}", prog, total);
-            sink.add(TransferProgress {
+            let _ = sink.add(TransferProgress {
                 prog,
                 total,
                 attachment: None
-            }).unwrap();
+            });
         }).await?;
         file.flush()?;
         Ok(())
@@ -1914,11 +1914,11 @@ pub async fn download_mmcs(sink: StreamSink<TransferProgress>, aps: &APSConnecti
 
         let mut file = std::fs::File::create(path)?;
         attachment.get_attachment(aps, &mut file, |prog, total| {
-            sink.add(TransferProgress {
+            let _ = sink.add(TransferProgress {
                 prog,
                 total,
                 attachment: None
-            }).unwrap();
+            });
         }).await?;
         file.flush()?;
         Ok(())
@@ -1928,7 +1928,7 @@ pub async fn download_mmcs(sink: StreamSink<TransferProgress>, aps: &APSConnecti
 async fn wrap_sink<Fut, T: SseEncode + Send + Sync>(sink: &StreamSink<T>, f: impl FnOnce() -> Fut)
     where Fut: Future<Output = anyhow::Result<()>> {
     if let Err(err) = f().await {
-        sink.add_error(err).unwrap();
+        let _ = sink.add_error(err);
     }
 }
 
@@ -1945,13 +1945,13 @@ pub async fn upload_mmcs(sink: StreamSink<MMCSTransferProgress>, aps: &APSConnec
         let prepared = MMCSFile::prepare_put(&mut file).await?;
         file.rewind()?;
         let attachment = MMCSFile::new(aps, &prepared, file, |prog, total| {
-            sink.add(MMCSTransferProgress {
+            let _ = sink.add(MMCSTransferProgress {
                 prog,
                 total,
                 file: None
-            }).unwrap();
+            });
         }).await?;
-        sink.add(MMCSTransferProgress { prog: 0, total: 0, file: Some(attachment) }).unwrap();
+        let _ = sink.add(MMCSTransferProgress { prog: 0, total: 0, file: Some(attachment) });
         Ok(())
     }).await
 }
@@ -1963,13 +1963,13 @@ pub async fn upload_attachment(sink: StreamSink<TransferProgress>, aps: &APSConn
         let prepared = MMCSFile::prepare_put(&mut file).await?;
         file.rewind()?;
         let attachment = Attachment::new_mmcs(aps, &prepared, file, &mime, &uti, &name,|prog, total| {
-            sink.add(TransferProgress {
+            let _ = sink.add(TransferProgress {
                 prog,
                 total,
                 attachment: None
-            }).unwrap();
+            });
         }).await?;
-        sink.add(TransferProgress { prog: 0, total: 0, attachment: Some(attachment) }).unwrap();
+        let _ = sink.add(TransferProgress { prog: 0, total: 0, attachment: Some(attachment) });
         Ok(())
     }).await
 }

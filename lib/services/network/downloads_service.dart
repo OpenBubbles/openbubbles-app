@@ -1,11 +1,10 @@
 import 'package:bluebubbles/services/network/backend_service.dart';
-import 'package:bluebubbles/utils/file_utils.dart';
+import 'package:bluebubbles/services/network/attachment_download_queue.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:collection/collection.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart' hide Response;
 import 'package:path/path.dart';
@@ -18,53 +17,63 @@ AttachmentDownloadService attachmentDownloader = Get.isRegistered<AttachmentDown
 class AttachmentDownloadService extends GetxService {
   int maxDownloads = 2;
   final RxList<String> downloaders = <String>[].obs;
-  final Map<String, List<AttachmentDownloadController>> _downloaders = {};
+  final AttachmentDownloadQueue<AttachmentDownloadController> _downloaders =
+      AttachmentDownloadQueue<AttachmentDownloadController>();
 
   AttachmentDownloadController? getController(String? guid) {
-    return _downloaders.values.flattened.firstWhereOrNull((element) => element.attachment.guid == guid);
+    return _downloaders.all.firstWhereOrNull((element) => element.attachment.guid == guid);
   }
 
-  AttachmentDownloadController startDownload(Attachment a, {Function(PlatformFile)? onComplete, Function? onError}) {
+  AttachmentDownloadController startDownload(Attachment a,
+      {Function(PlatformFile)? onComplete, Function? onError, bool prioritized = false}) {
+    final existing = getController(a.guid);
+    if (existing != null) {
+      if (onComplete != null && !existing.completeFuncs.contains(onComplete)) {
+        existing.completeFuncs.add(onComplete);
+      }
+      if (onError != null && !existing.errorFuncs.contains(onError)) {
+        existing.errorFuncs.add(onError);
+      }
+      if (prioritized && !existing.isFetching) prioritize(existing);
+      return existing;
+    }
     return Get.put(AttachmentDownloadController(
       attachment: a,
       onComplete: onComplete,
       onError: onError,
+      prioritized: prioritized,
     ), tag: a.guid!);
   }
 
   void _addToQueue(AttachmentDownloadController downloader) {
     downloaders.add(downloader.attachment.guid!);
     final chatGuid = downloader.attachment.message.target?.chat.target?.guid ?? "unknown";
-    if (_downloaders.containsKey(chatGuid)) {
-      _downloaders[chatGuid]!.add(downloader);
-    } else {
-      _downloaders[chatGuid] = [downloader];
-    }
+    _downloaders.add(chatGuid, downloader, prioritized: downloader.prioritized);
     _fetchNext();
   }
 
   void _removeFromQueue(AttachmentDownloadController downloader) {
     downloaders.remove(downloader.attachment.guid!);
     final chatGuid = downloader.attachment.message.target?.chat.target?.guid ?? "unknown";
-    _downloaders[chatGuid]!.removeWhere((e) => e.attachment.guid == downloader.attachment.guid);
-    if (_downloaders[chatGuid]!.isEmpty) _downloaders.remove(chatGuid);
+    _downloaders.remove(chatGuid, downloader);
     Get.delete<AttachmentDownloadController>(tag: downloader.attachment.guid!);
     _fetchNext();
   }
 
+  void prioritize(AttachmentDownloadController downloader) {
+    if (downloader.isFetching) return;
+    final chatGuid = downloader.attachment.message.target?.chat.target?.guid ?? "unknown";
+    _downloaders.prioritize(chatGuid, downloader);
+    _fetchNext();
+  }
+
   void _fetchNext() {
-    if (_downloaders.values.flattened.where((e) => e.isFetching).length < maxDownloads) {
-      AttachmentDownloadController? activeChatDownloader;
-      // first check if we have an active chat that needs downloads, if so prioritize that chat
-      if (cm.activeChat != null && _downloaders.containsKey(cm.activeChat!.chat.guid)) {
-        activeChatDownloader = _downloaders[cm.activeChat!.chat.guid]!.firstWhereOrNull((e) => !e.isFetching);
-        activeChatDownloader?.fetchAttachment();
-      }
-      // otherwise just grab a random attachment that needs fetching
-      if (activeChatDownloader == null) {
-        _downloaders.values.flattened.firstWhereOrNull((e) => !e.isFetching)?.fetchAttachment();
-      }
-    }
+    if (_downloaders.all.where((e) => e.isFetching).length >= maxDownloads) return;
+    final next = _downloaders.next(
+      activeChatGuid: cm.activeChat?.chat.guid,
+      isFetching: (downloader) => downloader.isFetching,
+    );
+    next?.fetchAttachment();
   }
 }
 
@@ -75,6 +84,7 @@ class AttachmentDownloadController extends GetxController {
   final RxnNum progress = RxnNum();
   final Rxn<PlatformFile> file = Rxn<PlatformFile>();
   final RxBool error = RxBool(false);
+  final bool prioritized;
   Stopwatch stopwatch = Stopwatch();
   bool isFetching = false;
 
@@ -82,6 +92,7 @@ class AttachmentDownloadController extends GetxController {
     required this.attachment,
     Function(PlatformFile)? onComplete,
     Function? onError,
+    this.prioritized = false,
   }) {
     if (onComplete != null) completeFuncs.add(onComplete);
     if (onError != null) errorFuncs.add(onError);
