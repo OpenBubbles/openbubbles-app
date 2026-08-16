@@ -118,12 +118,28 @@ class HwInpState extends OptimizedState<HwInp> {
   }
 
   String lastCheckedCode = "";
-  String relayHost = "https://registration-relay.beeper.com";
+  String relayHost = registrationRelayHost;
+
+  String normalizeRelayHost(String value) {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null ||
+        uri.scheme != "https" ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        (uri.path.isNotEmpty && uri.path != "/") ||
+        uri.query.isNotEmpty ||
+        uri.fragment.isNotEmpty) {
+      throw const FormatException(
+          "Relay server must be a secure HTTPS origin without credentials, a path, a query, or a fragment.");
+    }
+    return uri.toString().replaceFirst(RegExp(r"/+$"), "");
+  }
 
   Future<void> handleBeeper(String code) async {
     if (code == lastCheckedCode) return;
     lastCheckedCode = code;
     try {
+      relayHost = normalizeRelayHost(relayHost);
       if (staging == null) {
         FocusManager.instance.primaryFocus?.unfocus();
       }
@@ -134,7 +150,8 @@ class HwInpState extends OptimizedState<HwInp> {
         options: Options(
           headers: {
             // not a secret; burner account
-            "X-Beeper-Access-Token": "5c175851953ecaf5209185d897591badb6c3e712",
+            "X-Beeper-Access-Token":
+                registrationRelayAccessToken,
             "Authorization": "Bearer $code",
           },
         )
@@ -143,7 +160,10 @@ class HwInpState extends OptimizedState<HwInp> {
       api.JoinedOsConfig parsed;
       if (response2.data["versions"]["software_name"] == "iPhone OS") {
         Logger.debug("Using as iOS");
-        parsed = await api.configFromRelay(code: code, host: relayHost, token: "5c175851953ecaf5209185d897591badb6c3e712");
+        parsed = await api.configFromRelay(
+            code: code,
+            host: relayHost,
+            token: registrationRelayAccessToken);
         usingBeeper = false;
       } else {
         final response = await http.dio.post(
@@ -152,7 +172,8 @@ class HwInpState extends OptimizedState<HwInp> {
           options: Options(
             headers: {
               // not a secret; burner account
-              "X-Beeper-Access-Token": "5c175851953ecaf5209185d897591badb6c3e712",
+              "X-Beeper-Access-Token":
+                  registrationRelayAccessToken,
               "Authorization": "Bearer $code",
             },
           )
@@ -172,6 +193,8 @@ class HwInpState extends OptimizedState<HwInp> {
         usingBeeper = true;
       }
       showSnackbar("Fetching validation data", "Done");
+      await ss.prefs.setString(
+          "registration-relay-host", relayHost);
       stagingNonInp = true;
       select(parsed, true);
     } catch (e) {
@@ -451,6 +474,8 @@ class HwInpState extends OptimizedState<HwInp> {
   @override
   void initState() {
     super.initState();
+    relayHost = ss.prefs.getString("registration-relay-host") ??
+        registrationRelayHost;
 
     subscription = pushService.client.purchasesUpdatedStream.listen((PurchasesResultWrapper details) {
       handlePurchases(details);
@@ -785,10 +810,19 @@ class HwInpState extends OptimizedState<HwInp> {
                                           TextButton(
                                             child: Text("OK", style: Get.context!.theme.textTheme.bodyLarge!.copyWith(color: Get.context!.theme.colorScheme.primary)),
                                             onPressed: () async {
-                                              relayHost = server.text;
-                                              lastCheckedCode = "";
-                                              Get.back();
-                                              checkCode(codeController.text);
+                                               try {
+                                                 relayHost =
+                                                     normalizeRelayHost(
+                                                         server.text);
+                                                 lastCheckedCode = "";
+                                                 Get.back();
+                                                 checkCode(
+                                                     codeController.text);
+                                               } on FormatException catch (e) {
+                                                 showSnackbar(
+                                                     "Invalid relay URL",
+                                                     e.message);
+                                               }
                                             },
                                           ),
                                         ],
