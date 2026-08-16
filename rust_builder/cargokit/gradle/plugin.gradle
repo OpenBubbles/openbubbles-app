@@ -82,39 +82,71 @@ class CargoKitPlugin implements Plugin<Project> {
 
     static String file;
 
-    private Plugin findFlutterPlugin(Project rootProject) {
-        _findFlutterPlugin(rootProject.childProjects)
+    // Returns the Project that Flutter's Gradle plugin is applied to, not the
+    // plugin instance.
+    //
+    // CargoKit used to keep the plugin and reach through `plugin.project`. That
+    // worked against the Groovy plugin, where the field was reachable. Flutter
+    // 3.44.8's Kotlin rewrite declares `private var project: Project? = null`
+    // and dropped `getTargetPlatforms()` entirely, moving it to
+    // FlutterPluginUtils. Holding the plugin therefore buys nothing and every
+    // call through it throws once per variant.
+    private Project findFlutterProject(Project rootProject) {
+        _findFlutterProject(rootProject.childProjects)
     }
 
-   private Plugin _findFlutterPlugin(Map projects) {
+   private Project _findFlutterProject(Map projects) {
         for (project in projects) {
             for (plugin in project.value.getPlugins()) {
-                if (plugin.class.name == "FlutterPlugin") {
-                    return plugin;
+                // Flutter's Groovy Gradle plugin lived in the default package.
+                // The Kotlin rewrite moved it to com.flutter.gradle, so match
+                // the class name itself rather than the fully qualified name.
+                // Getting this wrong silently skips the whole Rust build and
+                // ships a package with no native library in it.
+                def pluginClassName = plugin.class.name
+                if (pluginClassName == "FlutterPlugin" ||
+                        pluginClassName.endsWith(".FlutterPlugin")) {
+                    return project.value;
                 }
             }
-            def plugin = _findFlutterPlugin(project.value.childProjects);
-            if (plugin != null) {
-                return plugin;
+            def found = _findFlutterProject(project.value.childProjects);
+            if (found != null) {
+                return found;
             }
         }
         return null;
     }
 
+    // Mirrors FlutterPluginUtils.getTargetPlatforms, which is Kotlin-internal
+    // and not callable from Groovy. Flutter passes -Ptarget-platform on the
+    // command line; when it is absent this is the same default the Flutter
+    // plugin itself applies.
+    private static List<String> flutterTargetPlatforms(Project flutterProject) {
+        if (flutterProject.hasProperty("target-platform")) {
+            return flutterProject
+                    .property("target-platform")
+                    .toString()
+                    .split(",")
+                    .collect { it.trim() }
+                    .findAll { !it.isEmpty() }
+        }
+        return ["android-arm", "android-arm64", "android-x64"]
+    }
+
     @Override
     void apply(Project project) {
-        def plugin = findFlutterPlugin(project.rootProject);
+        def flutterProject = findFlutterProject(project.rootProject);
 
         project.extensions.create("cargokit", CargoKitExtension)
 
-        if (plugin == null) {
-            print("Flutter plugin not found, CargoKit plugin will not be applied.")
+        if (flutterProject == null) {
+            println("Flutter plugin not found, CargoKit plugin will not be applied.")
             return;
         }
 
         def cargoBuildDir = "${project.buildDir}/build"
 
-        plugin.project.android.applicationVariants.all { variant ->
+        flutterProject.android.applicationVariants.all { variant ->
 
             final buildType = variant.buildType.name
 
@@ -122,7 +154,7 @@ class CargoKitPlugin implements Plugin<Project> {
             def jniLibs = project.android.sourceSets.maybeCreate(buildType).jniLibs;
             jniLibs.srcDir(new File(cargoOutputDir))
 
-            def platforms = plugin.getTargetPlatforms().collect()
+            def platforms = flutterTargetPlatforms(flutterProject).collect()
 
             // Same thing addFlutterDependencies does in flutter.gradle
             if (buildType == "debug") {
@@ -139,7 +171,7 @@ class CargoKitPlugin implements Plugin<Project> {
                     return
                 }
 
-                if (plugin.project.android.ndkVersion == null) {
+                if (flutterProject.android.ndkVersion == null) {
                     throw new GradleException("Please set 'android.ndkVersion' in 'app/build.gradle'.")
                 }
 
@@ -147,10 +179,10 @@ class CargoKitPlugin implements Plugin<Project> {
                     buildMode = variant.buildType.name
                     buildDir = cargoBuildDir
                     outputDir = cargoOutputDir
-                    ndkVersion = plugin.project.android.ndkVersion
-                    sdkDirectory = plugin.project.android.sdkDirectory
-                    minSdkVersion = plugin.project.android.defaultConfig.minSdkVersion.apiLevel as int
-                    compileSdkVersion = plugin.project.android.compileSdkVersion.substring(8) as int
+                    ndkVersion = flutterProject.android.ndkVersion
+                    sdkDirectory = flutterProject.android.sdkDirectory
+                    minSdkVersion = flutterProject.android.defaultConfig.minSdkVersion.apiLevel as int
+                    compileSdkVersion = flutterProject.android.compileSdkVersion.substring(8) as int
                     targetPlatforms = platforms
                     pluginFile = CargoKitPlugin.file
                 }

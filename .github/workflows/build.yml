@@ -64,11 +64,39 @@ jobs:
               cp rustpush/certs/legacy-fairplay/fairplay.crt rustpush/certs/fairplay/$name.crt
           done
 
+      # pub get restores the two vendored CargoKit copies, so patch them after
+      # dependency resolution and before the Android build.
+      - name: Patch vendored CargoKit for the Flutter Kotlin plugin
+        run: |
+          set -euo pipefail
+          flutter pub get
+          bash ./tooling/android/patch_pub_cache_cargokit.sh
+
       # First run is expected to fail until ffmpeg_kit_flutter_new is fixed.
       - name: Run Build Script
         run: |
           flutter build apk --flavor alpha --debug --target-platform android-arm64
-      
+
+      - name: Assert required native libraries are in the APK
+        run: |
+          set -euo pipefail
+          apk=build/app/outputs/flutter-apk/app-alpha-debug.apk
+          # A green Gradle build can still produce an APK that installs and
+          # then fails during plugin registration if CargoKit skipped a native
+          # library. Keep this list tied to the app's generated registrant and
+          # Rust bridge, not to unrelated libraries found in the pub cache.
+          for entry in \
+            lib/arm64-v8a/libflutter.so \
+            lib/arm64-v8a/librust_lib_bluebubbles.so \
+            lib/arm64-v8a/libirondash_engine_context_native.so \
+            lib/arm64-v8a/libsuper_native_extensions.so; do
+            if ! unzip -l "$apk" | grep -q "$entry"; then
+              echo "APK is missing $entry" >&2
+              unzip -l "$apk" | grep 'lib/' >&2 || true
+              exit 1
+            fi
+          done
+
       - uses: actions/upload-artifact@v4
         with:
           name: Alpha Debug APK
