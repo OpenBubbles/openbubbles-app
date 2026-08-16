@@ -60,6 +60,8 @@ class FaceTimeActivity : Activity() {
     private lateinit var webView: WebView
     private var initialMediaVolume: Int? = null;
 
+    private fun diagnosticsEnabled(): Boolean = FaceTimeDiagnostics.isEnabled(this)
+
     companion object {
         var activeFaceTimeActivity: FaceTimeActivity? = null
         var cachedWebview: CachedWebview? = null
@@ -164,6 +166,8 @@ class FaceTimeActivity : Activity() {
 
     private fun answerCall() {
         answered = true
+
+        if (diagnosticsEnabled()) Log.i("FaceTimeDiag", "answer requested mirrorReady=$mirrorReady deferredPermissions=${cached.deferredRequests.size}")
 
         handlePermissionRequests()
 
@@ -281,6 +285,7 @@ class FaceTimeActivity : Activity() {
 
     fun handlePermissionRequest(request: PermissionRequest) {
         val permissions = request.resources.flatMap { i -> permissionMap[i] ?: listOf() }
+        if (diagnosticsEnabled()) Log.i("FaceTimeDiag", "handling WebView permission resources=${request.resources.sorted().joinToString()} androidPermissions=${permissions.joinToString()} alreadyGranted=${permissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }}")
         if (permissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
             request.grant(request.resources)
             startService()
@@ -325,6 +330,10 @@ class FaceTimeActivity : Activity() {
         grantResults: IntArray
     ) {
         if (requestCode != 1) return
+        if (diagnosticsEnabled()) {
+            val permissionResults = permissions.zip(grantResults.toTypedArray()).joinToString { (permission, result) -> "$permission=${result == PackageManager.PERMISSION_GRANTED}" }
+            Log.i("FaceTimeDiag", "Android permission result $permissionResults")
+        }
         for (request in permissionRequests) {
             request.grant(request.resources.filter { i ->
                 (permissionMap[i] ?: listOf()).all {
@@ -338,6 +347,7 @@ class FaceTimeActivity : Activity() {
     }
 
     private fun connecting() {
+        if (diagnosticsEnabled()) Log.i("FaceTimeDiag", "waiting for mirrorReady")
         binding.acceptButtons.visibility = View.GONE
         binding.loadingBanner.text = "Connecting..."
         Handler(Looper.getMainLooper()).postDelayed({
@@ -368,6 +378,7 @@ class FaceTimeActivity : Activity() {
         mirrorReady = cached.mirrorReady
         cached.mirrorReadyCall = {
             mirrorReady = true
+            if (diagnosticsEnabled()) Log.i("FaceTimeDiag", "mirrorReady callback answered=$answered")
             if (answered) {
                 binding.mainFrame.visibility = View.VISIBLE
                 binding.splashLayout.visibility = View.GONE
@@ -389,7 +400,7 @@ class FaceTimeActivity : Activity() {
             binding.avatarView.setImageBitmap(bitmap)
         }
 
-        Log.i("FaceTime", "started activity for call $callUuid")
+        if (diagnosticsEnabled()) Log.i("FaceTimeDiag", "started activity hasCallUuid=${callUuid != null}")
 
         val poster = extras.getString("poster")
         if (poster != null) {

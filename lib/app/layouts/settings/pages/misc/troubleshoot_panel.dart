@@ -556,6 +556,33 @@ class _TroubleshootPanelState extends OptimizedState<TroubleshootPanel> {
                           )) : Icon(Icons.check, color: context.theme.colorScheme.outline))
                       )
                   ]),
+                if (usingRustPush && Platform.isAndroid)
+                  Obx(() => ss.settings.developerEnabled.value
+                      ? SettingsHeader(
+                          iosSubtitle: iosSubtitle,
+                          materialSubtitle: materialSubtitle,
+                          text: "FaceTime Diagnostics",
+                        )
+                      : const SizedBox.shrink()),
+                if (usingRustPush && Platform.isAndroid)
+                  Obx(() => ss.settings.developerEnabled.value
+                      ? SettingsSection(
+                          backgroundColor: tileColor,
+                          children: [
+                            SettingsSwitch(
+                              initialVal: ss.settings.faceTimeDiagnosticsEnabled.value,
+                              onChanged: (bool val) async {
+                                ss.settings.faceTimeDiagnosticsEnabled.value = val;
+                                await ss.settings.saveOne('faceTimeDiagnosticsEnabled');
+                              },
+                              title: "Enable FaceTime diagnostics",
+                              subtitle: "Logs FaceTime WebView, join, permission, and media state for debugging. Join recovery and End Call remain enabled when this is off.",
+                              isThreeLine: true,
+                              backgroundColor: tileColor,
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink()),
                 if(!kIsDesktop)
                 SettingsHeader(
                   iosSubtitle: iosSubtitle,
@@ -567,7 +594,7 @@ class _TroubleshootPanelState extends OptimizedState<TroubleshootPanel> {
                   backgroundColor: tileColor,
                   children: [
                     Obx(() => SettingsSwitch(
-                      onChanged: (bool val) {
+                      onChanged: (bool val) async {
                         if (val) {
                           showDialog(
                             context: context,
@@ -604,7 +631,15 @@ class _TroubleshootPanelState extends OptimizedState<TroubleshootPanel> {
                           return;
                         }
                         ss.settings.developerEnabled.value = val;
-                        ss.settings.save();
+                        if (!val) {
+                          ss.settings.faceTimeDiagnosticsEnabled.value = false;
+                          await ss.settings.saveMany([
+                            'developerEnabled',
+                            'faceTimeDiagnosticsEnabled',
+                          ]);
+                        } else {
+                          await ss.settings.saveOne('developerEnabled');
+                        }
                         showSnackbar("Success", "Restart device or force quit OpenBubbles to unload extensions");
                       },
                       initialVal: ss.settings.developerEnabled.value,

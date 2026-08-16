@@ -10,7 +10,9 @@ import android.util.Log
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
+import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -24,7 +26,12 @@ import java.io.File
 
 @SuppressLint("SetJavaScriptEnabled")
 class CachedWebview(context: Context, name: String?, desc: String, url: String) {
+    companion object {
+        private const val diagnosticTag = "FaceTimeDiag"
+    }
+
     val webView = WebView(context)
+    private val applicationContext = context.applicationContext
 
     var mirrorReady = false
     var mirrorReadyCall: (() -> Unit)? = null
@@ -36,8 +43,12 @@ class CachedWebview(context: Context, name: String?, desc: String, url: String) 
     val deferredRequests = arrayListOf<PermissionRequest>()
     var deferredRequestsUpdated: () -> Unit = {}
 
+    private fun diagnosticsEnabled(): Boolean = FaceTimeDiagnostics.isEnabled(applicationContext)
+
+    private fun safeResourceLabel(requestUrl: String?): String = FaceTimeDiagnostics.safeResourceLabel(requestUrl)
+
     fun getScriptData(request: WebResourceRequest, client: OkHttpClient, name: String?, desc: String): String {
-        Log.i("FT", "Getting script")
+        if (diagnosticsEnabled()) Log.i(diagnosticTag, "getting main.js")
         // OKHTTP should handle caching for us
         val okhttp = Request.Builder()
             .method(request.method, null)
@@ -85,13 +96,35 @@ class CachedWebview(context: Context, name: String?, desc: String, url: String) 
                 if (!request.url.toString().endsWith("main.js")) return null
                 // intercept and patch request
 
-                val scriptData = getScriptData(request, client, name, desc)
+                if (diagnosticsEnabled()) Log.i(diagnosticTag, "intercepting ${safeResourceLabel(request.url.toString())}")
+                val scriptData = try {
+                    getScriptData(request, client, name, desc)
+                } catch (error: Exception) {
+                    if (diagnosticsEnabled()) Log.e(diagnosticTag, "main.js interception failed: ${error.javaClass.simpleName}")
+                    throw error
+                }
 
                 return WebResourceResponse(
                     "application/javascript",
                     "utf-8",
                     ByteArrayInputStream(scriptData.encodeToByteArray())
                 )
+            }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                if (diagnosticsEnabled()) Log.i(diagnosticTag, "page started ${safeResourceLabel(url)}")
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                if (diagnosticsEnabled()) Log.i(diagnosticTag, "page finished ${safeResourceLabel(url)} mirrorReady=$mirrorReady")
+            }
+
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                if (diagnosticsEnabled()) Log.w(diagnosticTag, "resource error mainFrame=${request?.isForMainFrame} code=${error?.errorCode} resource=${safeResourceLabel(request?.url?.toString())}")
+            }
+
+            override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?) {
+                if (diagnosticsEnabled()) Log.w(diagnosticTag, "http error mainFrame=${request?.isForMainFrame} status=${errorResponse?.statusCode} resource=${safeResourceLabel(request?.url?.toString())}")
             }
         }
         webView.setBackgroundColor(Color.BLACK)
@@ -110,15 +143,24 @@ class CachedWebview(context: Context, name: String?, desc: String, url: String) 
                         it()
                     }
                 }, 250)
-                Log.i("Got Mirror", "")
+                if (diagnosticsEnabled()) Log.i(diagnosticTag, "Native.mirrored received; mirrorReady scheduled")
             }
         }, "Native")
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
                 if (request == null) return
+                if (diagnosticsEnabled()) Log.i(diagnosticTag, "WebView permission request resources=${request.resources.sorted().joinToString()}")
                 deferredRequests.add(request)
                 deferredRequestsUpdated()
+            }
+
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                if (!diagnosticsEnabled() || consoleMessage == null) return false
+                if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR || consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.WARNING) {
+                    Log.w(diagnosticTag, "console ${consoleMessage.messageLevel()} line=${consoleMessage.lineNumber()} source=${safeResourceLabel(consoleMessage.sourceId())} message=<omitted>")
+                }
+                return false
             }
 
             override fun getDefaultVideoPoster(): Bitmap {
