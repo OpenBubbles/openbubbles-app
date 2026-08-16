@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:collection/collection.dart';
 import 'package:bluebubbles/app/components/avatars/contact_avatar_widget.dart';
 import 'package:bluebubbles/app/layouts/findmy/findmy_location_clipper.dart';
 import 'package:bluebubbles/app/layouts/findmy/findmy_pin_clipper.dart';
@@ -34,6 +35,18 @@ import 'package:tuple/tuple.dart';
 import 'package:universal_io/io.dart';
 import 'package:bluebubbles/src/rust/api/api.dart' as api;
 import 'package:url_launcher/url_launcher.dart';
+
+@visibleForTesting
+String findMyCloudFailureMessage(Object error) {
+  final message = error.toString().toLowerCase();
+  if (message.contains("relay device offline")) {
+    return "Your relay device is offline. Cloud Find My will resume when it reconnects.";
+  }
+  if (error is TimeoutException || message.contains("timeoutexception")) {
+    return "Cloud Find My timed out. Check the relay connection and try again.";
+  }
+  return "Cloud Find My is unavailable right now.";
+}
 
 class FindMyPage extends StatefulWidget {
   FindMyPage({super.key, this.defaultFriend});
@@ -67,6 +80,10 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
   bool refreshing2 = false;
   bool canRefresh = false;
   bool isInClique = true;
+  bool locationsRequestInFlight = false;
+  bool currentLocationRequestInFlight = false;
+  String? cloudFindMyError;
+  DateTime? automaticCloudRetryAfter;
 
   Map<(double, double), Address> cachedAddresses = {};
 
@@ -87,7 +104,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
     }
     getLocations();
 
-    myTimer = Timer.periodic(const Duration(seconds: 5), (timer) => getLocations());
+    myTimer = Timer.periodic(const Duration(seconds: 30), (timer) => getLocations());
 
     socket.socket.on("new-findmy-location", (data) {
       try {
@@ -125,7 +142,37 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
   /// however, the refresh friends endpoint does. The way this was coded assumes that the server
   /// will return the data for both endpoints. A server update will fix this, but for now,
   /// we will "patch" it by only "refreshing" devices when the user manually refreshes the data.
-  void getLocations({bool refreshFriends = true, bool refreshDevices = true}) async {
+  void getLocations({bool refreshFriends = true, bool refreshDevices = true, bool manual = false}) {
+    if (locationsRequestInFlight) return;
+    if (!manual && automaticCloudRetryAfter?.isAfter(DateTime.now()) == true) return;
+    locationsRequestInFlight = true;
+    unawaited(_updateCurrentLocation(refreshFriends: refreshFriends));
+    unawaited(_getCloudLocations(refreshFriends: refreshFriends, refreshDevices: refreshDevices).then((_) {
+      if (!mounted) return;
+      setState(() {
+        cloudFindMyError = null;
+        automaticCloudRetryAfter = null;
+      });
+    }).catchError((Object error, StackTrace trace) {
+      Logger.error("Cloud Find My request failed", error: error, trace: trace);
+      if (!mounted) return;
+      setState(() {
+        cloudFindMyError = findMyCloudFailureMessage(error);
+        automaticCloudRetryAfter = DateTime.now().add(const Duration(seconds: 30));
+        fetching = null;
+        fetching2 = null;
+        refreshing = false;
+        refreshing2 = false;
+      });
+    }).whenComplete(() {
+      locationsRequestInFlight = false;
+    }));
+  }
+
+  Future<void> _updateCurrentLocation({required bool refreshFriends}) async {
+    if (currentLocationRequestInFlight) return;
+    currentLocationRequestInFlight = true;
+    try {
     if (!(Platform.isLinux && !kIsWeb)) {
       LocationPermission granted = await Geolocator.checkPermission();
       if (granted == LocationPermission.denied) {
@@ -156,7 +203,14 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
         });
       }
     }
+    } catch (e, s) {
+      Logger.warn("Failed to update current location", error: e, trace: s);
+    } finally {
+      currentLocationRequestInFlight = false;
+    }
+  }
 
+  Future<void> _getCloudLocations({required bool refreshFriends, required bool refreshDevices}) async {
     var isNew = fmfClient == null;
     fmfClient ??= await api.makeFindMyFriends(
       path: pushService.statePath,
@@ -216,8 +270,9 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
 
           if (friend.latitude != null) {
 
-            final marker = markers.values.firstWhere(
+            final marker = markers.values.firstWhereOrNull(
                 (e) => (e.key as ValueKey?)?.value == "friend-${friend.handle?.uniqueAddressAndService}");
+            if (marker == null) return;
             popupController.showPopupsOnlyFor([marker]);
             mapController.move(LatLng(friend.latitude!, friend.longitude!), 10);
 
@@ -226,11 +281,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
       }
     } catch (e, s) {
       Logger.error("Failed to parse FindMy Friends location data!", error: e, trace: s);
-      setState(() {
-        fetching2 = null;
-        refreshing2 = false;
-      });
-      return;
+      rethrow;
     }
 
     var isNewi = fmipClient == null;
@@ -482,11 +533,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
       });
     } catch (e, s) {
       Logger.error("Failed to parse FindMy Devices location data!", error: e, trace: s);
-      setState(() {
-        fetching = null;
-        refreshing = false;
-      });
-      return;
+      rethrow;
     }
     
 
@@ -618,6 +665,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
     final withoutLocation =
         devices.where((item) => item.location?.latitude == null && item.role?["sharingActive"] != 0).toList();
     final devicesBodySlivers = [
+      if (cloudFindMyError != null) _cloudRecoverySliver(),
       SliverList(
         delegate: SliverChildListDelegate([
           if (fetching == null || fetching == true || (fetching == false && devices.isEmpty))
@@ -667,9 +715,10 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                                   await panelController.close();
                                 }
                                 await completer.future;
-                                final marker = markers.values.firstWhere((e) =>
+                                final marker = markers.values.firstWhereOrNull((e) =>
                                     e.point.latitude == item.location?.latitude &&
                                     e.point.longitude == item.location?.longitude);
+                                if (marker == null) return;
                                 popupController.showPopupsOnlyFor([marker]);
                                 mapController.move(LatLng(item.location!.latitude!, item.location!.longitude!), 10);
                               }
@@ -832,9 +881,10 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                                   await panelController.close();
                                 }
                                 await completer.future;
-                                final marker = markers.values.firstWhere((e) =>
+                                final marker = markers.values.firstWhereOrNull((e) =>
                                       e.point.latitude == item.location?.latitude &&
                                       e.point.longitude == item.location?.longitude);
+                                  if (marker == null) return;
                                   popupController.showPopupsOnlyFor([marker]);
                                 mapController.move(LatLng(item.location!.latitude!, item.location!.longitude!), 10);
                               }
@@ -910,9 +960,10 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                                           await panelController.close();
                                         }
                                         await completer.future;
-                                        final marker = markers.values.firstWhere((e) =>
+                                        final marker = markers.values.firstWhereOrNull((e) =>
                                             e.point.latitude == item.location?.latitude &&
                                             e.point.longitude == item.location?.longitude);
+                                        if (marker == null) return;
                                         popupController.showPopupsOnlyFor([marker]);
                                         mapController.move(
                                             LatLng(item.location!.latitude!, item.location!.longitude!), 10);
@@ -971,6 +1022,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
     ];
 
     final friendsBodySlivers = [
+      if (cloudFindMyError != null) _cloudRecoverySliver(),
       SliverList(
         delegate: SliverChildListDelegate([
           if (fetching2 == null || fetching2 == true || (fetching2 == false && friends.isEmpty))
@@ -1045,8 +1097,9 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                             await panelController.close();
                           }
                           await completer.future;
-                          final marker = markers.values.firstWhere(
+                          final marker = markers.values.firstWhereOrNull(
                               (e) => e.point.latitude == item.latitude && e.point.longitude == item.longitude);
+                          if (marker == null) return;
                           popupController.showPopupsOnlyFor([marker]);
                           mapController.move(LatLng(item.latitude!, item.longitude!), 10);
                         },
@@ -1181,7 +1234,26 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
         ));
   }
 
-  Widget buildTabletLayout(BuildContext context, List<SliverList> devicesBodySlivers, List<SliverList> friendsBodySlivers) {
+  SliverToBoxAdapter _cloudRecoverySliver() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Text(cloudFindMyError!, textAlign: TextAlign.center),
+            TextButton(
+              onPressed: locationsRequestInFlight
+                  ? null
+                  : () => getLocations(manual: true),
+              child: const Text("Retry Cloud Find My"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildTabletLayout(BuildContext context, List<Widget> devicesBodySlivers, List<Widget> friendsBodySlivers) {
     return Obx(
       () => Scaffold(
         backgroundColor: context.theme.colorScheme.background.themeOpacity(context),
@@ -1408,7 +1480,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
     );
   }
 
-  Widget buildNormal(BuildContext context, List<SliverList> devicesBodySlivers, List<SliverList> friendsBodySlivers) {
+  Widget buildNormal(BuildContext context, List<Widget> devicesBodySlivers, List<Widget> friendsBodySlivers) {
     return Obx(
       () => Scaffold(
         backgroundColor: material ? tileColor : headerColor,
@@ -1416,6 +1488,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
           children: [
             SlidingUpPanel(
               controller: panelController,
+              scrollController: controller1,
               color: Theme.of(context).colorScheme.surface,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(25.0),
@@ -1454,6 +1527,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                       if (ss.settings.skin.value != Skins.Samsung || kIsWeb || kIsDesktop) return false;
                       final scrollDistance = context.height / 3 - 57;
 
+                      if (!controller1.hasClients) return false;
                       if (controller1.offset > 0 && controller1.offset < scrollDistance) {
                         final double snapOffset = controller1.offset / scrollDistance > 0.5 ? scrollDistance : 0;
 
@@ -1498,6 +1572,7 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                       if (ss.settings.skin.value != Skins.Samsung || kIsWeb || kIsDesktop) return false;
                       final scrollDistance = context.height / 3 - 57;
 
+                      if (!controller2.hasClients) return false;
                       if (controller2.offset > 0 && controller2.offset < scrollDistance) {
                         final double snapOffset = controller2.offset / scrollDistance > 0.5 ? scrollDistance : 0;
 
@@ -1770,9 +1845,14 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
         PopupMarkerLayer(
           options: PopupMarkerLayerOptions(
             onPopupEvent: (ev, m) async {
-              final item = m.isEmpty ? null : friends
-                      .firstWhere((e) => e.latitude == m[0].point.latitude && e.longitude == m[0].point.longitude).id;
-              await api.selectFriend(config: pushService.state!.osConfig, client: fmfClient!, friend: item);
+              final friend = m.isEmpty
+                  ? null
+                  : friends.firstWhereOrNull(
+                      (e) => e.latitude == m[0].point.latitude && e.longitude == m[0].point.longitude);
+              if (fmfClient != null) {
+                await api.selectFriend(
+                    config: pushService.state!.osConfig, client: fmfClient!, friend: friend?.id);
+              }
             },
             popupController: popupController,
             markers: markers.values.toList(),
@@ -1782,7 +1862,8 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                 if (key?.value == "current") return const SizedBox();
                 if (key?.value.contains("device")) {
                   String prefix = key!.value.replaceFirst("device-", "");
-                  final item = devices.firstWhere((e) => e.id == prefix);
+                  final item = devices.firstWhereOrNull((e) => e.id == prefix);
+                  if (item == null) return const SizedBox();
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 5.0),
                     child: Container(
@@ -1826,7 +1907,8 @@ class _FindMyPageState extends OptimizedState<FindMyPage> with SingleTickerProvi
                   );
                 } else {
                   String prefix = key!.value.replaceFirst("friend-", "");
-                  final item = friends.firstWhere((e) => e.handle?.uniqueAddressAndService == prefix);
+                  final item = friends.firstWhereOrNull((e) => e.handle?.uniqueAddressAndService == prefix);
+                  if (item == null) return const SizedBox();
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 5.0),
                     child: Container(
