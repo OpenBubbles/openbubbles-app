@@ -442,7 +442,6 @@ class MentionTextEditingController extends SpellCheckTextEditingController {
   @override
   void notifyListeners() {
     super.notifyListeners();
-    Logger.info("a $lastText $text");
     if (lastText != text) {
       // something changed, compute deltas
       // use text diff because some keyboards can bump the cursor forward into an existing space when typing a period during an autocorrect.
