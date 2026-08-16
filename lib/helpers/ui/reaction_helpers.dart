@@ -20,6 +20,18 @@ class ReactionTypes {
   // ignore: non_constant_identifier_names
   static const String STICKERBACK = "stickerback";
 
+  /// Maps Apple's associated-message type to a reaction name.
+  ///
+  /// Unknown indices are not reactions this build can render and return null
+  /// instead of indexing [toList] and throwing a RangeError.
+  static String? fromAssociatedMessageType(int associatedMessageType) {
+    final removed = associatedMessageType >= 3000;
+    final index = associatedMessageType - (removed ? 3000 : 2000);
+    final names = toList();
+    if (index < 0 || index >= names.length) return null;
+    return removed ? "-${names[index]}" : names[index];
+  }
+
   static List<String> toList() {
     return [
       LOVE,

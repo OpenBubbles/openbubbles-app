@@ -5,6 +5,7 @@ import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/database/models.dart';
 import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/services/rustpush/rustpush_service.dart';
+import 'package:bluebubbles/utils/attachment_guid_utils.dart';
 import 'package:bluebubbles/services/services.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
@@ -64,11 +65,11 @@ class Attachment {
     totalBytes = decoded.totalBytes;
     metadata ??= {};
     metadata!["cloud"] = ckRecordId;
-    if (decoded.guid.startsWith("at")) {
-      var items = decoded.guid.split("_");
+    final owned = parseAppleOwnedAttachmentGuid(decoded.guid);
+    if (owned != null) {
       // format defined in indexedPartsToAttributedBodyDyn
-      var message = Message.findOne(guid: items[2]);
-      guid = "${items[2]}_${items[1]}";
+      var message = Message.findOne(guid: owned.messageGuid);
+      guid = "${owned.messageGuid}_${owned.part}";
       save(message);
     } else {
       guid = decoded.guid;
@@ -77,9 +78,7 @@ class Attachment {
   }
 
   String unconvertAttachmentGuid(String guid) {
-    var items = guid.split("_");
-    if (items.length == 1) return guid;
-    return "at_${items[1]}_${items[0]}";
+    return unconvertAppleAttachmentGuid(guid);
   }
 
   Future<api.AttachmentMeta> getAttachmentMeta() async {

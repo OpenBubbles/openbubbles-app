@@ -7,6 +7,7 @@ import 'package:async_task/async_task.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:bluebubbles/services/network/backend_service.dart';
 import 'package:bluebubbles/services/rustpush/rustpush_service.dart';
+import 'package:bluebubbles/services/rustpush/cloud_sync/cloud_associated_message_parent_reference.dart';
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/database.dart';
 import 'package:bluebubbles/database/models.dart';
@@ -1070,7 +1071,10 @@ class Message {
         dateDelivered: dateDelivered != null ? RustPushBBUtils.nsSinceAppleEpoch(dateDelivered!) : 0,
         unk14: 0,
         associatedMessageType: amt,
-        associatedMessageGuid: associatedMessageGuid != null ? "p:$associatedMessagePart/$associatedMessageGuid" : null,
+        associatedMessageGuid: CloudAssociatedMessageParentReference.encode(
+          localMessageGuid: associatedMessageGuid,
+          part: associatedMessagePart,
+        ),
         associatedMessageRangeLength: associatedMessagePart != null ? Message.findOne(guid: associatedMessageGuid!)?.attributedBody[0].runs.firstWhere((r) => r.attributes!.messagePart == associatedMessagePart).range[1] : null,
         associatedMessageRangeLocation: associatedMessagePart != null ? Message.findOne(guid: associatedMessageGuid!)?.attributedBody[0].runs.firstWhere((r) => r.attributes!.messagePart == associatedMessagePart).range[0] : null
       )),
@@ -1155,17 +1159,31 @@ class Message {
     expressiveSendStyleId = proto1.effect;
     dateRead = proto1.dateRead == null || proto1.dateRead == 0 ? null : RustPushBBUtils.fromNsSinceAppleEpoch(proto1.dateRead!);
     dateDelivered = proto1.dateDelivered == null || proto1.dateDelivered == 0 ? null : RustPushBBUtils.fromNsSinceAppleEpoch(proto1.dateDelivered!);
+    associatedMessageType = null;
+    associatedMessageGuid = null;
+    associatedMessagePart = null;
     if (proto1.associatedMessageType != null) {
       if (proto1.associatedMessageType == 2) {
         associatedMessageType = "sticker";
-      } else if (proto1.associatedMessageType! >= 2000 && proto1.associatedMessageType! < 3000) {
-        associatedMessageType = ReactionTypes.toList()[proto1.associatedMessageType! - 2000];
-      } else if (proto1.associatedMessageType! >= 3000 && proto1.associatedMessageType! < 4000) {
-        associatedMessageType = "-${ReactionTypes.toList()[proto1.associatedMessageType! - 3000]}";
+      } else {
+        associatedMessageType =
+            ReactionTypes.fromAssociatedMessageType(proto1.associatedMessageType!);
+      }
+
+      if (associatedMessageType != null &&
+          proto1.associatedMessageGuid != null) {
+        try {
+          final parent = CloudAssociatedMessageParentReference.parse(
+            proto1.associatedMessageGuid!,
+          );
+          associatedMessageGuid = parent.localMessageGuid;
+          associatedMessagePart = parent.part;
+        } on CloudAssociatedMessageParentReferenceFormatException {
+          // Keep the message, but do not attach a malformed reaction to a
+          // potentially unrelated local message.
+        }
       }
     }
-    associatedMessageGuid = proto1.associatedMessageGuid;
-    associatedMessagePart = attributedBody.firstOrNull?.runs.firstWhereOrNull((b) => b.range[0] == proto1.associatedMessageRangeLocation && b.range[1] == proto1.associatedMessageRangeLength)?.attributes?.messagePart;
     guid = c.guid;
     var bits = c.flags.bits();
     isFromMe = (bits & IS_FROM_ME) != 0;
