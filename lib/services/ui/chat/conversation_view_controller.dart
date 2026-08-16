@@ -260,7 +260,11 @@ class ConversationViewController extends StatefulController with GetSingleTicker
   }
 
   Future<void> send(List<PlatformFile> attachments, AttributedBody text, String subject, String? replyGuid, int? replyPart, String? effectId, PayloadData? payload, bool isAudioMessage, DateTime? scheduledDate) async {
-    sendFunc?.call(Tuple7(attachments, text, subject, replyGuid, replyPart, effectId, payload), isAudioMessage, scheduledDate);
+    final callback = sendFunc;
+    if (callback == null) {
+      throw StateError("Conversation send handler is not ready");
+    }
+    await callback(Tuple7(attachments, text, subject, replyGuid, replyPart, effectId, payload), isAudioMessage, scheduledDate);
   }
 
   void queueImage(Tuple4<Attachment, PlatformFile, BuildContext, Completer<Uint8List>> item) {

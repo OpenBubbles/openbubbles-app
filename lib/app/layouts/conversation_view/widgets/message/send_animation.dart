@@ -148,7 +148,7 @@ class _SendAnimationState
         ],
       );
       _message.generateTempGuid();
-      outq.queue(OutgoingItem(
+      await outq.queue(OutgoingItem(
         type: QueueType.sendMessage,
         chat: controller.chat,
         message: _message,
