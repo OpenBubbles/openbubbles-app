@@ -3558,8 +3558,14 @@ class RustPushService extends GetxService {
     if (myMsg.message is api.Message_Error) {
       var message = myMsg.message as api.Message_Error;
       var mistakeFor = Message.findOne(guid: message.field0.forUuid);
-      // if we've been delivered, well :shrug: probably some stray device complaining 
+      // if we've been delivered, well :shrug: probably some stray device complaining
       if (mistakeFor == null || mistakeFor.isDelivered) return; // multiple errors will likely come in, at which point guid will be bad.
+      // delivered/read receipts reuse the original message's UUID (see markCertified/markRead), so an error
+      // for a message we didn't author is a rejected receipt, not a send failure. Don't flag the received message.
+      if (mistakeFor.isFromMe != true) {
+        Logger.debug("Ignoring error ${message.field0.statusStr} for receipt on ${message.field0.forUuid}");
+        return;
+      }
       // do not flag 300 error messages for self handles
       var myHandles = (await api.getHandles(state: pushService.state!.client));
       if (!myHandles.contains(myMsg.sender)) return;
