@@ -3729,25 +3729,18 @@ class RustPushService extends GetxService {
       return;
     }
     if (myMsg.message is api.Message_Typing) {
-      if (myMsg.verificationFailed) return; 
-      final controller = cvc(chat);
+      if (myMsg.verificationFailed) return;
+      // typing state lives on ChatManager (not the view controller) so it survives leaving the chat
+      final typingState = cm.typingFor(chat.guid);
       var handle = RustPushBBUtils.rustHandleToBB(myMsg.sender!);
-
-      if (controller.typingIndicatorData[handle.address] != null) {
-        controller.typingIndicatorData[handle.address]?.$1.cancel();
-        controller.typingIndicatorData.remove(handle.address);
-      }
+      // a fresh packet restarts the expiry clock
+      typingState.data.remove(handle.address)?.$1.cancel();
 
       var typing = myMsg.message as api.Message_Typing;
       if (typing.field0) {
-        if (!controller.showTypingIndicatorFor.any((h) => handle.address == h.address)) {
-          controller.showTypingIndicatorFor.add(handle);
+        if (!typingState.handles.any((h) => handle.address == h.address)) {
+          typingState.handles.add(handle);
         }
-        var future = Future.delayed(const Duration(minutes: 1));
-        var subscription = future.asStream().listen((any) {
-          controller.showTypingIndicatorFor.remove(handle);
-          controller.typingIndicatorData.remove(handle.address);
-        });
         Uint8List? icon;
         if (typing.field1 != null) {
           String? i = es.cachedStatus.firstWhereOrNull((i) => i.madridBundleId == typing.field1!.bundleId)?.available?.icon;
@@ -3757,27 +3750,17 @@ class RustPushService extends GetxService {
             icon = typing.field1!.icon;
           }
         }
-        controller.typingIndicatorData[handle.address] = (subscription, icon);
+        // iMessage only announces when typing starts, so expire on our own if nothing follows
+        final timer = Timer(const Duration(minutes: 1), () => typingState.stop(handle.address));
+        typingState.data[handle.address] = (timer, icon);
       } else {
-        var existing = controller.showTypingIndicatorFor.firstWhereOrNull((h) => handle.address == h.address);
-        if (existing != null) {
-          controller.showTypingIndicatorFor.remove(existing);
-        }
+        typingState.stop(handle.address);
       }
       return;
     }
     if (myMsg.message is api.Message_Message) {
-      final controller = cvc(chat);
-      
       var handle = RustPushBBUtils.rustHandleToBB(myMsg.sender!);
-      var existing = controller.showTypingIndicatorFor.firstWhereOrNull((h) => handle.address == h.address);
-      if (existing != null) {
-        controller.showTypingIndicatorFor.remove(existing);
-      }
-      if (controller.typingIndicatorData[handle.address] != null) {
-        controller.typingIndicatorData[handle.address]?.$1.cancel();
-        controller.typingIndicatorData.remove(handle.address);
-      }
+      cm.typingFor(chat.guid).stop(handle.address);
 
       if (chat.isRpSms && !myMsg.verificationFailed) {
         var myHandles = await api.getMyPhoneHandles(state: pushService.state!.client);
