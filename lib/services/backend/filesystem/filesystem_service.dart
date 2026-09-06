@@ -1,6 +1,7 @@
 import 'package:bluebubbles/helpers/helpers.dart';
 import 'package:bluebubbles/database/database.dart' as db;
 import 'package:bluebubbles/services/ui/contact_service.dart';
+import 'package:bluebubbles/services/ui/chat/chat_manager.dart';
 import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:collection/collection.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -114,6 +115,7 @@ class FilesystemService extends GetxService {
     if (kIsWeb) return;
     db.Database.reset();
     cs.contacts.clear();
+    cm.clearTyping();
   }
 
   String uriToFilename(String? uri, String? mimeType) {

@@ -48,7 +48,8 @@ class ConversationViewController extends StatefulController with GetSingleTicker
   final Map<String, List<EntityAnnotation>> mlKitParsedText = {};
 
   // message view items
-  final RxList<Handle> showTypingIndicatorFor = <Handle>[].obs;
+  // typing state is owned by ChatManager so it outlives this controller (see cm.typingFor)
+  RxList<Handle> get showTypingIndicatorFor => cm.typingFor(chat.guid).handles;
   final RxBool showScrollDown = false.obs;
   final RxDouble timestampOffset = 0.0.obs;
   final RxBool inSelectMode = false.obs;
@@ -58,7 +59,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
   final RxBool recipientNotifsSilenced = false.obs;
   bool showingOverlays = false;
   bool _subjectWasLastFocused = false; // If this is false, then message field was last focused (default)
-  final Map<String, (StreamSubscription<dynamic>, Uint8List?)> typingIndicatorData = {};
+  Map<String, (Timer, Uint8List?)> get typingIndicatorData => cm.typingFor(chat.guid).data;
 
   FocusNode get lastFocusedNode => _subjectWasLastFocused ? subjectFocusNode : focusNode;
   SpellCheckTextEditingController get lastFocusedTextController => _subjectWasLastFocused ? subjectTextController : textController;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:bluebubbles/utils/logger/logger.dart';
 import 'package:bluebubbles/database/models.dart';
@@ -16,6 +17,18 @@ class ChatManager extends GetxService {
   ChatLifecycleManager? activeChat;
   api.ChannelInterestToken? provider;
   final Map<String, ChatLifecycleManager> _chatControllers = {};
+  /// Typing indicator state keyed by chat guid. Lives here rather than on the
+  /// ConversationViewController so it survives leaving and re-entering a chat.
+  final Map<String, TypingState> _typing = {};
+
+  TypingState typingFor(String guid) => _typing.putIfAbsent(guid, TypingState.new);
+
+  void clearTyping() {
+    for (final state in _typing.values) {
+      state.clear();
+    }
+    _typing.clear();
+  }
 
   /// Same as setAllInactive but but removes lastOpenedChat from prefs on next frame
   void setAllInactiveSync({save = true, bool clearActive = true}) {
@@ -226,5 +239,24 @@ class ChatManager extends GetxService {
     }) ?? completer.complete([]);
 
     return completer.future;
+  }
+}
+
+/// Who is currently typing in a chat, with a per-handle expiry timer and optional app icon.
+class TypingState {
+  final RxList<Handle> handles = <Handle>[].obs;
+  final Map<String, (Timer, Uint8List?)> data = {};
+
+  void stop(String address) {
+    data.remove(address)?.$1.cancel();
+    handles.removeWhere((h) => h.address == address);
+  }
+
+  void clear() {
+    for (final entry in data.values) {
+      entry.$1.cancel();
+    }
+    data.clear();
+    handles.clear();
   }
 }
