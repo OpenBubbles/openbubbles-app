@@ -1112,7 +1112,35 @@ class Message {
       chat ??= Chat.findByRustGuid(c.chatId);
     }
 
-    if (chat?.isRpSms ?? true) return;
+    final chatIdParts = c.chatId.split(";");
+    if (chat == null && chatIdParts.length >= 3) {
+      // older chats may lack chatIdentifier, so fall back to matching a DM by participant address
+      final ident = chatIdParts[2];
+      if (ident.isNotEmpty && ident != "null") {
+        final query = (Database.chats.query(Chat_.dateDeleted.isNull())
+              ..linkMany(Chat_.handles, Handle_.address.equals(ident)))
+            .build();
+        final results = query.find();
+        query.close();
+        chat = results.firstWhereOrNull((ch) => !ch.isGroup);
+      }
+    }
+    if (chat == null) {
+      // last resort: route by the original chat guid carried in proto4
+      try {
+        if (c.msgProto4 != null) {
+          final proto4 = api.decodeMessageproto4(wrapped: c.msgProto4!);
+          if (proto4.groupId != null) {
+            chat = Chat.findByRustGuid(proto4.groupId!);
+          }
+        }
+      } catch (_) {}
+    }
+    if (chat == null) {
+      Logger.warn("Cloud message ${c.guid} references unknown chat ${c.chatId}; skipping");
+      return;
+    }
+    if (chat.isRpSms) return;
 
     Logger.info("Syncing new message");
 
@@ -1164,8 +1192,19 @@ class Message {
         associatedMessageType = "-${ReactionTypes.toList()[proto1.associatedMessageType! - 3000]}";
       }
     }
-    associatedMessageGuid = proto1.associatedMessageGuid;
-    associatedMessagePart = attributedBody.firstOrNull?.runs.firstWhereOrNull((b) => b.range[0] == proto1.associatedMessageRangeLocation && b.range[1] == proto1.associatedMessageRangeLength)?.attributes?.messagePart;
+    // the cloud stores the target in Apple's prefixed form ("p:<part>/<guid>"),
+    // but locally reactions are linked by the bare guid
+    var amg = proto1.associatedMessageGuid;
+    int? amgPart;
+    if (amg != null && amg.contains("/")) {
+      var prefix = amg.substring(0, amg.indexOf("/"));
+      amg = amg.substring(amg.indexOf("/") + 1);
+      if (prefix.startsWith("p:")) {
+        amgPart = int.tryParse(prefix.substring(2));
+      }
+    }
+    associatedMessageGuid = amg;
+    associatedMessagePart = amgPart ?? attributedBody.firstOrNull?.runs.firstWhereOrNull((b) => b.range[0] == proto1.associatedMessageRangeLocation && b.range[1] == proto1.associatedMessageRangeLength)?.attributes?.messagePart;
     guid = c.guid;
     var bits = c.flags.bits();
     isFromMe = (bits & IS_FROM_ME) != 0;

@@ -432,6 +432,8 @@ class RustPushBackend implements BackendService {
     var formattedHandles = addresses.map((e) => RustPushBBUtils.rustHandleToBB(e)).toList();
     var chat = Chat(
       guid: existingGuid ?? uuid.v4(),
+      // cloud sync routes DM messages by chatIdentifier; leaving it null orphans them
+      chatIdentifier: formattedHandles.length == 1 ? formattedHandles[0].address : null,
       participants: formattedHandles,
       usingHandle: handle,
       isRpSms: service == "SMS",
