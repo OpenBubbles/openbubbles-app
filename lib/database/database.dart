@@ -86,6 +86,57 @@ class Database {
       Logger.error("Failed to perform database migrations!", error: e, trace: s);
     }
 
+    try {
+      if (ss.prefs.getBool('cloudReactionRepair-1') != true) {
+        // Repair reactions restored from iCloud that kept Apple's "p:<part>/<guid>"
+        // prefix in associatedMessageGuid — locally reactions link by the bare guid
+        final query = Database.messages.query(Message_.associatedMessageGuid.contains("/")).build();
+        final broken = query.find();
+        query.close();
+        for (Message m in broken) {
+          final amg = m.associatedMessageGuid!;
+          final prefix = amg.substring(0, amg.indexOf("/"));
+          m.associatedMessageGuid = amg.substring(amg.indexOf("/") + 1);
+          if (prefix.startsWith("p:")) {
+            m.associatedMessagePart ??= int.tryParse(prefix.substring(2));
+          }
+        }
+        if (broken.isNotEmpty) Database.messages.putMany(broken);
+        // Cloud restore used to drop messages whose chat hadn't synced yet while still
+        // advancing the checkpoint; reset the checkpoints so the next sync re-pages
+        // from the start and picks those messages up
+        await ss.prefs.remove("chatSyncToken");
+        await ss.prefs.remove("attachmentSyncToken");
+        await ss.prefs.remove("messageSyncToken");
+        await ss.prefs.setBool('cloudReactionRepair-1', true);
+        Logger.info("Repaired ${broken.length} cloud-restored reactions and reset cloud sync checkpoints");
+      }
+    } catch (e, s) {
+      Logger.error("Failed to repair cloud-restored reactions!", error: e, trace: s);
+    }
+
+    try {
+      if (ss.prefs.getBool('cloudChatIdentifierRepair-1') != true) {
+        // Live-created chats never set chatIdentifier, which cloud sync uses to route
+        // DM messages — backfill it so the next sync can attach orphaned messages
+        final allChats = Database.chats.getAll();
+        final List<Chat> repaired = [];
+        for (Chat c in allChats) {
+          if (c.chatIdentifier == null && c.handles.length == 1) {
+            c.chatIdentifier = c.handles.first.address;
+            repaired.add(c);
+          }
+        }
+        if (repaired.isNotEmpty) Database.chats.putMany(repaired);
+        // re-page messages so previously-orphaned ones get attached
+        await ss.prefs.remove("messageSyncToken");
+        await ss.prefs.setBool('cloudChatIdentifierRepair-1', true);
+        Logger.info("Backfilled chatIdentifier on ${repaired.length} chats and reset the message sync checkpoint");
+      }
+    } catch (e, s) {
+      Logger.error("Failed to backfill chat identifiers!", error: e, trace: s);
+    }
+
     initComplete.complete();
   }
 
