@@ -1265,7 +1265,17 @@ class RustPushBackend implements BackendService {
 
   @override
   bool supportsFindMy() {
-    return pushService.state?.icloudServices?.fmfd != null;
+    return pushService.hasFindMy;
+  }
+
+  @override
+  bool supportsSharedStreams() {
+    return pushService.hasSharedStreams;
+  }
+
+  @override
+  bool supportsKeychain() {
+    return pushService.hasKeychain;
   }
 
   @override
@@ -1307,7 +1317,45 @@ class RustPushBackend implements BackendService {
 }
 
 class RustPushService extends GetxService {
-  api.SharedPushState? state;
+  api.SharedPushState? _state;
+  api.SharedPushState? get state => _state;
+  set state(api.SharedPushState? value) {
+    _state = value;
+    _cacheCapabilities(value);
+  }
+
+  // Which iCloud services the account has is only known once the push state has
+  // loaded, which happens a few seconds after launch. Remember the last known
+  // answer so UI built before that (the overflow menu, for example) doesn't
+  // briefly hide Find My / Shared Streams / Passwords.
+  static const _capFindMy = "capFindMy";
+  static const _capSharedStreams = "capSharedStreams";
+  static const _capKeychain = "capKeychain";
+
+  void _cacheCapabilities(api.SharedPushState? value) {
+    if (value == null) {
+      ss.prefs.remove(_capFindMy);
+      ss.prefs.remove(_capSharedStreams);
+      ss.prefs.remove(_capKeychain);
+      return;
+    }
+    final services = value.icloudServices;
+    ss.prefs.setBool(_capFindMy, services?.fmfd != null);
+    ss.prefs.setBool(_capSharedStreams, services?.sharedstreams != null);
+    ss.prefs.setBool(_capKeychain, services?.keychain != null);
+  }
+
+  bool get hasFindMy => _state != null
+      ? _state!.icloudServices?.fmfd != null
+      : ss.prefs.getBool(_capFindMy) ?? false;
+
+  bool get hasSharedStreams => _state != null
+      ? _state!.icloudServices?.sharedstreams != null
+      : ss.prefs.getBool(_capSharedStreams) ?? false;
+
+  bool get hasKeychain => _state != null
+      ? _state!.icloudServices?.keychain != null
+      : ss.prefs.getBool(_capKeychain) ?? false;
 
   Mixpanel? mixpanel;
 

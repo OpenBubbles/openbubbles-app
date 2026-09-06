@@ -173,7 +173,7 @@ class MaterialOverflowMenu extends StatelessWidget {
                 style: context.textTheme.bodyLarge!.apply(color: context.theme.colorScheme.properOnSurface),
               ),
             ),
-          if (pushService.state?.icloudServices?.sharedstreams != null)
+          if (backend.supportsSharedStreams())
             PopupMenuItem(
               value: 9,
               child: Text(
@@ -188,7 +188,7 @@ class MaterialOverflowMenu extends StatelessWidget {
                 style: context.textTheme.bodyLarge!.apply(color: context.theme.colorScheme.properOnSurface),
               ),
             ),
-          if (pushService.state?.icloudServices?.keychain != null)
+          if (backend.supportsKeychain())
           PopupMenuItem(
             value: 11,
             child: Text(
@@ -323,7 +323,7 @@ class CupertinoOverflowMenu extends StatelessWidget {
             icon: CupertinoIcons.location,
             onTap: () => goToFindMy(context),
           ),
-        if (pushService.state?.icloudServices?.sharedstreams != null)
+        if (backend.supportsSharedStreams())
           PullDownMenuItem(
             title: 'Shared Albums',
             icon: CupertinoIcons.photo,
@@ -334,7 +334,7 @@ class CupertinoOverflowMenu extends StatelessWidget {
           icon: CupertinoIcons.video_camera,
           onTap: () => goToFaceTime(context),
         ),
-        if (pushService.state?.icloudServices?.keychain != null)
+        if (backend.supportsKeychain())
         PullDownMenuItem(
           title: 'Passwords',
           icon: Icons.key,

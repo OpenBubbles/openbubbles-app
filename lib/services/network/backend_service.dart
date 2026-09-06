@@ -45,6 +45,8 @@ abstract class BackendService {
       {void Function(int, int)? onReceiveProgress, CancelToken? cancelToken});
   bool canSchedule();
   bool supportsFindMy();
+  bool supportsSharedStreams();
+  bool supportsKeychain();
   bool canCreateGroupChats();
   bool supportsSmsForwarding();
   void startedTyping(Chat c, [iMessageAppData? appdata]);
