@@ -277,6 +277,16 @@ class HttpBackend implements BackendService {
   }
 
   @override
+  bool supportsSharedStreams() {
+    return false;
+  }
+
+  @override
+  bool supportsKeychain() {
+    return false;
+  }
+
+  @override
   bool canCreateGroupChats() {
     return ss.canCreateGroupChatSync();
   }
