@@ -74,6 +74,7 @@ class Settings {
   final RxBool statusIndicatorsOnChats = false.obs;
   final RxInt apiTimeout = 30000.obs;
   final RxBool allowUpsideDownRotation = false.obs;
+  final RxBool systemRotation = true.obs; // Fold fix: let Android decide rotation (no requested orientation)
   final RxBool cancelQueuedMessages = false.obs;
   final RxBool repliesToPrevious = false.obs;
   final RxnString localhostPort = RxnString(null);
@@ -361,6 +362,7 @@ class Settings {
       'indicatorsOnPinnedChats': statusIndicatorsOnChats.value,
       'apiTimeout': apiTimeout.value,
       'allowUpsideDownRotation': allowUpsideDownRotation.value,
+      'systemRotation': systemRotation.value,
       'cancelQueuedMessages': cancelQueuedMessages.value,
       'repliesToPrevious': repliesToPrevious.value,
       'useLocalhost': localhostPort.value,
@@ -525,6 +527,7 @@ class Settings {
     ss.settings.statusIndicatorsOnChats.value = map['indicatorsOnPinnedChats'] ?? false;
     ss.settings.apiTimeout.value = map['apiTimeout'] ?? 15000;
     ss.settings.allowUpsideDownRotation.value = map['allowUpsideDownRotation'] ?? false;
+    ss.settings.systemRotation.value = map['systemRotation'] ?? true;
     ss.settings.cancelQueuedMessages.value = map['cancelQueuedMessages'] ?? false;
     ss.settings.repliesToPrevious.value = map['repliesToPrevious'] ?? false;
     ss.settings.localhostPort.value = map['useLocalhost'];
@@ -699,6 +702,7 @@ class Settings {
     s.statusIndicatorsOnChats.value = map['indicatorsOnPinnedChats'] ?? false;
     s.apiTimeout.value = map['apiTimeout'] ?? 15000;
     s.allowUpsideDownRotation.value = map['allowUpsideDownRotation'] ?? false;
+    s.systemRotation.value = map['systemRotation'] ?? true;
     s.cancelQueuedMessages.value = map['cancelQueuedMessages'] ?? false;
     s.repliesToPrevious.value = map['repliesToPrevious'] ?? false;
     s.localhostPort.value = map['useLocalhost'];

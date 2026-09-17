@@ -54,7 +54,11 @@ class SettingsService extends GetxService {
       if (settings.immersiveMode.value) {
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       }
-      SystemChrome.setPreferredOrientations([
+      // Foldables (Galaxy Z Fold inner screen): the explicit three-orientation list maps to Android's
+      // SCREEN_ORIENTATION_USER, which pins the panel's natural orientation (landscape on the inner
+      // display) whenever rotation lock is on. An empty list is SCREEN_ORIENTATION_UNSPECIFIED, the
+      // same as every normal app, so the system's own foldable handling applies.
+      SystemChrome.setPreferredOrientations(settings.systemRotation.value ? [] : [
         DeviceOrientation.landscapeRight,
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.portraitUp,

@@ -392,9 +392,33 @@ class _MiscPanelState extends OptimizedState<MiscPanel> {
                   if (Platform.isAndroid)
                     Obx(() => SettingsSwitch(
                           onChanged: (bool val) {
+                            ss.settings.systemRotation.value = val;
+                            saveSettings();
+                            SystemChrome.setPreferredOrientations(val ? [] : [
+                              DeviceOrientation.landscapeRight,
+                              DeviceOrientation.landscapeLeft,
+                              DeviceOrientation.portraitUp,
+                              if (ss.settings.allowUpsideDownRotation.value) DeviceOrientation.portraitDown,
+                            ]);
+                          },
+                          initialVal: ss.settings.systemRotation.value,
+                          title: "Follow System Rotation",
+                          subtitle: "Recommended on foldables. Off restores the app's own orientation list.",
+                          backgroundColor: tileColor,
+                          leading: const SettingsLeadingIcon(
+                            iosIcon: CupertinoIcons.device_phone_portrait,
+                            materialIcon: Icons.screen_rotation_alt,
+                            containerColor: Colors.teal
+                          ),
+                        )),
+                  if (Platform.isAndroid)
+                    const SettingsDivider(),
+                  if (Platform.isAndroid)
+                    Obx(() => SettingsSwitch(
+                          onChanged: (bool val) {
                             ss.settings.allowUpsideDownRotation.value = val;
                             saveSettings();
-                            SystemChrome.setPreferredOrientations([
+                            SystemChrome.setPreferredOrientations(ss.settings.systemRotation.value ? [] : [
                               DeviceOrientation.landscapeRight,
                               DeviceOrientation.landscapeLeft,
                               DeviceOrientation.portraitUp,
