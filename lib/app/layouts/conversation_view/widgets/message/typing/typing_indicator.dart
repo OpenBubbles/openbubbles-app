@@ -29,9 +29,19 @@ class _TypingIndicatorState extends OptimizedState<TypingIndicator> {
 
   @override
   Widget build(BuildContext context) {
+    // Both of these can be null (const TypingIndicator()), and the old `!` on the result threw.
+    final visible = widget.controller?.showTypingIndicatorFor.isNotEmpty ?? widget.visible ?? false;
+    // The chat list tiles are the call sites that pass no controller, so branch on that instead of
+    // on cm.activeChat. cm.activeChat is also non-null whenever a chat is open in the other pane
+    // (tablet mode, unfolded foldable), which made the list tiles fall into the avatar branch and
+    // render an empty ContactAvatarGroupWidget next to the dots.
+    final inChatList = widget.controller == null;
     return AnimatedSize(
+      // Grow and shrink from the leading edge. The default centre alignment slid the dots sideways
+      // for the whole 200ms as the indicator appeared and disappeared.
+      alignment: Alignment.centerLeft,
       duration: const Duration(milliseconds: 200),
-      child: (widget.controller?.showTypingIndicatorFor.isNotEmpty ?? widget.visible)! ? (iOS || cm.activeChat == null ? ClipPath(
+      child: visible ? (iOS || inChatList ? ClipPath(
         clipper: const TypingClipper(),
         child: Container(
           height: 50,
@@ -43,6 +53,10 @@ class _TypingIndicatorState extends OptimizedState<TypingIndicator> {
               Container(
                 child: ClipRRect(child: Image.memory(widget.controller!.typingIndicatorData[widget.controller!.showTypingIndicatorFor.first.address]!.$2!), borderRadius: BorderRadius.circular(99),),
                 padding: const EdgeInsets.symmetric(horizontal: 10),
+                // The bubble is 50 tall with 10 top and 20 bottom padding, so the row has 20 to give.
+                // Without a height the decoded icon lays out at its intrinsic pixel size and overflows
+                // the row, which is what the matching branch below already guards against with 25.
+                height: 20,
               ),
               AnimatedDot(index: 2),
               AnimatedDot(index: 1),
@@ -93,18 +107,17 @@ class _AnimatedDotState extends OptimizedState<AnimatedDot> with SingleTickerPro
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 700), animationBehavior: AnimationBehavior.preserve);
-    _controller.addStatusListener((state) {
-      if (state == AnimationStatus.completed && mounted) {
-        _controller.forward(from: 0.0);
-      }
-    });
 
     animation = Tween(
       begin: 0.0,
       end: math.pi,
     ).animate(_controller);
 
-    _controller.forward(from: 0.0);
+    // repeat() drives the whole loop off one continuous ticker. Restarting with forward(from: 0)
+    // from a status listener stopped and restarted the ticker on every cycle, and the first frame
+    // after a restart reports zero elapsed time, so the dots stalled for a frame every 700ms.
+    // It also removes the listener that could call forward() on a controller being torn down.
+    _controller.repeat();
   }
 
   @override
