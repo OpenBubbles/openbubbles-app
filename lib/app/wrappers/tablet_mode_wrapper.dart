@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:bluebubbles/helpers/ui/theme_helpers.dart';
@@ -43,6 +44,8 @@ class _TabletModeWrapperState extends OptimizedState<TabletModeWrapper> {
   late final RxDouble _ratio;
   double? _maxWidth;
   bool? altLayoutCache;
+  StreamSubscription? _eventSub;
+  Worker? _ratioWorker;
 
   get _width1 => max(min(_ratio * _maxWidth!, widget.maxWidthLeft ?? double.infinity), widget.minWidthLeft ?? double.negativeInfinity);
 
@@ -51,20 +54,38 @@ class _TabletModeWrapperState extends OptimizedState<TabletModeWrapper> {
   @override
   void initState() {
     super.initState();
-    _ratio = RxDouble((ss.prefs.getDouble('splitRatio') ?? widget.initialRatio).clamp(widget.minRatio, widget.maxRatio));
-    eventDispatcher.stream.listen((event) {
+    _ratio = RxDouble(_clampRatio(ss.prefs.getDouble('splitRatio') ?? widget.initialRatio));
+    _eventSub = eventDispatcher.stream.listen((event) {
+      if (!mounted) return;
       if (event.item1 == 'split-refresh') {
-        _ratio.value = ss.prefs.getDouble('splitRatio') ?? _ratio.value;
+        // splitRatio is a single global pref shared by every TabletModeWrapper, and the search
+        // view drives a deliberately narrow ratio through it. Re-clamp on read so a value that
+        // was saved by another pane, or for a different screen size, cannot land outside the
+        // bounds this wrapper was built with. Only the constructor clamped before.
+        _ratio.value = _clampRatio(ss.prefs.getDouble('splitRatio') ?? _ratio.value);
         setState(() {});
       } else if (event.item1 == 'override-split') {
+        // deliberately not clamped: goToSearch pushes this below minRatio and restores it after
         _ratio.value = event.item2;
         setState(() {});
       }
     });
-    debounce<double>(_ratio, (val) async {
+    _ratioWorker = debounce<double>(_ratio, (val) async {
       await ss.prefs.setDouble('splitRatio', val);
       eventDispatcher.emit('split-refresh', null);
     });
+  }
+
+  double _clampRatio(double value) => value.clamp(widget.minRatio, widget.maxRatio);
+
+  @override
+  void dispose() {
+    // Neither of these was ever torn down. Every time this wrapper was rebuilt (skin change,
+    // theme switch, moving in and out of the split layout) it left another live listener and
+    // another debounce worker writing to the split pref.
+    _eventSub?.cancel();
+    _ratioWorker?.dispose();
+    super.dispose();
   }
 
   @override

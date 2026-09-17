@@ -28,8 +28,12 @@ class NavigatorService extends GetxService {
   /// Returns widthChatListLeft if in tablet mode, and 0 otherwise
   double widthChatListLeft(BuildContext context) => isTabletMode(context) ? _widthChatListLeft ?? 0 : 0;
 
+  /// Must agree with [ThemeHelpers.showAltLayout], which is what actually decides whether the
+  /// nested navigators (ids 1 and 2) get built. Without the isBubble check an Android chat bubble
+  /// wide enough to clear 600dp reported tablet mode while the panes were never created, so
+  /// push/pushLeft/backConversationView routed into navigators that are not in the tree.
   bool isTabletMode(BuildContext context) => (!context.isPhone || context.width / context.height > 0.8) &&
-      ss.settings.tabletMode.value && context.width > 600;
+      ss.settings.tabletMode.value && context.width > 600 && !ls.isBubble;
 
   /// grab the available screen width, returning the split screen width if applicable
   /// this should *always* be used in place of context.width or similar

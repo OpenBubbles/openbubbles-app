@@ -148,6 +148,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
   }
 
   StreamSubscription<int>? shareSubscription;
+  StreamSubscription<bool>? keyboardSubscription;
 
   @override
   void onInit() {
@@ -158,7 +159,7 @@ class ConversationViewController extends StatefulController with GetSingleTicker
     updateContactInfo();
 
     textController.mentionables = mentionables;
-    KeyboardVisibilityController().onChange.listen((bool visible) async {
+    keyboardSubscription = KeyboardVisibilityController().onChange.listen((bool visible) async {
       keyboardOpen = visible;
       if (scrollController.hasClients) {
         _keyboardOffset = scrollController.offset;
@@ -229,6 +230,10 @@ class ConversationViewController extends StatefulController with GetSingleTicker
     scrollController.dispose();
     headerBackFocusNode.dispose();
     shareSubscription?.cancel();
+    // This one was never cancelled, so every chat that was opened left a listener running for the
+    // rest of the process, each of them reaching into a scroll controller disposed on the line
+    // above every time the keyboard opened or closed.
+    keyboardSubscription?.cancel();
     super.onClose();
   }
 

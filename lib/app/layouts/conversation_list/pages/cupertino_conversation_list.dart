@@ -363,6 +363,12 @@ class CupertinoConversationListState
                             ),
                           );
                         }),
+                        // targetSdk 36 means Android always draws this behind the navigation bar
+                        // and ignores systemNavigationBarColor, and a CustomScrollView (unlike the
+                        // ListView the Material list uses) does not consume MediaQuery padding on
+                        // its own, so the last chat sat under the gesture pill and could not be
+                        // scrolled clear of it. The Samsung list already gets this from a SafeArea.
+                        SliverPadding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom)),
                       ],
                     )),
               ),
