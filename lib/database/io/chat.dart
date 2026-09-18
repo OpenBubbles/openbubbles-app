@@ -893,11 +893,23 @@ class Chat {
   }
 
   bool applyFromCloud(api.CloudChat c, String record) {
+    // No-op fast path: same CloudKit record, same group version → nothing changed.
+    // Without this guard, every incremental sync pass rewrites the chat row,
+    // which fires ObjectBox reactive observers for the chat list and grows
+    // resident memory on accounts with many groups (verified at 200+ chats
+    // running sync in a loop pegged one CPU core at 99% with monotonic RAM
+    // growth until OOM).
+    if (ckRecordId == record && c.properties?.pv == (groupVersion ?? 1)) {
+      return false;
+    }
+
     chatIdentifier = c.chatIdentifier;
     ckRecordId = record;
     cloudGuid = c.groupId;
     ckSyncState = c.properties?.pv == (groupVersion ?? 1);
     if (c.properties?.pv == null || c.properties!.pv! <= (groupVersion ?? 1)) {
+      // Only persist the chatIdentifier / cloudGuid / ckSyncState changes —
+      // the version-bump path below will write everything else.
       Database.chats.put(this);
       return false;
     }

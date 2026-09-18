@@ -1097,7 +1097,18 @@ class Message {
     );
   }
 
-  void applyFromCloud(api.CloudMessage c, String cloudkitId) {
+  bool applyFromCloud(api.CloudMessage c, String cloudkitId) {
+    // No-op fast path: same CloudKit record already applied → return false so
+    // the caller skips the redundant save. Without this guard, every sync pass
+    // re-decodes the proto, re-runs balloon decoding, allocates new lists for
+    // attributedBody, and writes the row again — re-firing ObjectBox reactive
+    // observers and growing resident memory until the UI thread is starved.
+    // Reproduced: 151 MB ObjectBox store, sync loop pegged a CPU core at 99%
+    // for >15 minutes with monotonic RAM growth (2.5 GB observed).
+    if (ckRecordId == cloudkitId) {
+      Logger.info("item ${c.chatId}");
+      return false;
+    }
     Logger.info("item ${c.chatId}");
     Chat? chat;
     if (c.chatId.contains(";")) {
@@ -1183,8 +1194,9 @@ class Message {
       var proto4 = api.decodeMessageproto4(wrapped: c.msgProto4!);
       associatedMessageEmoji = proto4.associatedMessageEmoji;
     }
-    
+
     save(chat: chat);
+    return true;
   }
 
   /// Fetch reactions

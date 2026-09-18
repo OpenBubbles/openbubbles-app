@@ -2453,6 +2453,13 @@ class RustPushService extends GetxService {
 
           var existing = Attachment.findOne(convertAttachmentGuid(decoded.guid));
           if (existing != null) {
+            if (existing.ckRecordId == item.key) {
+              // Already up-to-date for this CloudKit record — skip the save.
+              // Mirrors the message-side guard above; without it the same sync
+              // loop re-fires ObjectBox reactive queries per attachment per
+              // pass and resident memory grows without bound.
+              continue;
+            }
             if (existing.ckRecordId != null && existing.ckRecordId != item.key) {
               // we have a different record id
               dupDeleteAttachments.add(existing.ckRecordId!);
@@ -2529,7 +2536,13 @@ class RustPushService extends GetxService {
           var existing = Message.findOne(guid: item.value!.guid);
           if (existing != null) {
             if (existing.ckRecordId == item.key) {
+              // Already up-to-date for this CloudKit record — skip the save.
+              // Without this guard, every sync pass writes the row again, which
+              // re-fires ObjectBox reactive observers and grows resident memory
+              // until the UI thread is starved. The flags on `existing` are
+              // unchanged from the prior pass, so the write is a true no-op.
               localUnchanged++;
+              continue;
             } else if (existing.ckRecordId != null) {
               // we have a different record id
               dupDeleteMessages.add(existing.ckRecordId!);
