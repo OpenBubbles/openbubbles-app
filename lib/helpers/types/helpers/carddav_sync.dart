@@ -536,10 +536,11 @@ class CardDavClient {
 
   Future<contacts.Contact> _myContactFromVCard(String vcard, Uri href) async {
     final contact = Contact.fromVCard(vcard);
+    final id = _stableContactId(vcard, href);
     final inlinePhoto = _extractInlinePhotoBytes(vcard);
     if (inlinePhoto != null && inlinePhoto.isNotEmpty) {
       contact.photo = inlinePhoto;
-      return _toMyContact(contact);
+      return _toMyContact(contact, id);
     }
     final photoUri = _extractPhotoUri(vcard, href);
     if (photoUri != null && (contact.photo == null || contact.photo!.isEmpty)) {
@@ -548,7 +549,23 @@ class CardDavClient {
         contact.photo = photoBytes;
       }
     }
-    return _toMyContact(contact);
+    return _toMyContact(contact, id);
+  }
+
+  /// A contact parsed with [Contact.fromVCard] has an empty id, so every
+  /// CardDAV contact used to be stored with id "". ContactsService matches
+  /// stored contacts to fetched ones by id, so all of them collided: entries
+  /// were overwritten with one contact's details, new contacts were never
+  /// added, and handles were linked to the wrong names.
+  ///
+  /// Use the vCard's UID when present, otherwise the card's URL on the server.
+  /// Both are unique per contact and stable across syncs.
+  String _stableContactId(String vcard, Uri href) {
+    final unfolded = vcard.replaceAll(RegExp(r'\r?\n[ \t]'), '');
+    final match = RegExp(r'^UID(?:;[^:\r\n]*)?:(.+)$', multiLine: true, caseSensitive: false).firstMatch(unfolded);
+    final uid = match?.group(1)?.trim();
+    if (uid != null && uid.isNotEmpty) return 'carddav-uid:$uid';
+    return 'carddav-href:$href';
   }
 
   Uint8List? _extractInlinePhotoBytes(String vcard) {
@@ -638,7 +655,7 @@ class CardDavClient {
     return results.whereType<T>().toList();
   }
 
-  contacts.Contact _toMyContact(Contact contact) {
+  contacts.Contact _toMyContact(Contact contact, String id) {
     final name = contact.name;
     final phones = contact.phones
         .map((p) => p.number.trim())
@@ -648,9 +665,19 @@ class CardDavClient {
         .map((e) => e.address.trim())
         .where((e) => e.isNotEmpty)
         .toList();
+    // Cards without a formatted name (FN) would otherwise show up blank.
+    var displayName = contact.displayName.trim();
+    if (displayName.isEmpty) {
+      displayName = [name.prefix, name.first, name.middle, name.last, name.suffix]
+          .where((s) => s.trim().isNotEmpty)
+          .join(' ');
+    }
+    if (displayName.isEmpty) {
+      displayName = phones.isNotEmpty ? phones.first : (emails.isNotEmpty ? emails.first : '');
+    }
     return contacts.Contact(
-      id: contact.id,
-      displayName: contact.displayName,
+      id: contact.id.isNotEmpty ? contact.id : id,
+      displayName: displayName,
       phones: phones,
       emails: emails,
       structuredName: structured.StructuredName(

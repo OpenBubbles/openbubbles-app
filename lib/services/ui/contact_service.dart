@@ -68,6 +68,21 @@ class ContactsService extends GetxService {
 
     // compare loaded contacts to db contacts
     if (!kIsWeb) {
+      if (kIsDesktop) {
+        // Contacts synced over CardDAV used to be stored with an empty id, so
+        // they all matched each other below and overwrote one another. They
+        // now get stable ids; drop the old empty-id rows so they're replaced
+        // by correctly identified ones in this sync.
+        final broken = Database.contacts
+            .getAll()
+            .where((c) => c.id.isEmpty && !c.isShared && c.dbId != null)
+            .map((c) => c.dbId!)
+            .toList();
+        if (broken.isNotEmpty) {
+          Database.contacts.removeMany(broken);
+          Logger.info("Removed ${broken.length} contacts stored without an id; re-adding them from the contact server");
+        }
+      }
       final dbContacts = Database.contacts.getAll();
       // save any updated contacts
       for (Contact c in dbContacts) {
