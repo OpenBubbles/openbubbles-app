@@ -356,7 +356,32 @@ class ContactsService extends GetxService {
           state: MemoryStateStore(),
         );
       } else {
-        if (pushService.state?.icloudServices == null) return [];
+        if (pushService.state?.icloudServices == null) {
+          if (ss.settings.serverAddress.value.isNotEmpty) {
+            logger?.call("Fetching contacts from BlueBubbles server...");
+            try {
+              final response = await http.contacts();
+              if (response.statusCode == 200 && !isNullOrEmpty(response.data['data'])) {
+                for (Map<String, dynamic> map in response.data['data']) {
+                  final displayName = getDisplayName(map['displayName'], map['firstName'], map['lastName']);
+                  final emails = (map['emails'] as List<dynamic>? ?? []).map((e) => e['address'].toString()).toList();
+                  final phones = (map['phoneNumbers'] as List<dynamic>? ?? []).map((e) => e['address'].toString()).toList();
+                  networkContacts.add(Contact(
+                    id: (map['id'] ?? (phones.isNotEmpty ? phones : emails)).toString(),
+                    displayName: displayName,
+                    emails: emails,
+                    phones: phones,
+                  ));
+                }
+                return networkContacts;
+              }
+            } catch (e, s) {
+              logger?.call("Failed to fetch server contacts: $e");
+              Logger.error("Failed to fetch server contacts", error: e, trace: s);
+            }
+          }
+          return [];
+        }
         client = CardDavClient(
           principalUrl: Uri.parse('https://contacts.icloud.com/'),
           authHeadersProvider: () async {
