@@ -17,6 +17,7 @@ import 'package:bluebubbles/app/layouts/setup/pages/sync/sync_settings.dart';
 import 'package:bluebubbles/app/layouts/setup/pages/sync/server_credentials.dart';
 import 'package:bluebubbles/app/layouts/setup/pages/contacts/request_contacts.dart';
 import 'package:bluebubbles/app/layouts/setup/pages/bluetooth/request_bluetooth.dart';
+import 'package:bluebubbles/app/layouts/setup/pages/connection_mode/connection_mode_page.dart';
 import 'package:bluebubbles/app/layouts/setup/pages/setup_checks/mac_setup_check.dart';
 import 'package:bluebubbles/app/layouts/setup/pages/sync/sync_progress.dart';
 import 'package:bluebubbles/app/layouts/setup/pages/welcome/welcome_page.dart';
@@ -1085,23 +1086,24 @@ class SetupPages extends StatelessWidget {
           if (!kIsWeb && !kIsDesktop && !ss.settings.isDumb.value) RequestContacts(),
           if (!kIsWeb && !kIsDesktop && !ss.settings.isDumb.value) BatteryOptimizationCheck(),
           if (!kIsWeb && !kIsDesktop && !ss.settings.isDumb.value) RequestBluetooth(),
-          if (!usingRustPush)
+          if (!ss.settings.isDumb.value) ConnectionModePage(),
+          if (!ss.settings.useRustPush.value)
             MacSetupCheck(),
-          if (!usingRustPush)
+          if (!ss.settings.useRustPush.value)
             ServerCredentials(),
-          if (!kIsWeb && !usingRustPush)
+          if (!kIsWeb && !ss.settings.useRustPush.value)
             SyncSettings(),
-          if (!usingRustPush)
+          if (!ss.settings.useRustPush.value)
             SyncProgress(),
-          if (usingRustPush && !ss.settings.isDumb.value)
+          if (ss.settings.useRustPush.value && !ss.settings.isDumb.value)
             HwInp(key: controller._childKey),
-          if (usingRustPush && controller.supportsPhoneReg.value && !kIsDesktop)
+          if (ss.settings.useRustPush.value && controller.supportsPhoneReg.value && !kIsDesktop)
             const PhoneNumber(),
-          if (usingRustPush)
+          if (ss.settings.useRustPush.value)
             AppleIdLogin(),
-          if (usingRustPush)
+          if (ss.settings.useRustPush.value)
             AppleId2FA(),
-          if (usingRustPush)
+          if (ss.settings.useRustPush.value)
             FinalizePage(),
           //ThemeSelector(),
         ],

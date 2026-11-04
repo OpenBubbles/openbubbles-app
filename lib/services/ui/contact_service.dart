@@ -391,24 +391,29 @@ class ContactsService extends GetxService {
         );
       }
 
-      final synced = await client.syncAllAddressBooks();
+      try {
+        final synced = await client.syncAllAddressBooks();
 
-      for (final entry in synced.entries) {
-        final book = entry.key;
-        final changes = entry.value;
+        for (final entry in synced.entries) {
+          final book = entry.key;
+          final changes = entry.value;
 
-        print('AddressBook: ${book.displayName ?? book.url}');
-        print('Changes: ${changes.length}');
-        for (final ch in changes) {
-          if (ch.type == ChangeType.upsert) {
-            if (ch.contact != null) networkContacts.add(ch.contact!);
-            // Parse/store vCard as you like
-            print(
-                '  UPSERT ${ch.href} etag=${ch.etag} vcardLen=${ch.vcard?.length} contact=${ch.contact?.toMap()}');
-          } else {
-            print('  DELETE ${ch.href}');
+          print('AddressBook: ${book.displayName ?? book.url}');
+          print('Changes: ${changes.length}');
+          for (final ch in changes) {
+            if (ch.type == ChangeType.upsert) {
+              if (ch.contact != null) networkContacts.add(ch.contact!);
+              // Parse/store vCard as you like
+              print(
+                  '  UPSERT ${ch.href} etag=${ch.etag} vcardLen=${ch.vcard?.length} contact=${ch.contact?.toMap()}');
+            } else {
+              print('  DELETE ${ch.href}');
+            }
           }
         }
+      } catch (e, s) {
+        logger?.call("CardDAV contact sync failed: $e");
+        Logger.error("CardDAV contact sync failed", error: e, trace: s);
       }
       return networkContacts;
     }

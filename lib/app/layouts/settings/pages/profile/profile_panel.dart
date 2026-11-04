@@ -222,7 +222,9 @@ class _ProfilePanelState extends OptimizedState<ProfilePanel> with WidgetsBindin
           sender: handle,
           message: api.Message.updateProfile(api.UpdateProfileMessage(shareContacts: ss.settings.shareContactAutomatically.value, profile: profile)),
         );
-        await (backend as RustPushBackend).sendMsg(msg);
+        if (backend is RustPushBackend) {
+          await (backend as RustPushBackend).sendMsg(msg);
+        }
       }
     });
   }

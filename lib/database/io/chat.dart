@@ -513,7 +513,11 @@ class Chat {
         }
         save(updateUsingHandle: true);
       } else {
-        usingHandle = await (backend as RustPushBackend).getDefaultHandle();
+        if (backend is RustPushBackend) {
+          usingHandle = await (backend as RustPushBackend).getDefaultHandle();
+        } else {
+          usingHandle = ss.settings.defaultHandle.value;
+        }
         save(updateUsingHandle: true);
       }
     }

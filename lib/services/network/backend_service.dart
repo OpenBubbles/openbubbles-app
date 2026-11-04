@@ -5,7 +5,15 @@ import 'package:bluebubbles/services/services.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 
-BackendService backend = Get.isRegistered<BackendService>() ? Get.find<BackendService>() : Get.put(RustPushBackend());
+import 'package:bluebubbles/main.dart';
+import 'package:bluebubbles/services/network/http_service.dart';
+
+BackendService get backend {
+  if (Get.isRegistered<BackendService>()) {
+    return Get.find<BackendService>();
+  }
+  return Get.put<BackendService>(usingRustPush ? RustPushBackend() : HttpBackend());
+}
 enum ParticipantOp { Add, Remove }
 
 abstract class BackendService {
