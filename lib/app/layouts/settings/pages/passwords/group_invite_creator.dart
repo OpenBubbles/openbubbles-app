@@ -132,7 +132,7 @@ class GroupInviteCreatorState extends OptimizedState<GroupInviteCreator> {
 
   Future<void> addSelected(SelectedContact c) async {
     selectedContacts.add(c);
-    var handle = await (backend as RustPushBackend).getDefaultHandle();
+    var handle = backend is RustPushBackend ? await (backend as RustPushBackend).getDefaultHandle() : ss.settings.defaultHandle.value;
     try {
       var target = await RustPushBBUtils.formatAndAddPrefix(c.address);
       c.iMessage.value = await api.queryHandle(

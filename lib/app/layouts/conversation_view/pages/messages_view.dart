@@ -689,7 +689,11 @@ class MessagesViewState extends OptimizedState<MessagesView> {
                                                           );
                                                           msg.id = _messages.first.guid!;
                                                           try {
-                                                            await (backend as RustPushBackend).sendMsg(msg);
+                                                            if (backend is RustPushBackend) {
+                                                              await (backend as RustPushBackend).sendMsg(msg);
+                                                            } else {
+                                                              await backend.sendMessage(chat, _messages.first);
+                                                            }
                                                           } catch (e) {
                                                             Logger.error(e);
                                                             if (!chat.isRpSms) {

@@ -381,7 +381,9 @@ class MaterialHeader extends StatelessWidget implements PreferredSizeWidget {
                                 sender: await controller.chat.ensureHandle(),
                                 message: api.Message.shareProfile(await api.decodeProfileMessage(s: ss.settings.shareProfileMessage.value!)),
                               );
-                              await (backend as RustPushBackend).sendMsg(msg);
+                              if (backend is RustPushBackend) {
+                                await (backend as RustPushBackend).sendMsg(msg);
+                              }
                             },
                             child: Text("Share", style: context.theme.textTheme.titleMedium),
                           ),

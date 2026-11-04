@@ -117,8 +117,8 @@ Future<List<List<int>>> incrementalSyncIsolate(List? items) async {
       http.originOverride = address;
     }
 
-    if (usingRustPush) {
-      // just do contacts
+    if (usingRustPush && ss.settings.serverAddress.value.isEmpty) {
+      // just do contacts in standalone rustpush mode
       final refreshedItems = await cs.refreshContacts();
       Logger.info('Finished contact refresh, shouldRefresh $refreshedItems');
       port?.send(refreshedItems);

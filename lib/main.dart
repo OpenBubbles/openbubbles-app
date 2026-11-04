@@ -75,6 +75,10 @@ Future<Null> initApp(bool bubble, List<String> arguments) async {
       WidgetsFlutterBinding.ensureInitialized();
 
       await StartupTasks.initStartupServices(isBubble: bubble);
+      usingRustPush = ss.settings.useRustPush.value;
+      ss.settings.useRustPush.listen((val) {
+        usingRustPush = val;
+      });
 
       /* ----- RANDOM STUFF INITIALIZATION ----- */
       HttpOverrides.global = BadCertOverride();

@@ -356,7 +356,32 @@ class ContactsService extends GetxService {
           state: MemoryStateStore(),
         );
       } else {
-        if (pushService.state?.icloudServices == null) return [];
+        if (pushService.state?.icloudServices == null) {
+          if (ss.settings.serverAddress.value.isNotEmpty) {
+            logger?.call("Fetching contacts from BlueBubbles server...");
+            try {
+              final response = await http.contacts();
+              if (response.statusCode == 200 && !isNullOrEmpty(response.data['data'])) {
+                for (Map<String, dynamic> map in response.data['data']) {
+                  final displayName = getDisplayName(map['displayName'], map['firstName'], map['lastName']);
+                  final emails = (map['emails'] as List<dynamic>? ?? []).map((e) => e['address'].toString()).toList();
+                  final phones = (map['phoneNumbers'] as List<dynamic>? ?? []).map((e) => e['address'].toString()).toList();
+                  networkContacts.add(Contact(
+                    id: (map['id'] ?? (phones.isNotEmpty ? phones : emails)).toString(),
+                    displayName: displayName,
+                    emails: emails,
+                    phones: phones,
+                  ));
+                }
+                return networkContacts;
+              }
+            } catch (e, s) {
+              logger?.call("Failed to fetch server contacts: $e");
+              Logger.error("Failed to fetch server contacts", error: e, trace: s);
+            }
+          }
+          return [];
+        }
         client = CardDavClient(
           principalUrl: Uri.parse('https://contacts.icloud.com/'),
           authHeadersProvider: () async {
@@ -366,24 +391,29 @@ class ContactsService extends GetxService {
         );
       }
 
-      final synced = await client.syncAllAddressBooks();
+      try {
+        final synced = await client.syncAllAddressBooks();
 
-      for (final entry in synced.entries) {
-        final book = entry.key;
-        final changes = entry.value;
+        for (final entry in synced.entries) {
+          final book = entry.key;
+          final changes = entry.value;
 
-        print('AddressBook: ${book.displayName ?? book.url}');
-        print('Changes: ${changes.length}');
-        for (final ch in changes) {
-          if (ch.type == ChangeType.upsert) {
-            if (ch.contact != null) networkContacts.add(ch.contact!);
-            // Parse/store vCard as you like
-            print(
-                '  UPSERT ${ch.href} etag=${ch.etag} vcardLen=${ch.vcard?.length} contact=${ch.contact?.toMap()}');
-          } else {
-            print('  DELETE ${ch.href}');
+          print('AddressBook: ${book.displayName ?? book.url}');
+          print('Changes: ${changes.length}');
+          for (final ch in changes) {
+            if (ch.type == ChangeType.upsert) {
+              if (ch.contact != null) networkContacts.add(ch.contact!);
+              // Parse/store vCard as you like
+              print(
+                  '  UPSERT ${ch.href} etag=${ch.etag} vcardLen=${ch.vcard?.length} contact=${ch.contact?.toMap()}');
+            } else {
+              print('  DELETE ${ch.href}');
+            }
           }
         }
+      } catch (e, s) {
+        logger?.call("CardDAV contact sync failed: $e");
+        Logger.error("CardDAV contact sync failed", error: e, trace: s);
       }
       return networkContacts;
     }

@@ -220,6 +220,7 @@ class Settings {
   final RxMap<String, String?> ctags = <String, String?>{}.obs;
   final RxMap<String, String?> tokens = <String, String?>{}.obs;
   final RxString contactSyncProvider = "iCloud".obs;
+  final RxBool useRustPush = true.obs;
 
   final RxString cardDavServer = "".obs;
   final RxString cardDavUser = "".obs;
@@ -446,6 +447,7 @@ class Settings {
       'attachmentSyncEnabled': attachmentSyncEnabled.value,
       'syncHistoryTime': syncHistoryTime.value,
       'contactSyncProvider': contactSyncProvider.value,
+      'useRustPush': useRustPush.value,
     };
     if (includeAll) {
       map.addAll({
@@ -606,6 +608,7 @@ class Settings {
     ss.settings.cardDavUser.value = map['cardDavUser'] ?? "";
     ss.settings.cardDavPass.value = map['cardDavPass'] ?? "";
     ss.settings.contactSyncProvider.value = map['contactSyncProvider'] ?? "iCloud";
+    ss.settings.useRustPush.value = map['useRustPush'] ?? true;
     // ss.settings.macIsMine.value = map['macIsMine'] ?? true;
     // ss.settings.deviceIsHosted.value = map['deviceIsHosted'] ?? false;
     ss.settings.hostedToken.value = map['hostedToken'];
@@ -783,6 +786,7 @@ class Settings {
     s.cardDavUser.value = map['cardDavUser'] ?? "";
     s.cardDavPass.value = map['cardDavPass'] ?? "";
     s.contactSyncProvider.value = map['contactSyncProvider'] ?? "iCloud";
+    s.useRustPush.value = map['useRustPush'] ?? true;
     s.macIsMine.value = map['macIsMine'] ?? true;
     s.deviceIsHosted.value = map['deviceIsHosted'] ?? false;
     s.hostedToken.value = map['hostedToken'];

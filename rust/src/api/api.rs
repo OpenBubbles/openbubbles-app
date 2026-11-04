@@ -1395,7 +1395,9 @@ pub async fn get_contacts_headers(path: String, state: &ArcAnisetteClient<Defaul
     let mut headers = state.lock().await.get_headers().await?.clone();
     headers.insert("X-Mme-Client-Info".to_string(), config.get_adi_mme_info("com.apple.AuthKit/1 (com.apple.AddressBookSourceSync/2695.500.71)", !headers["X-Mme-Client-Info"].contains("iPhone OS")));
     
-    headers.insert("X-APPLE-FAMILY-AUTH-TOKEN".to_string(), token_provider.get_gsa_token("com.apple.gs.icloud.family.auth").await.expect("no Family auth token?"));
+    if let Some(family_token) = token_provider.get_gsa_token("com.apple.gs.icloud.family.auth").await {
+        headers.insert("X-APPLE-FAMILY-AUTH-TOKEN".to_string(), family_token);
+    }
     let mme_token = token_provider.get_mme_token("mmeAuthToken").await?;
     headers.insert("Authorization".to_string(), format!("X-MobileMe-AuthToken {}", base64_encode(format!("{}:{}", &findmy_state.dsid, mme_token).as_bytes())));
 

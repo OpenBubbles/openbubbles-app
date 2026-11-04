@@ -83,8 +83,10 @@ class ChatsService extends GetxService {
       for (var item in queryList) {
         formattedList.add(await RustPushBBUtils.formatAndAddPrefix(item));
       }
-      var handle = await (backend as RustPushBackend).getDefaultHandle();
-      suggestedHandles.addAll(await pushService.doValidateTargets(formattedList, handle));
+      if (backend is RustPushBackend) {
+        var handle = await (backend as RustPushBackend).getDefaultHandle();
+        suggestedHandles.addAll(await pushService.doValidateTargets(formattedList, handle));
+      }
     }
     List<Handle> results = suggestedHandles.map((s) => RustPushBBUtils.rustHandleToBB(s)).toList();
     this.suggestedHandles.value = results;
